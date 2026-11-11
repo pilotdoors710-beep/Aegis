@@ -1,0 +1,6 @@
+# Replace with your host, e.g. 203-0-113-10.sslip.io (dashed IP + .sslip.io) — Caddy gets a Let's Encrypt cert automatically.
+{$SERVER_HOST} {
+	reverse_proxy server:8000 {
+		flush_interval -1   # do not buffer SSE
+	}
+}

@@ -1,0 +1,17 @@
+services:
+  server:
+    build: ../server
+    restart: unless-stopped
+    env_file: ../server/.env
+    shm_size: "1gb"          # Chromium needs more than the 64MB default /dev/shm
+    expose: ["8000"]
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on: [server]
+volumes:
+  caddy_data:

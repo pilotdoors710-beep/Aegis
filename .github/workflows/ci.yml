@@ -1,0 +1,35 @@
+name: ci
+on:
+  push: { branches: [main] }
+  pull_request:
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: server } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - run: uv run playwright install --with-deps chromium
+      - run: uv run ruff check . && uv run ruff format --check .
+      - run: uv run pytest -q
+  web:
+    runs-on: ubuntu-latest
+    needs: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { package_json_file: web/package.json }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm, cache-dependency-path: web/pnpm-lock.yaml }
+      - uses: astral-sh/setup-uv@v5
+      - name: Install
+        run: pnpm install --frozen-lockfile
+        working-directory: web
+      - name: Generated types must match the server's OpenAPI
+        run: |
+          (cd server && uv sync && uv run python -c "import json; from api.main import app; print(json.dumps(app.openapi()))" > ../openapi.json)
+          cd web && pnpm exec openapi-typescript ../openapi.json -o lib/api-types.ts
+          git diff --exit-code lib/api-types.ts
+      - run: pnpm typecheck && pnpm lint && pnpm build
+        working-directory: web
