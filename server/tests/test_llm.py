@@ -88,3 +88,9 @@ async def test_json_repair_retry_and_bad_output_not_cached() -> None:
     # The invalid first reply must never be cached (it would be replayed forever).
     assert not any("not json" in v.text for v in router.cache._d.values())  # type: ignore[attr-defined]
     assert a.calls == 2
+
+
+async def test_empty_response_falls_through() -> None:
+    a, b = FakeClient([""]), FakeClient(["ok"])
+    r = await _router({"gemini": a, "groq": b}).complete(MSG)
+    assert (r.provider, r.text) == ("groq", "ok")

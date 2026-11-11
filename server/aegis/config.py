@@ -1,12 +1,16 @@
 """Environment-driven settings. Secrets come from env vars only (brief §9 rule 6)."""
 
+from pathlib import Path
 from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# .env lives at the repo root (outside server/). Missing is fine: Docker injects real env vars.
+ROOT_ENV = Path(__file__).resolve().parents[2] / ".env"
+
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=ROOT_ENV, extra="ignore")
 
     # Comma-separated origins allowed to call the API from a browser (the web app).
     cors_origins: str = "http://localhost:3000"

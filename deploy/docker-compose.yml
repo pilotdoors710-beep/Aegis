@@ -2,7 +2,7 @@ services:
   server:
     build: ../server
     restart: unless-stopped
-    env_file: ../server/.env
+    env_file: ../.env
     shm_size: "1gb"          # Chromium needs more than the 64MB default /dev/shm
     expose: ["8000"]
   caddy:

@@ -166,6 +166,9 @@ class LLMRouter:
                 errors.append(f"{provider}: {type(e).__name__}")
                 continue
             text = resp.choices[0].message.content or ""
+            if not text.strip():  # reasoning models can burn max_tokens and return nothing
+                errors.append(f"{provider}: empty response")
+                continue
             result = LLMResult(
                 text, provider, model, False, int((time.perf_counter() - started) * 1000)
             )
@@ -209,7 +212,7 @@ async def _smoke() -> None:
         router = LLMRouter(Settings(agent_models=f"{provider}:{model}"))
         try:
             r = await router.complete(
-                [{"role": "user", "content": "Reply with the single word: pong"}], max_tokens=20
+                [{"role": "user", "content": "Reply with the single word: pong"}], max_tokens=300
             )
             print(f"OK   {provider}:{model} {r.latency_ms}ms -> {r.text.strip()[:40]!r}")
         except Exception as e:  # smoke script: report everything
