@@ -75,6 +75,8 @@ async def test_authorized_plan_permitted_and_kept(arena_url: str) -> None:
     assert asks[0].reason == "final_payment"  # the final approval still happens
     done = events[-1].payload
     assert done.reason == "completed" and done.outcome.total == 1598
+    kinds = [c.kind for c in done.outcome.commitments]
+    assert kinds.count("subscription") == 1 and "item" in kinds  # outcome card shows the plan
 
 
 async def test_budget_conflict_asks_and_nothing_is_bought(arena_url: str) -> None:

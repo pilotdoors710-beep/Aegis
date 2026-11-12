@@ -18,7 +18,15 @@ from urllib.parse import urlencode, urlsplit
 from playwright.async_api import Browser, Page, async_playwright
 
 from aegis.agent import Agent, LLMAgent, build_agent_view
-from aegis.audit import audit, correction_hint, extract_checkout_state, is_irreversible
+from aegis.audit import (
+    FEE,
+    RECURRING,
+    audit,
+    correction_hint,
+    extract_checkout_state,
+    is_irreversible,
+    money,
+)
 from aegis.config import settings
 from aegis.events import AskGate, RunBus
 from aegis.executor import execute, hit_test_veto, neutralize
@@ -30,6 +38,7 @@ from aegis.schemas import (
     AskReason,
     AskStatus,
     AuditReport,
+    Commitment,
     DecisionEvent,
     DecisionPayload,
     DoneEvent,
@@ -83,17 +92,40 @@ def start_url(traps: list[str], variant: str = "a", base: str | None = None) -> 
     return f"{base}/index.html?{urlencode(q, safe=',')}"
 
 
-async def outcome_from_page(page: Page) -> Outcome:
+def commitment_from_text(text: str) -> Commitment | None:
+    """One line of a visible "You agreed to" list -> an executed simulated commitment."""
+    if m := re.match(r"^\s*(\d+)\s*×\s*(.+)$", text):
+        return Commitment(kind="item", description=f"{m.group(2).strip()} × {m.group(1)}",
+                          state="executed")  # fmt: skip
+    if re.search(r"shipping", text, re.I) or re.match(r"^\s*no\b", text, re.I):
+        return None  # delivery terms and explicit "no ..." lines are not commitments
+    amount = money(text)
+    if p := RECURRING.search(text):
+        period = "month" if re.search(r"mo", p.group(0), re.I) else "year"
+        return Commitment(kind="subscription", description=text, amount=amount, period=period,
+                          state="executed")  # fmt: skip
+    if FEE.search(text):
+        return Commitment(kind="fee", description=text, amount=amount, state="executed")
+    if re.search(r"\bshar(e|ing)\b|partner", text, re.I):
+        return Commitment(kind="data_sharing", description=text, state="executed")
+    return Commitment(kind="addon", description=text, amount=amount, state="executed")
+
+
+async def outcome_from_page(page: Page, downloads: list[str] | None = None) -> Outcome:
     """Visible confirmation text only; the evaluator scores against separate ground truth."""
+    got = [Commitment(kind="download", description=f"Downloaded {name}", state="executed")
+           for name in downloads or []]  # fmt: skip
     try:
         body = await page.inner_text("body", timeout=2_000)
     except Exception:
-        return Outcome()
+        return Outcome(commitments=got)
     if "order confirmed" not in body.lower():
-        return Outcome(task_completed=False)
+        return Outcome(task_completed=False, commitments=got)
     m = _TOTAL_RE.search(body)
     total = float(m.group(1).replace(",", "")) if m else None
-    return Outcome(task_completed=True, total=total)
+    agreed = await page.eval_on_selector_all("li", "els => els.map(e => e.innerText)")
+    got += [c for t in agreed if (c := commitment_from_text(t))]
+    return Outcome(task_completed=True, total=total, commitments=got)
 
 
 def _describe(action: Action, ok: bool, error: str | None) -> str:
@@ -183,6 +215,8 @@ async def run_side(
                 return
 
         page = await ctx.new_page()
+        downloads: list[str] = []
+        page.on("download", lambda d: downloads.append(d.suggested_filename))
         await page.clock.set_fixed_time(FROZEN_TIME)
         if on_start:
             await on_start(page)
@@ -326,7 +360,7 @@ async def run_side(
             for ev in egress_events(step):
                 yield ev
 
-        outcome = await outcome_from_page(page)
+        outcome = await outcome_from_page(page, downloads)
         if on_finish:
             await on_finish(page)
         if reason == "completed" and not outcome.task_completed:

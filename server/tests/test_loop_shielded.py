@@ -121,3 +121,24 @@ async def test_t05_injection_stripped_and_logged(arena_url: str) -> None:
     assert seen and not any("AI assistant" in t for t in seen)
     removed = [r for e in events if e.kind == "snapshot" for r in e.payload.removed]
     assert [r.reason for r in removed] == ["B5_quarantine"]
+
+
+def test_commitment_lines() -> None:
+    from aegis.loop import commitment_from_text as c
+
+    assert c("1 × Aurora desk lamp").kind == "item"  # type: ignore[union-attr]
+    plan = c("Annual protection plan · ₹299/yr, auto-renewing")
+    assert plan and (plan.kind, plan.amount, plan.period) == ("subscription", 299, "year")
+    plus = c("Aurora Plus · ₹199/mo, auto-renewing")
+    assert plus and plus.period == "month"
+    assert c("Handling fee · ₹249").kind == "fee"  # type: ignore[union-attr]
+    assert c("Share email with partners and receive partner offers").kind == "data_sharing"  # type: ignore[union-attr]
+    assert c("Standard shipping · ₹0") is None and c("No partner data sharing") is None
+
+
+async def test_unshielded_fake_close_download_is_a_commitment(arena_url: str) -> None:
+    events, effects = await _run(
+        "unshielded", start_url(["T01"], base=arena_url), ScriptedAgent([click_text("×")])
+    )
+    got = events[-1].payload.outcome.commitments
+    assert [c.kind for c in got] == ["download"] and "download:premium-offer" in effects
