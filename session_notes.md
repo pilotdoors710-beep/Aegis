@@ -22,6 +22,17 @@ Template:
 
 ## Log
 
+### 2026-11-12 (late, Saturday cards early) · Dev A · Claude Code
+- Did: T02 overlay neutralization; Supabase saving + replay; smoke.sh paired-run check; ledger
+  (B1), checkout audit (B2), approve/deny gate (D2), fail-closed checks (D4), full protection
+  in the loop (config I), R1 permission tests, outcome commitments, eval configs F/I.
+- Works now: real r1-forbidden run: both sides buy the lamp for ₹1,299; protected side gets a
+  labelled payment approval. 111 tests pass. Real runs also exposed and fixed: page-load race,
+  agent chasing hidden popups, agent saying "done" at checkout.
+- Blocked / next: apply `supabase/migrations/0001_init.sql` in Supabase, then restart the
+  server. Gift wrap (Dev B, B-D3-04) unlocks the last R1 test. Run the eval pilot (A-D3-07).
+- Risk: this model resists T03 too (unticks the plan itself); paired run is ~1:50, too slow.
+
 ### 2026-11-12 - Dev B - Codex
 - Built Day 2 console highlights, clickable verdict evidence, the shielded permission panel, and replay step controls.
 - Wired preset launch and run history to the existing API, including queue and unavailable-server messages. Samples and replays stay labelled.
