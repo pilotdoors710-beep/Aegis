@@ -2,9 +2,57 @@
 
 Source of truth is `project_brief.md` ("the brief"). Where this plan and the brief disagree, the brief wins. Dev A = Claude Code user (`server/`, `eval/`, `deploy/`, `supabase/`). Dev B = Codex user (`web/`, including `web/public/arena/`). All times are IST.
 
+## Research-priority revision — 12 Nov
+
+**Decision:** R2 is the highest-priority optional experiment, ahead of the catalog, charts, and extra cosmetic work. It is not a required shipped feature. Dev B explicitly authorized publishing this plan revision. That authorization does not approve a larger implementation budget, a handoff, or a contract change. The brief's existing 4-hour spike / conservative 2-hour integration limit and no-go fallback still apply until Q12 is explicitly resolved. The numbered sections below remain the baseline schedule except for the optional-work cuts and strengthened research/release checks stated here.
+
+### Target and question
+
+Aim to ship the required live browser shield and, if its gates pass, one evaluated R2 mechanism for a single ambiguous annual-plan control in the synthetic arena. The question is: **does observing both disposable confirmation outcomes improve permission-correct choices and safe task completion over the same intent audit without trials, and at what added latency and action cost?** A positive result is not assumed. No claim of global novelty or arbitrary-website support follows from this study.
+
+The candidate distinction is executing both alternatives in disposable browser copies and comparing observed confirmations. Veer's prospective rollout specifies expected corrective transitions before live execution and verifies them during execution (https://arxiv.org/html/2609.34974v1#A2.SS5). This is a mechanism-level comparison with that description, not a finding that sandbox execution is globally new. Prior-work review must include other execution/lookahead approaches before any stronger research claim. The arena and its receipts are controlled fixtures; results do not establish how an untrusted merchant's backend actually behaves.
+
+### Optional work removed first
+
+- Defer the `/traps` catalog (B-D5-02's former default) beyond submission. If R2 is no-go, its slot goes to required reliability, replay/evidence fixes, or rehearsal; do not automatically refill it with a new feature.
+- Keep stats as a complete counts-and-denominators table; defer optional charts and their dependency work.
+- Keep E11, scanning, vision, head-to-head benchmarking, and the other unscheduled optional features deferred. Do not use early agent finishes to add them while required gates or R2 evidence are unresolved.
+- Preserve required projector readability, all sample/replay/approval labels, the eight required traps and clean twins, R1, the core U/F/I comparison and matched audit ablation, the freeze, and rehearsals. Cosmetic changes beyond those acceptance checks are deferred.
+
+### Allocation and release conditions
+
+| Window | Owner and concrete work | Maximum and dependency |
+|---|---|---|
+| Days 1–3 | A + B: deployed clean task, required defenses, audit/correction/recheck, and final approval; B completes independent web/arena checks | Existing core cards first. R2 implementation starts only after the day-3 gate passes |
+| Day 4 | A: A-D4-03a/b and the spike decision record | Up to 4 h total, including the 15-minute record. Check actual remaining capacity after deferred required work; the current baseline may leave only about 2 h. Do not book a full spike on top of that work |
+| Day 5, conditional | A: typed trial contract, orchestration integration, fallback and integration tests (A-D5-05) | Proposed up to 2 h of A's work, only after spike go and Q12 resolution. Contract acknowledgment and regenerated types before B consumes payloads |
+| Day 5, conditional | B: held-out fixtures (B-D5-06) and minimal two-outcome panel in the existing shielded pane (B-D5-02) | Proposed up to 2.5 h total: 1 h fixtures + 1.5 h panel. Reuses the former catalog slot and the conditional fixture slot; no third permanent pane |
+| Day 6, conditional | A: separately reported I vs I+R2 study (A-D6-05) | Existing 1 h attention allocation, 20 planned runs at N=1, after core final blocks stop. Pilot elapsed runtime as well as attention; do not borrow demo quota or delay submission |
+| Day 7 | A + B: health checks, rehearsal, fixes and submission | No new R2 features |
+
+**Active budget versus proposed route:** the active cap remains 4 h for the Day-4 spike and a conservative 2 combined developer-hours for Day-5 integration/tests. The two proposed Day-5 rows above total **4.5 combined developer-hours**, so they are not an active booking under that cap. Parallel execution does not reduce person-hours. Q12 must explicitly authorize the intended allocation, with a matching brief change if the cap is broadened, before those rows run. Day-6 evaluation requires its own stated attention, elapsed time, and quota. If capacity or approval is absent, publish the spike result and keep R2 disabled; do not remove safety/evaluation checks to squeeze it in.
+
+Before starting the Day-4 spike, Dev A posts the required-work status and actual remaining hours. Coding-agent savings count only after checks and integration pass. If there is insufficient time for reproduction, outcomes, isolation, containment, and cleanup/timeout tests, record no-go. Q13's pending handoffs cannot be assumed to create capacity; record their effect on A's actual load.
+
+### Experiment and acceptance checklist
+
+- Reuse the existing single-control, arena-only spike. Later fixtures cover ordinary, reversed, double-negative, and neutral wording, with two wording/effect combinations held out from defense development. Variant names and evaluator truth never reach the defense as an answer.
+- Include diagnostic tests for forbidden and explicitly requested protection, both branches acceptable, neither branch acceptable, reproduction mismatch, unsupported state, timeout, cancellation, egress containment, and original-session isolation. Synthetic comparison tests are labelled as such and are not counted as held-out browser runs.
+- Trials read visible confirmations only. They produce evidence and a correction hint; the original agent makes any change, Aegis rechecks it, and final approval remains mandatory. Do not treat a disposable purchase as an executed original-session commitment.
+- Compare I with I+R2 using the same pinned model, prompt, ordinary action budget, approval policy, and cache-off setting. Log disposable actions and latency separately. Keep R2 off in the core evaluation and serve its arena from the frozen version.
+- Retain the existing 20-run study, which includes two held-out variants, as an exploratory minimum, not a statistical significance promise. Report previously seen and held-out variants separately. Freeze the R2 fixture revision and protocol before those runs; interleave arms, retain failures/unsupported cases, and do not tune against the holdout. Extra repetitions require a predeclared quota/time allocation before results are inspected.
+- Test wording changes independently of actual control meaning: the same wording can have different effects in different fixtures, and different wording can have the same effect. Both alternatives must be exercised through the browser, including neutral wording. Do not select only cases where the ordinary audit fails or weaken its prompt to create a benefit.
+- Report effect/choice identification, safe completion, unauthorized commitments, uncertainty/unsupported coverage, human escalations, incremental latency/actions, and isolation failures with counts and denominators. Distinguish a legitimate final approval from uncertainty assistance.
+- Before inspecting held-out results, publish the primary metric, case manifest, and acceptable incremental latency/action budget. Report all paired outcomes, not only wins. Call the mechanism effective only to the extent those measurements support it; an N=1 study cannot establish statistical significance or broad generalization.
+- Enable R2 in the main demo only after the spike tests, integration/fallback tests, held-out study, evidence panel, and required live-product checks pass and both developers acknowledge release. The study must support a useful benefit within the predeclared operational budget; inconclusive, harmful, or over-budget results stay out of the main demo and are published as experimental. A spike pass alone is not a shipped feature, and a successful animation is not effectiveness evidence.
+
+### Implementation coordination
+
+Dev B explicitly requested committing and pushing this planning revision; that instruction authorizes its publication. Dev A must still coordinate the implementation schedule, resolve Q12 with Dev B, and confirm actual capacity without assuming Q13. The C8 contract acknowledgment and release checks still apply when implementation begins. No server or arena behavior changes as part of this planning edit. Stronger claims, mandatory R2 delivery, and an award outcome are not promised.
+
 ## 1. Summary
 
-The critical path is: contract PR (schemas, typed SSE payloads, REST routes, sample stream) → clean arena flow → unshielded agent loop → snapshot and detectors → verdict engine → ledger and pre-commit audit with recovery → R1 permission pairs → evaluation harness → eval freeze → final runs → README and submission. The console (E2) runs beside it on a contract-valid sample stream and switches to live events on day 2, so neither developer waits for the other to finish a feature. There are four coordination points, each frozen by a merged PR before dependent work starts: the Pydantic contract (day 1 morning), the arena DOM and query-param contract (day 1 midday), the live run API (day 2 midday), and the eval freeze (Mon 16 Nov 11:00). Dev A's days 1–3 carry almost no slack beyond the 15% buffer; Dev B builds T07/T08 on day 2 instead of day 4, does all gate verification, and takes two pre-agreed handoffs (the metrics script and the root README). The largest risk is free-tier LLM quota: the brief's 180-run target plus the matched ablation is about 2,000 LLM calls on one pinned model, and the live demo needs its own reserve, so final runs stop at Tue 13:30 and N is set from quota measured on Thursday. The second is deployment: the Oracle ARM VM and the Vercel project are not verified to exist, and nothing has run remotely. The third is Dev A overload on days 1–3: second-session (∥) cards are now counted at their full estimate, which puts Friday and Saturday over capacity, so named core pieces are deferred to Sunday up front (§5) and the R2 spike gets only the Sunday time left after them. The handoffs in Q13 would relieve Dev A further but are pending, not approved. R2 is a 4-hour spike on Sunday that never blocks the required submission; under the conservative reading of the brief's timebox it ends as a documented result and stays disabled unless the humans decide otherwise (Q12). The repetition count N is decided from Thursday's measured quota and declared before the first final run.
+The critical path is: contract PR (schemas, typed SSE payloads, REST routes, sample stream) → clean arena flow → unshielded agent loop → snapshot and detectors → verdict engine → ledger and pre-commit audit with recovery → R1 permission pairs → evaluation harness → eval freeze → final runs → README and submission. The console (E2) runs beside it on a contract-valid sample stream and switches to live events on day 2, so neither developer waits for the other to finish a feature. There are four coordination points, each frozen by a merged PR before dependent work starts: the Pydantic contract (day 1 morning), the arena DOM and query-param contract (day 1 midday), the live run API (day 2 midday), and the eval freeze (Mon 16 Nov 11:00). Dev A's days 1–3 carry almost no slack beyond the 15% buffer; Dev B builds T07/T08 on day 2 instead of day 4, does all gate verification, and may take the two proposed handoffs (the metrics script and the root README) only if Q13 is approved. The largest risk is free-tier LLM quota: the brief's 180-run target plus the matched ablation is about 2,000 LLM calls on one pinned model, and the live demo needs its own reserve, so final runs stop at Tue 13:30 and N is set from quota measured on Thursday. The second is deployment: the Oracle ARM VM and the Vercel project are not verified to exist, and nothing has run remotely. The third is Dev A overload on days 1–3: second-session (∥) cards are now counted at their full estimate, which puts Friday and Saturday over capacity, so named core pieces are deferred to Sunday up front (§5) and the R2 spike gets only the Sunday time left after them. The handoffs in Q13 would relieve Dev A further but are pending, not approved. R2 is the highest-priority optional experiment, ahead of the deferred catalog, charts and extra cosmetics. Its Sunday spike remains capped at 4 hours and never blocks the required submission. Integration depends on explicitly resolving Q12 and actual capacity; main-demo release additionally requires safety tests, a separately reported study supporting useful benefit within its predeclared operational budget, and developer release acknowledgment. The research-priority revision above governs these decisions. The repetition count N is decided from Thursday's measured quota and declared before the first final run.
 
 ## 2. Current state audit (Wed 11 Nov, commit `09dd465`)
 
@@ -306,7 +354,7 @@ Dev A starts at 09:00 on Monday (one evening hour moved earlier) so the freeze P
 
 - **Brief gate:** the full paired demo completes in under 90 s and is readable at 1280×720; features and the evaluation case manifest are frozen by end of day (this plan freezes the eval-relevant parts at 11:00 so final runs can start; see §9). After the freeze, demo-timing work may change only non-frozen settings: provider order, JPEG quality, the demo preset's step cap.
 - **Who checks, how:** Dev B times three consecutive paired runs of the main preset on the deployed console with a stopwatch at a 1280×720 window (each under 90 s, no horizontal scroll, no layout shift) and posts the three times. Dev A confirms `git tag -l eval-freeze` exists and `eval/README.md` states the declared N tier. `deploy/smoke.sh` green from a phone hotspot.
-- **If the gate fails:** over 90 s → apply A-D5-01's fallbacks in order (lower `MAX_STEPS`, switch the demo chain to the fastest measured provider, use a labelled replay for the second demo segment). E11 and the traps catalog page are cut.
+- **If the gate fails:** over 90 s → apply A-D5-01's fallbacks in order (lower `MAX_STEPS`, switch the demo chain to the fastest measured provider, use a labelled replay for the second demo segment). E11 and the catalog remain deferred; unshipped R2 work stops before it consumes core fixes, final evaluation, or rehearsal time.
 
 ### Tue 17 Nov — final runs, analysis, README, recording, rehearsal
 
@@ -1229,10 +1277,10 @@ Done when:
 - The block is running from 11:00 and the first ten rows of eval/results/final/runs.jsonl show cached=false, the pinned model and the frozen PROMPT_VERSION.
 ```
 
-#### A-D5-05 · R2 integration (conditional: A-D4-04 recorded "go" and Q12 was answered "the 2-hour cap is Dev A's")
+#### A-D5-05 · R2 integration (conditional: spike go and explicitly approved Q12 allocation)
 `Owner A · Claude Code · ≤ 2.0 h · depends: A-D4-04 go, Q12 · blocks: B-D5-02 (R2 panel), B-D5-06, A-D6-05`
 
-Assumption stated here because it changes the card: by default (Q12) the brief's Monday cap of 2 hours counts both developers' R2 time. Integration, held-out fixtures, a panel and a study cannot fit in 2 person-hours, so by default this card does not run and R2 ends as a documented spike. It runs only if the humans decide the cap applies to Dev A's integration work alone.
+The active conservative interpretation of Q12 counts both developers' Day-5 integration/tests against 2 combined hours. The proposed route (A: 2 h integration/tests; B: 1 h fixtures + 1.5 h panel) needs 4.5 combined hours and is not authorized by this planning publication. This card runs only after the allocation is explicitly approved, any necessary brief amendment is made, and actual capacity is confirmed. Otherwise R2 ends as a documented spike. Day-6 evaluation has its own attention, elapsed-time and quota allocation; it is not hidden inside Day-5 integration.
 
 ```text
 Implement R2 integration behind r2_enabled. This starts with a contract PR (C8). Stop after two hours.
@@ -1245,7 +1293,7 @@ Constraints:
 - Report trial time and actions separately from fast-detector latency. r2_enabled stays false in the core U/F/I evaluation.
 Done when:
 - cd server && uv run pytest -q tests/test_trials.py tests/test_r2_loop.py passes, including unavailable -> ask and original-session unchanged.
-- Types clean. r2_enabled stays false on the deployed server until A-D6-05 has run. If the two hours end first, record the result in eval/README.md and tell Dev B to build the traps catalog instead.
+- Types clean. r2_enabled stays false on the deployed server until A-D6-05 has run and the research-priority release checks pass. If the two hours end first, record the result in eval/README.md; Dev B uses the released slot for required fixes or rehearsal, not the deferred catalog.
 ```
 
 #### A-D5-02 · Cache modes and Postgres-backed cache
@@ -1306,20 +1354,20 @@ Done when:
 - On the deployed site: after r1-forbidden finishes, one click starts r1-authorized; the comparison shows "no plan" against "plan permitted and purchased" with both ledgers; the stored-run path shows the REPLAY label.
 ```
 
-#### B-D5-02 · Traps catalog (default) or R2 panel (only if A-D5-05 runs)
+#### B-D5-02 · R2 evidence panel (conditional); otherwise core fixes/rehearsal
 `Owner B · Codex · 1.5 h · depends: B-D5-01; for the R2 panel, A-D5-05's contract PR merged · blocks: —`
 
 ```text
-Goal (default): a /traps catalog page lists each trap with its description, a screenshot and the detector that catches it.
+Goal (default): use this slot for required reliability/evidence fixes or rehearsal. The /traps catalog is deferred beyond submission.
 Goal (only if Dev A confirms A-D5-05 is running): inside the shielded pane, a "Testing disposable copies" panel shows both control states and their observed outcomes.
 Context: project_brief.md §8 (R2 bullet), §6 Should "UI"; DEV_PLAN.md §4 C8.
 Constraints:
 - R2 panel: no third browser pane. Label trial screenshots and confirmations "Disposable copy — simulated". Show unavailable and timeout states honestly. Build from the typed trial payloads only.
-- Unless the R2 panel is built, nothing in the UI may mention disposable trials as a feature.
+- Unless the R2 panel and research-priority release checks pass, nothing in the UI may present disposable trials as a shipped feature.
 - This card is cut first if the day-5 gate is at risk.
 Done when:
 - Checks pass.
-- Default: /traps lists T01–T08 and grep -ri "disposable" web/app prints nothing. R2 panel: the sample stream's trial events render both branches and an unavailable example.
+- Default: required fixes are verified or rehearsal timings recorded; no catalog is added. R2 panel: the typed sample trial events render both branches and an unavailable example, clearly labelled as sample evidence. Real held-out outcomes are required separately before shipping.
 ```
 
 #### B-D5-04 · Stats panel on real results
@@ -1421,11 +1469,12 @@ Goal: measured evidence on held-out ambiguous controls, which brief §11 require
 Context: brief §12 (the R2 paragraph and "R2 if shipped" metrics); DEV_PLAN.md §9.
 Constraints:
 - Cases: the plan-control variants from B-D5-06, including the two held-out ones, under the forbidden and the authorized ledger. Configurations I and I+R2, same model and settings, N = 1, cache off.
+- Before the study, publish the primary metric, acceptable added latency/action budget, fixture commit, and paired run order. Keep model, prompt, approval policy and ordinary action budget fixed; interleave arms and log disposable work separately. Report previously seen and held-out variants separately and retain every failed, unsupported or uncertain attempt.
 - Run only on a provider or key that is not the demo's, or only if the demo reserve of 300 calls is untouched, because the demo comes first.
 - Report correct effect identification, safe completion, unsupported or uncertain cases (kept in the denominators), original-session isolation failures, and trial time and actions separately.
 Done when:
 - eval/results/r2/ holds runs.jsonl and summary.csv, and eval/README.md "R2 outcome" states the result, positive or negative.
-- Only then may r2_enabled be set true on the deployed server, and only if both developers agree in the chat. Otherwise R2 stays disabled and is labelled "experimental: spike passed, not shipped".
+- Main-demo release also requires all research-priority acceptance checks, evidence of useful benefit within the predeclared operational budget, and both developers' agreement in chat. Inconclusive, harmful or over-budget results stay experimental and out of the main demo; publish them without tuning against the holdout. Otherwise R2 stays disabled and is labelled "experimental: spike passed, not shipped".
 ```
 
 #### A-D6-04 · Release deploy
@@ -1642,7 +1691,7 @@ The honest expectation is that Tier 1 fits only if the pinned model allows well 
 | 6 | Flaky Playwright timing (animations, clocks, late DOM changes) | M | M | A test passes locally and fails in CI, or passes 4 of 5 times | `page.clock` frozen; arena reads time only from `Date`; loop tests use ScriptedAgent; pre-execution re-hit-test; a flaky test is fixed or quarantined the same day, never retried silently | A |
 | 7 | Baseline too strong: fewer than 4 of 6 traps affect the unshielded agent | M | H | Thursday pilot table | Model chosen on clean-task criteria before any trap result is seen (A-D1-07); never re-chosen, and the prompt never weakened, in response to trap results; report as measured; raise §11 "divergence on at least 6 traps" with both humans on Friday morning (Q6) | A |
 | 8 | Baseline too weak: the agent cannot finish the clean task | M | H | Thursday clean run fails or needs more than 15 steps | Keep the clean path to five actions; improve the shared prompt for both modes; choose a stronger model in the chain | A |
-| 9 | R2 spike fails its gate | M | L | Any of the five gate tests red at the 4-hour mark | Keep `r2_enabled` false, record the negative result, build the traps catalog instead of the R2 panel, no R2 claim in the pitch | A |
+| 9 | R2 spike fails its gate | M | L | Any of the five gate tests red at the 4-hour mark | Keep `r2_enabled` false, record the negative result, use the panel slot for required fixes/rehearsal, no shipped R2 claim in the pitch | A |
 | 10 | Paired demo takes more than 90 s | M | H | smoke.sh duration above 75 s from day 2 | Duration tracked daily; A-D5-01 fix order; labelled stored run for the permission-change segment | A |
 | 11 | One developer unavailable for a day | L | H | No start-of-day post by 11:00 | Cards are paste-ready for either tool; explicit handoff post (§8); cut the day's optional cards first | A + B |
 | 12 | Vercel blocks or throttles the headless browser fetching the arena | L | H | Arena requests from the VM return a challenge page or 403/429 | Caddy serves `web/public/arena` from the cloned repo on the VM and `ARENA_BASE_URL` points there; ready as a 30-minute change in `deploy/` | A |
@@ -1665,13 +1714,13 @@ Cuts are taken in this order. Nothing on this list is a brief Must; cutting a Mu
 |---|---|---|---|
 | 0 | Stretch items (A6, A8, C4, E6, E9, E10) and E8, E5, A7, C2, D3, E7, T09, T10 | Now: not scheduled | None on the submission |
 | 1 | E11 judge challenge panel | Now: not scheduled; reconsidered only if Monday's gate passes by 16:00 | Presets grid only |
-| 2 | Traps catalog page (B-D5-02 default) | Mon 16:00 if the day-5 gate is at risk | No `/traps` page |
-| 3 | R2 integration, fixtures, panel and study (A-D5-05, B-D5-06, A-D6-05) | Cut by default (Q12); otherwise Sun 21:00 on no-go, Mon when the 2 hours end, or Tue 13:30 if no quota is left for the study | R2 documented as a spike result only; `r2_enabled` stays false |
+| 2 | Traps catalog page and optional stats charts | Now: deferred beyond submission to prioritize R2 evidence and required reliability | No `/traps` page; complete counts table retained |
+| 3 | R2 integration, fixtures, panel and study (A-D5-05, B-D5-06, A-D6-05) | Highest-priority optional route after core gates, but inactive until Q12/capacity permit it; cut on spike no-go, integration timebox expiry, missing study quota, or failed research-priority release checks | Publish the experiment/spike result honestly; `r2_enabled` stays false when not released |
 | 4 | R2 spike | Sat 21:00 if the day-3 gate failed | 4 hours return to the core |
 | 5 | B3 hidden-info expander | Sun, unless T04 evidence needs it | T04 handled by the total and sum checks |
 | 6 | Postgres-backed decision cache (keep the in-memory cache, warmed after deploy) | Mon 16:00 | Fallback cache lost on restart |
 | 7 | Screenshot upload to Storage (replay shows events without images) | Deferred to Mon by default (§5 Fri); cut Mon 16:00 if not done | Weaker replay; evidence text remains |
-| 8 | Stats chart (table only) | Sun EOD | None on content |
+| 8 | Stats chart (table only) | Now: deferred by the research-priority revision | None on required content |
 | 9 | Second live run in the demo (use the labelled stored run) | Mon 21:00 rehearsal | Stage risk reduced |
 | 10 | Wording variant `c` (keep `a` and `b`) | Sun EOD | Fewer variants, stated in the README |
 | 11 | Eval tier down (Tier 1 → 2 → 3 → 4) | Provisional Thu 21:00; declared Mon 11:00; contingency Tue 13:30 | Smaller N, stated as a limitation |
