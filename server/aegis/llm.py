@@ -160,7 +160,7 @@ class LLMRouter:
         *,
         json_mode: bool = False,
         use_cache: bool = True,
-        max_tokens: int = 600,
+        max_tokens: int = 1500,  # gpt-oss-20b reasoning overran 600 before emitting JSON
         validator: Callable[[str], object] | None = None,
     ) -> LLMResult:
         if not self.chain:
