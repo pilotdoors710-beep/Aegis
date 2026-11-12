@@ -1,0 +1,10 @@
+{
+  "model": "gemini:gemini-3.5-flash-lite",
+  "prompt_version": "2bf9824b",
+  "seed": 0,
+  "n": 1,
+  "cache": "off",
+  "arena": "http://127.0.0.1:42387/arena",
+  "max_steps": 15,
+  "finished": "2026-11-12T09:39:15.120267+00:00"
+}

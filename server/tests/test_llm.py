@@ -70,8 +70,15 @@ async def test_use_cache_false_always_calls_provider() -> None:
     assert not r.cached and r.text == "two"
 
 
-async def test_all_fail_raises_with_reasons() -> None:
-    router = _router({"gemini": FakeClient([_rate_limit()]), "groq": FakeClient([_rate_limit()])})
+async def test_all_fail_raises_with_reasons(monkeypatch: pytest.MonkeyPatch) -> None:
+    import aegis.llm as llm
+
+    async def no_sleep(_: float) -> None:
+        pass
+
+    monkeypatch.setattr(llm.asyncio, "sleep", no_sleep)
+    last = FakeClient([_rate_limit()] * (llm.LAST_PROVIDER_429_RETRIES + 1))
+    router = _router({"gemini": FakeClient([_rate_limit()]), "groq": last})
     with pytest.raises(AllProvidersFailed, match="RateLimitError"):
         await router.complete(MSG)
 
@@ -94,3 +101,51 @@ async def test_empty_response_falls_through() -> None:
     a, b = FakeClient([""]), FakeClient(["ok"])
     r = await _router({"gemini": a, "groq": b}).complete(MSG)
     assert (r.provider, r.text) == ("groq", "ok")
+
+
+async def test_last_provider_waits_instead_of_failing() -> None:
+    """A pinned single-model chain waits for its rate bucket instead of failing."""
+    from aegis.llm import _Bucket
+
+    b = _Bucket(rpm=600)  # 0.1 s spacing
+    assert await b.acquire()
+    b._next += 20  # pretend the next slot is 20 s away
+    assert not await b.acquire()  # a non-last provider gives up
+    b._next -= 19.8
+    assert await b.acquire(None)  # the last provider waits (~0.2 s)
+
+
+async def test_last_provider_retries_after_429(monkeypatch: pytest.MonkeyPatch) -> None:
+    import aegis.llm as llm
+
+    async def no_sleep(_: float) -> None:
+        pass
+
+    monkeypatch.setattr(llm.asyncio, "sleep", no_sleep)
+    only = FakeClient([_rate_limit(), _rate_limit(), "ok"])
+    res = await _router({"groq": only}, chain="groq:m2").complete(MSG, use_cache=False)
+    assert res.text == "ok" and only.calls == 3
+
+
+async def test_groq_json_validate_failed_goes_to_repair() -> None:
+    req = httpx.Request("POST", "https://x")
+    bad = openai.BadRequestError(
+        "400",
+        response=httpx.Response(400, request=req),
+        body={"error": {"code": "json_validate_failed", "failed_generation": "{n: 1"}},
+    )
+    c = FakeClient([bad, '{"n": 2}'])
+    out, _ = await _router({"groq": c}, chain="groq:m2").complete_json(MSG, Out, use_cache=False)
+    assert out.n == 2 and c.calls == 2
+
+
+async def test_json_validate_failed_with_empty_generation() -> None:
+    req = httpx.Request("POST", "https://x")
+    bad = openai.BadRequestError(
+        "400",
+        response=httpx.Response(400, request=req),
+        body={"code": "json_validate_failed", "failed_generation": ""},
+    )
+    c = FakeClient([bad, '{"n": 3}'])
+    out, _ = await _router({"groq": c}, chain="groq:m2").complete_json(MSG, Out, use_cache=False)
+    assert out.n == 3

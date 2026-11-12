@@ -118,10 +118,11 @@ async def run_side(
             view = build_agent_view(snap)
             try:
                 action, res = await agent.decide(view, task, history)
-            except (AllProvidersFailed, ValueError) as e:
+            except Exception as e:  # provider down, unparseable output, ...: end this side cleanly
+                code = "provider_failed" if isinstance(e, AllProvidersFailed) else "agent_failed"
+                msg = f"{type(e).__name__}: {str(e)[:300]}"
                 yield ErrorEvent(
-                    **env(step),
-                    payload=ErrorPayload(code="agent_failed", message=str(e), recoverable=False),
+                    **env(step), payload=ErrorPayload(code=code, message=msg, recoverable=False)
                 )
                 reason = "error"
                 break

@@ -34,6 +34,28 @@ RETRYABLE = (
     openai.InternalServerError,
 )
 MAX_BUCKET_WAIT_S = 8.0
+# The last provider has nothing to fall through to, so it waits out a 429 (TPM windows are 60 s).
+LAST_PROVIDER_429_RETRIES = 3
+MAX_RETRY_AFTER_S = 65.0
+
+
+def _failed_generation(err: openai.BadRequestError) -> str | None:
+    """Groq JSON mode: 400 json_validate_failed. Returns the bad output (or a placeholder)."""
+    body = err.body if isinstance(err.body, dict) else {}
+    if isinstance(body.get("error"), dict):
+        body = body["error"]
+    if body.get("code") != "json_validate_failed":
+        return None
+    text = body.get("failed_generation")
+    return text if isinstance(text, str) and text.strip() else "(output was not valid JSON)"
+
+
+def _retry_after(err: openai.RateLimitError) -> float:
+    try:
+        return min(float(err.response.headers.get("retry-after", "15")), MAX_RETRY_AFTER_S)
+    except (ValueError, AttributeError):
+        return 15.0
+
 
 T = TypeVar("T", bound=BaseModel)
 Messages = list[dict[str, str]]
@@ -78,11 +100,12 @@ class _Bucket:
         self._next = 0.0
         self._lock = asyncio.Lock()
 
-    async def acquire(self) -> bool:
+    async def acquire(self, max_wait: float | None = MAX_BUCKET_WAIT_S) -> bool:
+        """max_wait=None waits as long as needed (last provider: nothing to fall through to)."""
         async with self._lock:
             now = time.monotonic()
             wait = max(0.0, self._next - now)
-            if wait > MAX_BUCKET_WAIT_S:
+            if max_wait is not None and wait > max_wait:
                 return False
             self._next = max(now, self._next) + self.interval
         if wait:
@@ -141,7 +164,8 @@ class LLMRouter:
         if not self.chain:
             raise AllProvidersFailed("AGENT_MODELS is empty")
         errors: list[str] = []
-        for provider, model in self.chain:
+        for i, (provider, model) in enumerate(self.chain):
+            last = i == len(self.chain) - 1
             key = cache_key(f"{provider}:{model}:{json_mode}", messages)
             if use_cache and (hit := await self.cache.get(key)):
                 return LLMResult(hit.text, hit.provider, hit.model, True, 0)
@@ -150,20 +174,38 @@ class LLMRouter:
             except AllProvidersFailed as e:
                 errors.append(str(e))
                 continue
-            if not await self._buckets[provider].acquire():
+            if not await self._buckets[provider].acquire(None if last else MAX_BUCKET_WAIT_S):
                 errors.append(f"{provider}: local rate bucket empty")
                 continue
             started = time.perf_counter()
-            try:
-                resp = await client.chat.completions.create(
-                    model=model,
-                    messages=messages,  # type: ignore[arg-type]
-                    max_tokens=max_tokens,
-                    temperature=0,
-                    response_format={"type": "json_object"} if json_mode else openai.omit,
-                )
-            except RETRYABLE as e:
-                errors.append(f"{provider}: {type(e).__name__}")
+            resp = None
+            for attempt in range(LAST_PROVIDER_429_RETRIES + 1):
+                try:
+                    resp = await client.chat.completions.create(
+                        model=model,
+                        messages=messages,  # type: ignore[arg-type]
+                        max_tokens=max_tokens,
+                        temperature=0,
+                        response_format={"type": "json_object"} if json_mode else openai.omit,
+                    )
+                    break
+                except openai.RateLimitError as e:
+                    if not last or attempt == LAST_PROVIDER_429_RETRIES:
+                        errors.append(f"{provider}: RateLimitError")
+                        break
+                    await asyncio.sleep(_retry_after(e))
+                except RETRYABLE as e:
+                    errors.append(f"{provider}: {type(e).__name__}")
+                    break
+                except openai.BadRequestError as e:
+                    # Groq rejects JSON-mode output that isn't valid JSON (400 json_validate_failed)
+                    # and returns it as failed_generation: hand it to the caller's repair path.
+                    failed = _failed_generation(e) if json_mode else None
+                    if failed is None:
+                        raise
+                    ms = int((time.perf_counter() - started) * 1000)
+                    return LLMResult(failed, provider, model, False, ms)
+            if resp is None:
                 continue
             text = resp.choices[0].message.content or ""
             if not text.strip():  # reasoning models can burn max_tokens and return nothing
