@@ -26,7 +26,7 @@ Template:
 - Built Day 2 console highlights, clickable verdict evidence, the shielded permission panel, and replay step controls.
 - Wired preset launch and run history to the existing API, including queue and unavailable-server messages. Samples and replays stay labelled.
 - Added T07 faint instructions and T08 trick consent with clean twins. T08 checked shares data; clearing it stops sharing. Handoff details are in `web/README.md`.
-- Checks passed: frontend types, lint, build, seven stream/verifier tests, and Chrome checks of the arena, replay, highlights, and mocked live launch at 1280x720.
+- Checks passed: frontend types, lint, build, seven stream/verifier tests, and Chrome checks of the arena, replay, highlights, and mocked live launch at 1280x720. Vercel replay navigation and T08 deployment were verified after push; real stored-run replay also passed.
 - Synced Dev A's new backend and displayed overlay-neutralization evidence. Real run `7512266a1d89` launched from the local production console and streamed both sides to completion, but both aborted without a purchase.
 - Blocked: saved product/checkout snapshots had only four elements and an empty shop before deferred JavaScript ran. Dev A should wait for navigation and page readiness before snapshotting (executor/snapshot ownership). The successful paired-purchase gate remains open; Dev A also owns T07/T08 detector tests.
 
