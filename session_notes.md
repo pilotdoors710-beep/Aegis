@@ -22,6 +22,12 @@ Template:
 
 ## Log
 
+### 2026-11-12 · Dev A · Claude Code
+- Did: fixed `SUPABASE_URL` in `.env` (it had `/rest/v1/` on the end, so screenshot uploads got 404).
+- Did: the approval popup now closes as soon as the server accepts Approve/Deny (`web/app/(console)/approval-dialog.tsx`); before, it could stay open until a reload.
+- Works now: live run → approve → popup closes → run finishes (tested locally and on Vercel through the tunnel).
+- Next: the popup text shows code names (`items[0].max_price`, `e36`); make it plain English with a one-line "everything matches" summary.
+
 ### 2026-11-12 - Dev B - Codex - approval and evidence integration
 - Pulled Dev A's audit, recovery, R1 tests and page-load fixes. Built the approval dialog, audit evidence chains, and outcome comparison grouped by proposed/approved/executed commitments.
 - Added the existing-contract Gift wrap option: INR 49 once, clean total INR 1,348, persisted selection and visible receipt. The backend's benign-option test now runs and passes.
