@@ -1,3 +1,9 @@
+> **Host used (12 Nov 2026):** Oracle A1 had no capacity and Hugging Face Docker Spaces need PRO.
+> The backend currently runs on Dev A's PC behind Tailscale Funnel at
+> `https://tequila-sunset.tailaa5d70.ts.net` (proxies to `localhost:8000`, streams SSE).
+> A Cloudflare quick tunnel was rejected because it buffers SSE. A cloud VM is still wanted for
+> submission; `deploy/smoke.sh` must pass against whichever host is used.
+
 # Oracle Always Free: server setup
 
 1. Create an Ampere A1 VM (Ubuntu 24.04, up to 2 OCPU / 12 GB). In the VCN security list, open ingress TCP 80 and 443.

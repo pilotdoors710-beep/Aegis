@@ -34,7 +34,7 @@ body=$(curl -s -m 60 "$SERVER/healthz/arena")
 arena=$(echo "$body" | json 'd["title"]+" <- "+d["url"]') || fail "/healthz/arena: $body"
 pass "/healthz/arena: $arena"
 
-first=$(curl -sN -m 5 "$SERVER/runs/sample/stream" 2>/dev/null | grep -m1 '^event:') || true
+first=$(curl -sN -m 5 "$SERVER/runs/sample/stream" 2>/dev/null | tr -d '\r' | grep -m1 '^event:') || true
 [ "$first" = "event: run" ] || fail "sample stream: no 'event: run' frame within 5 s (got '$first')"
 pass "SSE /runs/sample/stream first frame within 5 s"
 
