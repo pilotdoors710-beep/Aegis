@@ -91,9 +91,16 @@ async def healthz_browser() -> dict[str, object]:
     }
 
 
+_llm_health: tuple[float, HealthLLM] | None = None
+LLM_HEALTH_TTL_S = 60.0  # public endpoint: never spend more than one LLM call a minute on it
+
+
 @app.get("/healthz/llm")
 async def healthz_llm() -> HealthLLM:
     """One minimal completion through the router; names the provider that answered."""
+    global _llm_health
+    if _llm_health and time.monotonic() - _llm_health[0] < LLM_HEALTH_TTL_S:
+        return _llm_health[1]
     try:
         r = await LLMRouter().complete(
             [{"role": "user", "content": "Reply with the single word: pong"}],
@@ -102,7 +109,9 @@ async def healthz_llm() -> HealthLLM:
         )
     except Exception as e:  # health check: report, don't crash
         raise HTTPException(status_code=503, detail=f"{type(e).__name__}: {e}") from e
-    return HealthLLM(provider=r.provider, model=r.model, latency_ms=r.latency_ms)
+    _llm_health = (time.monotonic(), HealthLLM(provider=r.provider, model=r.model,
+                                               latency_ms=r.latency_ms))  # fmt: skip
+    return _llm_health[1]
 
 
 @app.get("/healthz/arena")
