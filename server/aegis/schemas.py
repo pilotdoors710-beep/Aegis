@@ -154,6 +154,7 @@ class ShippingObservation(BaseModel):
 
 class CheckoutState(BaseModel):
     lines: list[CheckoutLine] = []
+    fees: list[CheckoutLine] = []  # charges that are not items (e.g. a handling fee)
     ticked_options: list[TickedOption] = []
     total: float | None = None
     recurring_terms: list[RecurringTerm] = []

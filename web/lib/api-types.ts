@@ -336,6 +336,11 @@ export interface components {
              */
             lines: components["schemas"]["CheckoutLine"][];
             /**
+             * Fees
+             * @default []
+             */
+            fees: components["schemas"]["CheckoutLine"][];
+            /**
              * Ticked Options
              * @default []
              */
