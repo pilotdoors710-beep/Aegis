@@ -25,7 +25,7 @@ Template:
 ### 2026-11-12 - Dev B - Codex - approval and evidence integration
 - Pulled Dev A's audit, recovery, R1 tests and page-load fixes. Built the approval dialog, audit evidence chains, and outcome comparison grouped by proposed/approved/executed commitments.
 - Added the existing-contract Gift wrap option: INR 49 once, clean total INR 1,348, persisted selection and visible receipt. The backend's benign-option test now runs and passes.
-- Checks: types, lint, production build, 12 frontend tests, Chrome approval/error/timeout/sample/replay tests, and all 111 backend tests on local Chrome. Backend tests used Python 3.13 and installed packages, not uv's locked environment.
+- Checks: types, lint, production build, 12 frontend tests, Chrome approval/error/timeout/sample/replay tests, and all 111 backend tests on local Chrome. Backend tests used Python 3.13 and installed packages, not uv's locked environment. Production gift wrap, read-only sample approval, evidence, outcomes and replay also passed. Outcome cards wait for both sides to finish to keep the live panes in place.
 - Live run `f46b652a4bbc`: shielded bought the lamp for INR 1,299; unshielded aborted. The deployed server sent no ledger, asks or commitments, so this does not verify the full audit/approval flow. No retry was hidden.
 - Next: Dev A must restart the backend at current main. Then verify real ledger, correction/recheck, approve/deny and both final outcomes through the production console; the successful full paired-run gate is still open.
 
