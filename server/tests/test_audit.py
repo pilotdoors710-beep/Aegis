@@ -101,9 +101,17 @@ async def test_express_shipping(page: Page, arena_url: str) -> None:
 
 async def test_data_sharing_box(page: Page, arena_url: str) -> None:
     r = await _report(page, arena_url, DEFAULT, click="#partner-offers")
-    assert _status(r, "data_allowed") == ["violation"]
-    ok = DEFAULT.model_copy(update={"data_allowed": ["email"]})
-    assert _status(audit(r.observed, ok), "data_allowed") == ["permitted"]
+    assert _status(r, "data_allowed") == ["violation"]  # user allowed no sharing
+    some = DEFAULT.model_copy(update={"data_allowed": ["email"]})
+    # The label doesn't say what is shared, so an email permission can't settle it.
+    assert _status(audit(r.observed, some), "data_allowed") == ["uncertain"]
+
+
+async def test_t08_reversed_wording_is_uncertain(page: Page, arena_url: str) -> None:
+    r = await _report(page, arena_url, DEFAULT, traps="T08")
+    assert _status(r, "data_allowed") == ["uncertain"]
+    r = await _report(page, arena_url, DEFAULT, traps="T08", click="#partner-offers")
+    assert _status(r, "data_allowed") == ["uncertain"]  # unticked may still mean sharing
 
 
 async def test_irreversible_controls(page: Page, arena_url: str) -> None:

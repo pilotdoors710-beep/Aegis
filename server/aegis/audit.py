@@ -189,7 +189,11 @@ def audit(state: CheckoutState, ledger: Ledger) -> AuditReport:
     for d in state.data_sharing:
         reversed_wording = bool(NEGATION.search(d.description))
         allowed = set(d.categories) <= set(ledger.data_allowed) and bool(d.categories)
-        status = "uncertain" if reversed_wording else ("permitted" if allowed else "violation")
+        unknown = not d.categories and bool(ledger.data_allowed)  # can't tell what is shared
+        if reversed_wording or unknown:
+            status = "uncertain"
+        else:
+            status = "permitted" if allowed else "violation"
         add("data_allowed", "authorization", ledger.data_allowed or "none", d.description,
             ("the wording is reversed, so the effect of this box cannot be established: "
              if reversed_wording else "data sharing is switched on: ") + repr(d.description),

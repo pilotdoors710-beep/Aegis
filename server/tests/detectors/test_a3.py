@@ -12,8 +12,13 @@ async def test_faint_text_flagged(page: Page, fixture_url: str) -> None:
 
 
 async def test_clean_twin_silent(page: Page, arena_url: str) -> None:
-    # shortcut: arena clean pages stand in until T07 + its twin exist (A-D4-01).
     for path in CLEAN_PAGES:
         sep = "&" if "?" in path else "?"
         snap = await snap_at(page, f"{arena_url}/{path}{sep}traps=none")
         assert a3_faint_text.detect(snap, None, None) == [], path
+
+
+async def test_t07_faint_injection_flagged(page: Page, arena_url: str) -> None:
+    snap = await snap_at(page, f"{arena_url}/product.html?traps=T07")
+    found = a3_faint_text.detect(snap, None, None)
+    assert any("partner.html" in f.evidence for f in found)

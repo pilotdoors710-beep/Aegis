@@ -29,3 +29,9 @@ async def test_clean_twin_silent(page: Page, arena_url: str) -> None:
         sep = "&" if "?" in path else "?"
         snap = await snap_at(page, f"{arena_url}/{path}{sep}traps=none")
         assert b5_quarantine.detect(snap, None, None) == [], path
+
+
+async def test_t07_faint_injection_quarantined(page: Page, arena_url: str) -> None:
+    snap = await snap_at(page, f"{arena_url}/product.html?traps=T07")
+    found = b5_quarantine.detect(snap, None, None)
+    assert [f.trap_type for f in found] == ["prompt_injection"]

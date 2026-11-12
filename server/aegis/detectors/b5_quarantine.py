@@ -13,7 +13,8 @@ NAME = "B5_quarantine"
 _WHO = r"(?:ai|a\.i\.|llm|language model|agent|assistant|bot|chatbot|model)"
 INJECTION = re.compile(
     rf"""
-    ^\W*(?:dear\s|hey\s|attention,?\s|note\sto\s(?:the\s)?)?(?:the\s)?{_WHO}\s*[:,!]  # "AI:"
+    ^\W*(?:dear\s|hey\s|attention,?\s|note\sto\s(?:the\s)?)?(?:the\s)?
+      (?:{_WHO}\s+)?{_WHO}\s*[:,!]  # "AI assistant:" at the start of the text
     | \b(?:attention|dear|hey|note\sto|message\sfor|instructions?\sfor)\s+
       (?:the\s+|any\s+|all\s+)?(?:\w+\s+)?{_WHO}s?\b
     | \b(?:ignore|disregard|forget|override)\s+(?:all\s+|any\s+|the\s+|your\s+)*
