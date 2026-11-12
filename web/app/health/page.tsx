@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+import { API_URL } from "@/lib/api";
 
 type BrowserHealth = {
   title: string;
@@ -17,7 +16,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`${API}/healthz/browser`)
+    fetch(`${API_URL}/healthz/browser`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
       .then(setData)
       .catch((e: Error) => setError(e.message));
@@ -26,7 +25,7 @@ export default function Home() {
   return (
     <main className="mx-auto max-w-3xl p-8 font-sans">
       <h1 className="text-2xl font-semibold">Aegis: infrastructure check</h1>
-      <p className="mt-2 text-sm text-zinc-400">Server: {API}</p>
+      <p className="mt-2 text-sm text-zinc-400">Server: {API_URL}</p>
       {error && <p className="mt-6 text-red-400">Server unreachable: {error}</p>}
       {!data && !error && <p className="mt-6 text-zinc-400">Contacting server…</p>}
       {data && (
