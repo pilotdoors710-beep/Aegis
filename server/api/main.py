@@ -5,6 +5,7 @@ run_id "sample" always serves a labelled, contract-valid sample run.
 
 import asyncio
 import base64
+import logging
 import time
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -48,6 +49,7 @@ from aegis.schemas import (
 )
 from aegis.security import arena_origin, validate_url
 
+log = logging.getLogger("aegis.api")
 # One shared Chromium per process (brief §3); contexts are created per run side.
 _browser: Browser | None = None
 SAMPLE_FRAME_DELAY_S = 0.3
@@ -226,9 +228,18 @@ async def create_run(body: RunCreate) -> RunCreated:
 @app.get("/runs")
 async def list_runs(limit: int = Query(20, ge=1, le=100)) -> list[RunSummary]:
     # Live summaries in this process are fresher than the store's (writes are queued).
-    runs = {r.run_id: r for r in await _bus.store.list_runs(limit)}
+    runs = {r.run_id: r for r in await _stored(_bus.store.list_runs(limit), [])}
     runs |= {r.run_id: r for r in _bus.summaries()}
     return sorted(runs.values(), key=lambda r: r.created_at, reverse=True)[:limit]
+
+
+async def _stored[T](read: Awaitable[T], default: T) -> T:
+    """Replay storage down (or migration missing): serve what this process has, never a 500."""
+    try:
+        return await read
+    except Exception as e:
+        log.warning("store read failed: %s", e)
+        return default
 
 
 def _live(run_id: str):  # noqa: ANN202
@@ -244,7 +255,7 @@ async def get_run(run_id: str) -> RunSummary:
         return sample_run()[0]
     if run := _bus.get(run_id):
         return run.summary
-    if summary := await _bus.store.get_run(run_id):
+    if summary := await _stored(_bus.store.get_run(run_id), None):
         return summary
     raise HTTPException(status_code=404, detail="run not found")
 
@@ -256,9 +267,9 @@ async def get_run_events(run_id: str) -> list[Event]:
         return sample_run()[1]
     if run := _bus.get(run_id):
         return run.events
-    if await _bus.store.get_run(run_id) is None:
+    if await _stored(_bus.store.get_run(run_id), None) is None:
         raise HTTPException(status_code=404, detail="run not found")
-    return await _bus.store.get_events(run_id)
+    return await _stored(_bus.store.get_events(run_id), [])
 
 
 @app.get("/runs/{run_id}/stream", response_class=EventSourceResponse)

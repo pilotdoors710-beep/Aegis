@@ -83,3 +83,23 @@ async def test_persist_failure_reported_once_and_run_continues() -> None:
     await bus.publish("r1", _done())  # the live run carries on
     await store.flush()
     await store.close()
+
+
+async def test_replay_routes_survive_a_broken_store() -> None:
+    class Broken(MemoryStore):
+        async def list_runs(self, limit: int):  # type: ignore[override]
+            raise RuntimeError("relation runs does not exist")
+
+        async def get_run(self, run_id: str):  # type: ignore[override]
+            raise RuntimeError("db down")
+
+    bus = RunBus(Broken())
+    await bus.create(_summary("live1"))
+    main._bus = bus
+    try:
+        t = httpx.ASGITransport(app=main.app)
+        async with httpx.AsyncClient(transport=t, base_url="http://t") as c:
+            assert [r["run_id"] for r in (await c.get("/runs")).json()] == ["live1"]
+            assert (await c.get("/runs/other")).status_code == 404
+    finally:
+        main._bus = RunBus()
