@@ -160,8 +160,9 @@ async def stats() -> EvalStats:
 _bus = RunBus()
 _run_slots: asyncio.Semaphore | None = None
 _tasks: set[asyncio.Task] = set()
-# Tests swap this for a ScriptedAgent factory; the LLM router is shared so rate limits hold.
-agent_factory: Callable[[], Agent] = lambda: LLMAgent(LLMRouter())  # noqa: E731
+_router = LLMRouter()  # one router per process so per-provider rate limits hold across runs
+# Tests swap this for a ScriptedAgent factory.
+agent_factory: Callable[[], Agent] = lambda: LLMAgent(_router)  # noqa: E731
 
 
 async def _run(run_id: str, preset: Preset) -> None:
@@ -170,7 +171,7 @@ async def _run(run_id: str, preset: Preset) -> None:
     _run_slots = _run_slots or asyncio.Semaphore(settings.max_concurrent_runs)
     async with _run_slots:
         await run_pair(
-            _browser, _bus, run_id, task=preset.task, agent=agent_factory(),
+            _browser, _bus, run_id, task=preset.task, make_agent=agent_factory,
             url=validate_url(start_url(preset.traps, preset.variant), arena_origin()),
             allowed_origin=arena_origin(),
         )  # fmt: skip

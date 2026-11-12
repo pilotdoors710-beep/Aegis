@@ -23,6 +23,5 @@ def detect(snap: PageSnapshot, action: Action | None, ledger: Ledger | None) -> 
             detector=NAME, trap_type="clickjacking", severity="high" if hidden_cover else "medium",
             element_id=e.id,
             evidence=f"Clicking {e.id} {quote(e.text)} would hit {how} on top of it: {what}.",
-            suggestion=f"Do not click {e.id}; the click would land on {what}.",
         ))  # fmt: skip
     return out

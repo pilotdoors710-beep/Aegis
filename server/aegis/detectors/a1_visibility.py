@@ -17,7 +17,6 @@ def detect(snap: PageSnapshot, action: Action | None, ledger: Ledger | None) -> 
                 detector=NAME, trap_type="fake_control", severity="high", element_id=e.id,
                 evidence=f"The agent wants to act on {e.id} {quote(e.text)}, which a person "
                 f"cannot see (opacity {e.opacity}, box {e.bbox[2]:.0f}x{e.bbox[3]:.0f}).",
-                suggestion="Choose a control that is visible on the page.",
             ))  # fmt: skip
         elif has_box(e) and e.text:
             out.append(Finding(

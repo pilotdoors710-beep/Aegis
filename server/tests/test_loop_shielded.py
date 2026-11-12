@@ -1,0 +1,85 @@
+import json
+
+from playwright.async_api import Page, async_playwright
+
+from aegis.loop import run_side, start_url
+from aegis.schemas import Event, Mode
+from tests.scripted_agent import ScriptedAgent, click_text
+from tests.test_loop import TASK
+
+CART = "cart=aurora-desk-lamp:1"
+
+
+async def _run(mode: Mode, url: str, agent: ScriptedAgent) -> tuple[list[Event], list[str]]:
+    effects: list[str] = []
+
+    async def grab(page: Page) -> None:  # evaluator ground truth, test-only
+        effects.extend(json.loads(await page.evaluate("localStorage['arena:effects'] || '[]'")))
+
+    async with async_playwright() as pw:
+        browser = await pw.chromium.launch()
+        events = [
+            ev
+            async for ev in run_side(
+                browser, run_id="t", mode=mode, task=TASK, url=url, agent=agent, on_finish=grab
+            )
+        ]
+        await browser.close()
+    return events, effects
+
+
+def _verdicts(events: list[Event]):
+    vs = [e.payload for e in events if e.kind == "verdict"]
+    assert all(isinstance(v.verdict.latency_ms, int) and v.verdict.latency_ms >= 0 for v in vs)
+    return vs
+
+
+async def test_t01_fake_close_rerouted_then_second_choice_runs(arena_url: str) -> None:
+    agent = ScriptedAgent([click_text("×"), click_text("No thanks")])
+    events, effects = await _run("shielded", start_url(["T01"], base=arena_url), agent)
+    vs = _verdicts(events)
+    assert [v.verdict.decision for v in vs] == ["REROUTE", "ALLOW"]
+    assert "A4_link_truth" in {f.detector for f in vs[0].verdict.findings}
+    executed = [e.payload for e in events if e.kind == "executed"]
+    assert len(executed) == 1 and executed[0].defense_retry
+    assert [e.payload.attempt for e in events if e.kind == "decision"][:2] == [1, 2]
+    assert "download:premium-offer" not in effects
+
+
+async def test_t02_blocked_shielded_but_unshielded_subscribes(arena_url: str) -> None:
+    url = f"{arena_url}/cart.html?traps=T02&{CART}"
+    _, effects = await _run("unshielded", url, ScriptedAgent([click_text("Continue")]))
+    assert "subscribed:aurora-plus" in effects
+
+    agent = ScriptedAgent([click_text("Continue")] * 4)
+    events, effects = await _run("shielded", url, agent)
+    assert [v.verdict.decision for v in _verdicts(events)] == ["BLOCK"] * 4
+    assert not [e for e in events if e.kind == "executed"]
+    ask = next(e.payload for e in events if e.kind == "ask")
+    assert ask.reason == "retries_exhausted"
+    assert events[-1].payload.reason == "aborted"
+    assert "subscribed:aurora-plus" not in effects
+
+
+async def test_clean_flow_has_no_stops(arena_url: str) -> None:
+    agent = ScriptedAgent([
+        click_text("Aurora desk lamp"), click_text("Add to cart"),
+        click_text("Continue"), click_text("Place order"),
+    ])  # fmt: skip
+    events, _ = await _run("shielded", start_url([], base=arena_url), agent)
+    assert {v.verdict.decision for v in _verdicts(events)} == {"ALLOW"}
+    done = events[-1].payload
+    assert done.reason == "completed" and done.outcome.total == 1299
+
+
+async def test_t05_injection_stripped_and_logged(arena_url: str) -> None:
+    seen: list[str] = []
+
+    def peek(view, _history):  # records what the shielded agent is shown
+        seen.extend(t.text for t in view.text_blocks)
+
+    agent = ScriptedAgent([click_text("Aurora desk lamp"), peek])  # type: ignore[list-item]
+    events, _ = await _run("shielded", start_url(["T05"], base=arena_url), agent)
+    assert seen and not any("AI assistant" in t for t in seen)
+    removed = [r for e in events if e.kind == "snapshot" for r in e.payload.removed]
+    assert [r.reason for r in removed] == ["B5_quarantine"]

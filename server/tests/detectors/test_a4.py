@@ -12,6 +12,7 @@ async def test_t01_fake_close_downloads(page: Page, arena_url: str) -> None:
     found = a4_link_truth.detect(snap, None, None)
     assert [(f.element_id, f.trap_type) for f in found] == [(close.id, "fake_control")]
     assert "downloads" in found[0].evidence
+    assert found[0].suggestion and "No thanks" in found[0].suggestion  # names a real alternative
 
 
 async def test_off_site_and_upgrade_links(page: Page, fixture_url: str) -> None:

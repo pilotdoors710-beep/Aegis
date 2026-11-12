@@ -1,27 +1,32 @@
 """Run orchestration: snapshot -> decide -> (shield) -> execute, per side (brief §3).
 
-run_side() is an async generator of Events for ONE side. The shield hook lands in A-D2-06; today
-only unshielded mode exists. This module (not the defense) builds the arena start URL from a
-preset's trap list; nothing else in aegis/ reads it.
+run_side() is an async generator of Events for ONE side. Shielded mode today is configuration F
+(fast detectors + filtering + reroute feedback); the intent audit lands with B2. This module (not
+the defense) builds the arena start URL from a preset's trap list; nothing else in aegis/ reads it.
 """
 
 import argparse
 import asyncio
 import re
 import sys
+import time
+import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from datetime import UTC, datetime
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 from playwright.async_api import Browser, Page, async_playwright
 
 from aegis.agent import Agent, LLMAgent, build_agent_view
 from aegis.config import settings
+from aegis.detectors import run_fast
 from aegis.events import RunBus
-from aegis.executor import execute
+from aegis.executor import execute, hit_test_veto
 from aegis.llm import AllProvidersFailed, LLMRouter
 from aegis.schemas import (
     Action,
+    AskEvent,
+    AskPayload,
     DecisionEvent,
     DecisionPayload,
     DoneEvent,
@@ -31,14 +36,18 @@ from aegis.schemas import (
     Event,
     ExecutedEvent,
     ExecutedPayload,
+    Ledger,
     Mode,
     Outcome,
     SideOutcomes,
     SnapshotEvent,
     SnapshotPayload,
+    VerdictEvent,
+    VerdictPayload,
 )
 from aegis.security import install_guard, origin
 from aegis.snapshot import screenshot_b64, take_snapshot
+from aegis.verdict import MAX_RETRIES, agent_feedback, combine, highlights
 
 VIEWPORT = {"width": 1280, "height": 720}
 # Fixed clock so countdowns and dates render identically on every run (brief §3).
@@ -90,8 +99,9 @@ async def run_side(
     on_finish: PageHook | None = None,
     allowed_origin: str | None = None,
 ) -> AsyncIterator[Event]:
-    if mode != "unshielded":
-        raise NotImplementedError("shielded mode lands with the verdict engine (A-D2-06)")
+    shielded = mode == "shielded"
+    # Configuration F ledger: no parsed intent, only the task text and the arena's own domain.
+    ledger = Ledger(goal=task, allowed_domains=[urlsplit(allowed_origin or url).hostname or ""])
     max_steps = max_steps or settings.max_steps
     ctx = await browser.new_context(viewport=VIEWPORT, accept_downloads=True)  # type: ignore[arg-type]
     blocked: list[str] = []
@@ -124,6 +134,8 @@ async def run_side(
 
         for step in range(1, max_steps + 1):
             snap = await take_snapshot(page)
+            page_findings = run_fast(snap, None, ledger) if shielded else None
+            view = build_agent_view(snap, sanitize=page_findings)
             yield SnapshotEvent(
                 **env(step),
                 payload=SnapshotPayload(
@@ -131,38 +143,74 @@ async def run_side(
                     title=snap.title,
                     screenshot_b64=await screenshot_b64(page),
                     element_count=len(snap.elements),
+                    removed=view.removed,
                 ),
             )
-            view = build_agent_view(snap)
-            try:
-                action, res = await agent.decide(view, task, history)
-            except Exception as e:  # provider down, unparseable output, ...: end this side cleanly
-                code = "provider_failed" if isinstance(e, AllProvidersFailed) else "agent_failed"
-                msg = f"{type(e).__name__}: {str(e)[:300]}"
-                yield ErrorEvent(
-                    **env(step), payload=ErrorPayload(code=code, message=msg, recoverable=False)
+            feedback: list[str] = []
+            action: Action | None = None
+            for attempt in range(1, MAX_RETRIES + 2):
+                try:
+                    action, res = await agent.decide(view, task, history + feedback)
+                except Exception as e:  # provider down, unparseable output: end this side cleanly
+                    code = (
+                        "provider_failed" if isinstance(e, AllProvidersFailed) else "agent_failed"
+                    )
+                    msg = f"{type(e).__name__}: {str(e)[:300]}"
+                    yield ErrorEvent(
+                        **env(step), payload=ErrorPayload(code=code, message=msg, recoverable=False)
+                    )
+                    reason = "error"
+                    break
+                yield DecisionEvent(
+                    **env(step),
+                    payload=DecisionPayload(
+                        action=action,
+                        provider=res.provider,
+                        model=res.model,
+                        cached=res.cached,
+                        llm_latency_ms=res.latency_ms,
+                        attempt=attempt,
+                    ),
                 )
-                reason = "error"
+                if action.type == "done" or not shielded:
+                    break
+                started = time.perf_counter()
+                findings = run_fast(snap, action, ledger)
+                verdict = combine(findings, action, int((time.perf_counter() - started) * 1000))
+                yield VerdictEvent(
+                    **env(step),
+                    payload=VerdictPayload(
+                        verdict=verdict, action=action, highlights=highlights(findings, snap)
+                    ),
+                )
+                if verdict.decision == "ALLOW":
+                    break
+                feedback.append(agent_feedback(verdict, action))
+                action = None  # stopped: never executed
+            if reason == "error":
                 break
-            yield DecisionEvent(
-                **env(step),
-                payload=DecisionPayload(
-                    action=action,
-                    provider=res.provider,
-                    model=res.model,
-                    cached=res.cached,
-                    llm_latency_ms=res.latency_ms,
-                ),
-            )
+            if action is None:  # every attempt was stopped
+                yield AskEvent(
+                    **env(step),
+                    payload=AskPayload(
+                        ask_id=uuid.uuid4().hex[:8], reason="retries_exhausted",
+                        findings=verdict.findings, status="pending",
+                    ),
+                )  # fmt: skip
+                reason = "aborted"  # shortcut: no human gate until A-D3-03; the side ends here
+                break
             if action.type == "done":
                 reason = "completed"
                 break
-            result = await execute(page, action)
+            result = await execute(page, action, hit_test_veto(page) if shielded else None)
             history.append(_describe(action, result.ok, result.error))
             yield ExecutedEvent(
                 **env(step),
-                payload=ExecutedPayload(action=action, ok=result.ok, url_after=result.url_after),
-            )
+                payload=ExecutedPayload(
+                    action=action, ok=result.ok, url_after=result.url_after,
+                    defense_retry=attempt > 1,
+                ),
+            )  # fmt: skip
             for ev in egress_events(step):
                 yield ev
 
@@ -183,18 +231,19 @@ async def run_pair(
     *,
     task: str,
     url: str,
-    agent: Agent,
+    make_agent: Callable[[], Agent],
     max_steps: int | None = None,
     allowed_origin: str | None = None,
 ) -> None:
-    """Both sides concurrently from the same task and start URL; events go to the bus."""
+    """Both sides concurrently from the same task and start URL, each with its own agent from the
+    same factory (same model and prompt); events go to the bus."""
     outcomes: dict[str, Outcome] = {}
 
     async def side(mode: Mode) -> None:
         step = 0
         try:
             async for ev in run_side(
-                browser, run_id=run_id, mode=mode, task=task, url=url, agent=agent,
+                browser, run_id=run_id, mode=mode, task=task, url=url, agent=make_agent(),
                 max_steps=max_steps, allowed_origin=allowed_origin,
             ):  # fmt: skip
                 step = ev.step

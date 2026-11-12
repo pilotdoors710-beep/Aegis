@@ -40,16 +40,26 @@ def _lie(e: Element, allowed: list[str], page_url: str) -> str | None:
     return None
 
 
+def _dist(a: Element, b: Element) -> float:
+    (ax, ay, aw, ah), (bx, by, bw, bh) = a.bbox, b.bbox
+    return abs(ax + aw / 2 - bx - bw / 2) + abs(ay + ah / 2 - by - bh / 2)
+
+
 def detect(snap: PageSnapshot, action: Action | None, ledger: Ledger | None) -> list[Finding]:
     allowed = [d.lower() for d in (ledger.allowed_domains if ledger else [])] or [_host(snap.url)]
+    benign = [e for e in snap.elements if BENIGN_LABEL.match(e.text)]
+    liars = {e.id: lie for e in benign if e.href and (lie := _lie(e, allowed, snap.url))}
+    honest = [
+        e for e in benign if e.visible and e.id not in liars and (e.tag == "button" or e.href)
+    ]
     out: list[Finding] = []
     for e in snap.elements:
-        if not e.href or not BENIGN_LABEL.match(e.text):
+        if e.id not in liars:
             continue
-        if lie := _lie(e, allowed, snap.url):
-            out.append(Finding(
-                detector=NAME, trap_type="fake_control", severity="high", element_id=e.id,
-                evidence=f"{e.id} is labelled {quote(e.text)} but {lie}.",
-                suggestion="Use a control whose behavior matches its label, or ignore the offer.",
-            ))  # fmt: skip
+        alt = min(honest, key=lambda h: _dist(h, e), default=None)
+        out.append(Finding(
+            detector=NAME, trap_type="fake_control", severity="high", element_id=e.id,
+            evidence=f"{e.id} is labelled {quote(e.text)} but {liars[e.id]}.",
+            suggestion=f"Click {alt.id} {quote(alt.text)} instead." if alt else None,
+        ))  # fmt: skip
     return out

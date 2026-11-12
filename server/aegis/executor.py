@@ -79,3 +79,24 @@ async def execute(page: Page, action: Action, pre_click: PreClick | None = None)
         return ExecResult(True, page.url)
     except PlaywrightError as e:
         return ExecResult(False, page.url, f"{type(e).__name__}: {str(e).splitlines()[0]}")
+
+
+_HIT_JS = """([id, x, y]) => {
+  const t = document.querySelector(`[data-cs-id="${id}"]`);
+  const hit = document.elementFromPoint(x, y);
+  if (!t || !hit) return "nothing to click at the target's position";
+  if (t === hit || t.contains(hit) || (t.labels && [...t.labels].includes(hit))) return null;
+  const host = hit.closest("[data-cs-id]");
+  return `click point is covered by ${host ? host.dataset.csId : hit.tagName.toLowerCase()}`;
+}"""
+
+
+def hit_test_veto(page: Page) -> PreClick:
+    """Shielded only: re-run A2 at the real click point right before clicking (the page may have
+    changed during the LLM call)."""
+
+    async def check(target_id: str, x: float, y: float) -> str | None:
+        reason = await page.evaluate(_HIT_JS, [target_id, x, y])
+        return f"Aegis pre-click hit-test: {reason}" if reason else None
+
+    return check
