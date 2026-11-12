@@ -22,6 +22,17 @@ Template:
 
 ## Log
 
+### 2026-11-13 · Dev A · Claude Code
+- Did: live run API (`POST /runs`, live SSE stream with reconnect, queue), arena-only network
+  guard, detectors A1–A5 + B5 + C1, verdict engine, and the shielded side (blocks, feedback to
+  the agent, 3 retries then an ask).
+- Works now: a real paired run streams both sides; shielded T01 run blocked a click under the
+  popup and still bought the lamp for ₹1,299. 63 tests pass.
+- Blocked / next: restart `uvicorn` on the PC to deploy (Dev B needs it). Then save runs to
+  Supabase (A-D2-07). Paired run takes ~2:45, above the 90 s demo gate: LLM rate limits.
+- Open question: T02's invisible overlay leaves the shielded agent no way forward (it ends in an
+  ask). Decide whether Aegis may neutralize an invisible overlay, or keep it as block + ask.
+
 ### 2026-11-12 · Dev A · Claude Code
 - Built the shared data format (schemas), a sample live run, and the server routes the console uses.
 - Built the AI shopper: reads the page, asks the model what to click, clicks by screen position.
