@@ -4,7 +4,16 @@ Detectors look at the whole page; only findings on the action's own target decid
 Page-wide findings ride along on an ALLOW so the console can box them.
 """
 
-from aegis.schemas import Action, Finding, Highlight, PageSnapshot, Severity, Verdict
+from aegis.detectors.a2_hit_test import NAME as A2
+from aegis.schemas import (
+    Action,
+    Finding,
+    Highlight,
+    Neutralization,
+    PageSnapshot,
+    Severity,
+    Verdict,
+)
 
 MAX_RETRIES = 3
 BLOCKING: set[Severity] = {"medium", "high"}
@@ -24,14 +33,45 @@ PAST = {"BLOCK": "BLOCKED", "REROUTE": "REROUTED", "ASK": "HELD FOR THE USER", "
 DEFAULT_ADVICE = "this action was flagged as unsafe. Choose a different action."
 
 
-def blocking_findings(findings: list[Finding], action: Action) -> list[Finding]:
+def plan_neutralization(snap: PageSnapshot, action: Action) -> Neutralization | None:
+    """T02-style click-jacking: the click target is covered by an element nobody can see. Making
+    that cover click-through hides no choice from the user, and the agent's click still runs."""
+    if action.type != "click" or not action.target_id:
+        return None
+    by_id = {e.id: e for e in snap.elements}
+    target = by_id.get(action.target_id)
+    cover = by_id.get(target.occluded_by or "") if target else None
+    if target is None or cover is None or cover.visible or not target.visible:
+        return None  # visible covers (modals) are a real UI state: block instead
+    return Neutralization(
+        element_id=cover.id, target_id=target.id, bbox=cover.bbox,
+        evidence=f"Invisible element {cover.id} (opacity {cover.opacity}, {cover.text[:60]!r}) "
+        f"covered {target.id} {target.text[:40]!r}; Aegis made it click-through so the click "
+        "reaches the visible control.",
+    )  # fmt: skip
+
+
+def blocking_findings(
+    findings: list[Finding], action: Action, neutralized: Neutralization | None = None
+) -> list[Finding]:
     if not action.target_id:
         return []
-    return [f for f in findings if f.element_id == action.target_id and f.severity in BLOCKING]
+    return [
+        f
+        for f in findings
+        if f.element_id == action.target_id
+        and f.severity in BLOCKING
+        and not (neutralized and f.detector == A2)  # the cover is handled, not ignored
+    ]
 
 
-def combine(findings: list[Finding], action: Action, latency_ms: int) -> Verdict:
-    stop = blocking_findings(findings, action)
+def combine(
+    findings: list[Finding],
+    action: Action,
+    latency_ms: int,
+    neutralized: Neutralization | None = None,
+) -> Verdict:
+    stop = blocking_findings(findings, action, neutralized)
     if not stop:
         return Verdict(decision="ALLOW", findings=findings, latency_ms=latency_ms)
     suggestions = [f.suggestion for f in stop if f.suggestion]

@@ -21,7 +21,7 @@ from aegis.agent import Agent, LLMAgent, build_agent_view
 from aegis.config import settings
 from aegis.detectors import run_fast
 from aegis.events import RunBus
-from aegis.executor import execute, hit_test_veto
+from aegis.executor import execute, hit_test_veto, neutralize
 from aegis.llm import AllProvidersFailed, LLMRouter
 from aegis.schemas import (
     Action,
@@ -47,7 +47,13 @@ from aegis.schemas import (
 )
 from aegis.security import install_guard, origin
 from aegis.snapshot import screenshot_b64, take_snapshot
-from aegis.verdict import MAX_RETRIES, agent_feedback, combine, highlights
+from aegis.verdict import (
+    MAX_RETRIES,
+    agent_feedback,
+    combine,
+    highlights,
+    plan_neutralization,
+)
 
 VIEWPORT = {"width": 1280, "height": 720}
 # Fixed clock so countdowns and dates render identically on every run (brief §3).
@@ -176,13 +182,22 @@ async def run_side(
                     break
                 started = time.perf_counter()
                 findings = run_fast(snap, action, ledger)
-                verdict = combine(findings, action, int((time.perf_counter() - started) * 1000))
+                fix = plan_neutralization(snap, action)
+                ms = int((time.perf_counter() - started) * 1000)
+                verdict = combine(findings, action, ms, fix)
+                if (
+                    fix
+                    and verdict.decision == "ALLOW"
+                    and not await neutralize(page, fix.element_id)
+                ):
+                    fix = None  # cover vanished during the LLM call; the hit-test re-check decides
                 yield VerdictEvent(
                     **env(step),
                     payload=VerdictPayload(
-                        verdict=verdict, action=action, highlights=highlights(findings, snap)
+                        verdict=verdict, action=action, highlights=highlights(findings, snap),
+                        neutralized=[fix] if fix and verdict.decision == "ALLOW" else [],
                     ),
-                )
+                )  # fmt: skip
                 if verdict.decision == "ALLOW":
                     break
                 feedback.append(agent_feedback(verdict, action))

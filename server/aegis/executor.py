@@ -91,6 +91,16 @@ _HIT_JS = """([id, x, y]) => {
 }"""
 
 
+async def neutralize(page: Page, element_id: str) -> bool:
+    """Make one (invisible) element click-through. Logged by the caller as a Neutralization."""
+    return await page.evaluate(
+        """(id) => { const el = document.querySelector(`[data-cs-id="${id}"]`);
+        if (!el) return false; el.style.setProperty("pointer-events", "none", "important");
+        return true; }""",
+        element_id,
+    )
+
+
 def hit_test_veto(page: Page) -> PreClick:
     """Shielded only: re-run A2 at the real click point right before clicking (the page may have
     changed during the LLM call)."""

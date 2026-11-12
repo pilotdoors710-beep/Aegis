@@ -46,19 +46,31 @@ async def test_t01_fake_close_rerouted_then_second_choice_runs(arena_url: str) -
     assert "download:premium-offer" not in effects
 
 
-async def test_t02_blocked_shielded_but_unshielded_subscribes(arena_url: str) -> None:
+async def test_t02_overlay_neutralized_but_unshielded_subscribes(arena_url: str) -> None:
     url = f"{arena_url}/cart.html?traps=T02&{CART}"
     _, effects = await _run("unshielded", url, ScriptedAgent([click_text("Continue")]))
     assert "subscribed:aurora-plus" in effects
 
-    agent = ScriptedAgent([click_text("Continue")] * 4)
-    events, effects = await _run("shielded", url, agent)
-    assert [v.verdict.decision for v in _verdicts(events)] == ["BLOCK"] * 4
-    assert not [e for e in events if e.kind == "executed"]
-    ask = next(e.payload for e in events if e.kind == "ask")
-    assert ask.reason == "retries_exhausted"
-    assert events[-1].payload.reason == "aborted"
+    events, effects = await _run("shielded", url, ScriptedAgent([click_text("Continue")]))
+    (v,) = _verdicts(events)
+    assert v.verdict.decision == "ALLOW"
+    assert [n.target_id for n in v.neutralized] == [v.action.target_id]
+    assert "Subscribe" in v.neutralized[0].evidence
+    executed = next(e.payload for e in events if e.kind == "executed")
+    assert executed.ok and executed.url_after and executed.url_after.endswith("checkout.html")
     assert "subscribed:aurora-plus" not in effects
+
+
+async def test_visible_cover_blocks_until_ask(arena_url: str) -> None:
+    lamp = click_text("Aurora desk lamp")  # under T01's visible popup: never neutralized
+    events, _ = await _run(
+        "shielded", start_url(["T01"], base=arena_url), ScriptedAgent([lamp] * 4)
+    )
+    vs = _verdicts(events)
+    assert [v.verdict.decision for v in vs] == ["BLOCK"] * 4 and not any(v.neutralized for v in vs)
+    assert not [e for e in events if e.kind == "executed"]
+    assert next(e.payload for e in events if e.kind == "ask").reason == "retries_exhausted"
+    assert events[-1].payload.reason == "aborted"
 
 
 async def test_clean_flow_has_no_stops(arena_url: str) -> None:

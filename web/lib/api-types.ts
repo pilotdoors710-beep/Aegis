@@ -694,6 +694,26 @@ export interface components {
             /** Max Price */
             max_price?: number | null;
         };
+        /**
+         * Neutralization
+         * @description An INVISIBLE element covering the agent's target that Aegis made click-through before the
+         *     agent's own click ran. Never applied to anything a person can see.
+         */
+        Neutralization: {
+            /** Element Id */
+            element_id: string;
+            /** Target Id */
+            target_id: string;
+            /** Bbox */
+            bbox: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** Evidence */
+            evidence: string;
+        };
         /** Outcome */
         Outcome: {
             /** Task Completed */
@@ -938,6 +958,11 @@ export interface components {
              * @default []
              */
             highlights: components["schemas"]["Highlight"][];
+            /**
+             * Neutralized
+             * @default []
+             */
+            neutralized: components["schemas"]["Neutralization"][];
         };
     };
     responses: never;

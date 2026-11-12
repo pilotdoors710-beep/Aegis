@@ -214,11 +214,22 @@ class DecisionPayload(BaseModel):
     attempt: int = 1  # 2+ = retry after BLOCK/REROUTE
 
 
+class Neutralization(BaseModel):
+    """An INVISIBLE element covering the agent's target that Aegis made click-through before the
+    agent's own click ran. Never applied to anything a person can see."""
+
+    element_id: str  # the invisible covering element
+    target_id: str  # the control it covered
+    bbox: BBox
+    evidence: str
+
+
 class VerdictPayload(BaseModel):
     verdict: Verdict
     action: Action
     audit: AuditReport | None = None
     highlights: list[Highlight] = []
+    neutralized: list[Neutralization] = []  # verdict is ALLOW; shown as "overlay neutralized"
 
 
 class ExecutedPayload(BaseModel):
