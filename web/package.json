@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "verify:day1": "node lib/verify-day1.mjs",
     "lint": "eslint",
     "gen:types": "openapi-typescript ${NEXT_PUBLIC_API_URL:-http://localhost:8000}/openapi.json -o lib/api-types.ts",
     "typecheck": "next typegen && tsc --noEmit"
