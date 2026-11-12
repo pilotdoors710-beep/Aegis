@@ -27,7 +27,7 @@ The critical path is: contract PR (schemas, typed SSE payloads, REST routes, sam
 | 13 | LLM keys and models | `.env` sets `GEMINI_API_KEY`, `GROQ_API_KEY`, `OPENROUTER_API_KEY` and `AGENT_MODELS=groq:openai/gpt-oss-120b,gemini:gemini-3.5-flash-lite,groq:qwen/qwen3.8-27b`; RPM 20 / 4 / 15. The chain mixes three models, so a fall-through changes the model mid-run | Verified (read names only); live calls not made (remote service) |
 | 14 | `.env.example` | Brief §9 rule 6 requires it committed. Root `.gitignore` has `.env.*` and `web/.gitignore` has `.env*`, so every `.env.example` is ignored. `web/.env.example` exists untracked and still says "Countersign" | Verified (`git check-ignore`) |
 | 15 | Runtime dependencies | `psycopg` is absent and `httpx` is dev-only; both are needed at runtime for Postgres and Supabase Storage | Verified (read) |
-| 16 | CI status on GitHub, branch protection | Not checked (remote service) | Assumed green; first check on day 1 |
+| 16 | CI status on GitHub | Not checked (remote service) | Assumed green; first check on day 1. Branch protection stays off: everyone pushes to `main` (§7) |
 | 17 | Developer time zones | All commits carry `+0530` | Verified (git log) |
 
 **Gap to the day-1 gate.** Remote Chromium: code exists (`/healthz/browser`), deployment unproven. LLM: router exists and is unit-tested, no live smoke recorded and no model selected. Clean task: no arena, no snapshot, no agent, no executor, no loop. Baseline trap measurement: no traps, no eval harness. In short, the scaffold proves the toolchain; every feature in brief §6 is still to build.
@@ -326,7 +326,7 @@ Cards J-D7-01, J-D7-02, J-D7-03. No feature merges. Only P0 fixes merge, and non
 
 ## 6. Task cards
 
-**How to read a card.** The header line gives ID, owner, tool, estimate, depends-on and blocks. The fenced block is both the card body and the paste-ready prompt: it contains Goal, Context, Constraints and Done when. The developer pastes the matching preamble once per agent session, then the card block. Codex cards use Goal / Context / Constraints / Done when. Claude Code cards carry the same content, give the reason for each constraint, and state the action directly. One card is one branch and one PR.
+**How to read a card.** The header line gives ID, owner, tool, estimate, depends-on and blocks. The fenced block is both the card body and the paste-ready prompt: it contains Goal, Context, Constraints and Done when. The developer pastes the matching preamble once per agent session, then the card block. Codex cards use Goal / Context / Constraints / Done when. Claude Code cards carry the same content, give the reason for each constraint, and state the action directly. One card is one or more focused commits pushed directly to `main` (§7).
 
 **Preamble A (paste before every Claude Code card):**
 
@@ -370,7 +370,7 @@ Constraints:
 Done when:
 - git check-ignore .env.example exits 1 and git check-ignore .env exits 0.
 - ruff and pytest still pass (8 tests).
-- Human step, not for the agent: enable branch protection on main (require a PR and the server and web checks) and confirm CI is green on main; post "protection on" in the chat.
+- Human step, not for the agent: confirm CI is green on main and that branch protection is **off** (everyone pushes to main, §7); post "CI green" in the chat.
 ```
 
 #### A-D1-02 · Contract PR #1: schemas, sample stream, REST stubs
@@ -1223,7 +1223,7 @@ Implement nothing. Run the first final block from a worktree at the eval-freeze 
 Goal: block 1 (72 runs) is running unattended with resume enabled.
 Context: DEV_PLAN.md §9.
 Constraints:
-- git worktree add ../aegis-eval eval-freeze, and serve the arena from that worktree, so later commits cannot leak into the evaluation.
+- git worktree add --detach ../aegis-eval eval-freeze, and serve the arena from that worktree, so later commits cannot leak into the evaluation.
 - Use only EVAL_MODEL with the eval key. Do not start development runs on that key until the block ends.
 Done when:
 - The block is running from 11:00 and the first ten rows of eval/results/final/runs.jsonl show cached=false, the pinned model and the frozen PROMPT_VERSION.
@@ -1540,19 +1540,20 @@ Constraints: no merges after 09:30 except a P0 fix that both developers approve.
 Done when: the submission confirmation is posted in the chat; the repo is public; the README's live URL opens from a logged-out phone.
 ```
 
-## 7. Branching, PR and merge protocol
+## 7. Commit and push protocol
 
-- **Branches:** `a/<card-id>-<slug>` and `b/<card-id>-<slug>` (for example `a/A-D2-03-detectors-a1-a3`). Contract PRs use `contract/<n>-<slug>`. Nobody commits to `main` directly; the humans enable branch protection on day 1 (require a PR and the `server` and `web` CI jobs).
-- **Worktrees:** each parallel agent session gets its own worktree, for example `git worktree add ../aegis-a2 -b a/A-D2-03-detectors-a1-a3 origin/main`. Final eval runs use a worktree at the `eval-freeze` tag. Remove a worktree after its PR merges.
-- **PR size:** one card per PR, at most about 400 changed lines excluding lock files and `api-types.ts`. Split anything larger.
+- **No branches, no PRs.** Both developers and every agent session commit directly to `main` and push with `git pull --rebase origin main && git push origin main`. Branch protection stays off. Elsewhere in this plan, read "PR" as the commit(s) for that card, "PR description" as the commit message or a chat post, and "merge" as "push to `main`".
+- **Parallel sessions:** a ∥ card runs in a second clone (for example `git clone <repo> ../aegis-2`) checked out on `main`, because git does not allow `main` in two worktrees at once. Pull with rebase before every push. Final eval runs use a detached worktree at the `eval-freeze` tag (`git worktree add --detach ../aegis-eval eval-freeze`).
+- **Commit size:** small, focused commits; one card may be several commits. Keep each about 400 changed lines or less, excluding lock files and `api-types.ts`.
+- **Before pushing:** run the checks for what you touched: `cd server && uv run ruff check && uv run ruff format --check && uv run pytest -q` (plus pyright once added), and for `web/` the types drift, typecheck, lint and build. CI runs the same jobs on every push to `main` and is the after-the-fact check.
 - **Review:**
-  - PRs inside one owner's paths: the owner merges on green CI without waiting; the other developer reads it at the next sync. Waiting for review across a several-hour gap costs more than a post-merge fix.
-  - Contract PRs, PRs touching root files (`.github/`, root `.gitignore`, `.env.example`, `README.md`, `DEV_PLAN.md`), and arena PRs that change C4: the other developer must approve. Handoff PRs (B-D4-06, B-D6-04) are approved by Dev A. Target response time is two waking hours; the contract merge window is 10:00–12:00.
-- **Required checks:** CI `server` (ruff, ruff format, pyright, pytest) and `web` (types drift, typecheck, lint, build). A PR that changes `schemas.py` or a route signature must include the regenerated `api-types.ts`.
-- **Merge order on contract days:** (1) the contract PR; (2) both developers rebase open branches onto `main`; (3) server PRs; (4) web PRs. Planned contract days: Thu (C1–C3 and C5 in A-D1-02; C4 in B-D1-02), Sun (C4 variants `b` and `c`, B-D4-01), Mon (C8 and the R2 variants, only if A-D5-05 runs). Saturday's gift wrap is already in C4 and needs only Dev A's approval.
-- **Conflicts on shared files:** `web/lib/api-types.ts` is never merged by hand; regenerate it with GEN after rebasing. `DEV_PLAN.md` §4 is edited only in contract PRs.
-- **Red `main`:** nobody merges onto red. Whoever merged the breaking PR reverts it with `git revert` within 30 minutes unless the fix is under ten lines and ready. Post "main red: <PR>, reverting" in the chat. After Mon 11:00 a revert that touches frozen files restarts the affected eval blocks.
-- **Deploys:** Dev A redeploys the server after the last server merge of the day and before the gate check. Vercel deploys `main` automatically; Dev B confirms the production deployment is the expected commit.
+  - Commits inside one owner's paths: push when local checks pass; the other developer reads them at the next sync.
+  - Contract changes, root files (`.github/`, root `.gitignore`, `.env.example`, `README.md`, `DEV_PLAN.md`), and arena changes to C4: post the diff or summary in the chat and push only after the other developer acknowledges it. Handoff work (B-D4-06, B-D6-04, if Q13 is approved) is acknowledged by Dev A. Target response time is two waking hours; the contract window is 10:00–12:00.
+- **Contract commits:** a commit that changes `schemas.py` or a route signature includes the regenerated `api-types.ts`.
+- **Push order on contract days:** (1) the contract commit; (2) both developers pull with rebase; (3) server commits; (4) web commits. Planned contract days: Thu (C1–C3 and C5 in A-D1-02; C4 in B-D1-02), Sun (C4 variants `b` and `c`, B-D4-01), Mon (C8 and the R2 variants, only if A-D5-05 runs). Saturday's gift wrap is already in C4 and needs only Dev A's approval.
+- **Conflicts on shared files:** `web/lib/api-types.ts` is never merged by hand; regenerate it with GEN after rebasing. `DEV_PLAN.md` §4 is edited only in contract commits.
+- **Red `main`:** nobody pushes onto red. Whoever pushed the breaking commit reverts it with `git revert` within 30 minutes unless the fix is under ten lines and ready. Post "main red: <commit>, reverting" in the chat. After Mon 11:00 a revert that touches frozen files restarts the affected eval blocks.
+- **Deploys:** Dev A redeploys the server after the last server push of the day and before the gate check. Vercel deploys `main` automatically; Dev B confirms the production deployment is the expected commit.
 
 ## 8. Daily sync protocol
 

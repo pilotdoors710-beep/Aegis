@@ -6,4 +6,4 @@ Quick rules (details in the brief, §9):
 - Your area: `web/` (Shield Console + static Trap Arena in `web/public/arena/`) unless told otherwise.
 - Never hand-edit `web/lib/api-types.ts`; regenerate it from the server's OpenAPI (`pnpm gen:types`).
 - Secrets only via env vars; never commit `.env`.
-- Work on a branch, open a PR, keep CI green.
+- Commit directly to `main` (no feature branches or PRs): run the web checks locally, `git pull --rebase origin main`, then `git push origin main`. Keep `main` green.

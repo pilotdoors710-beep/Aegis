@@ -245,7 +245,7 @@ Event = {
 
 Trap taxonomy (use these exact strings): `hidden_info`, `preselection`, `trick_wording`, `obstruction`, `urgency`, `social_proof`, `disguised_ad`, `fake_control`, `clickjacking`, `prompt_injection`, `forced_action`.
 
-**Contract integration for the agreed additions:** keep the existing Action, Ledger, Verdict, Event kinds, and taxonomy as the starting point. Publish trial progress/evidence using typed payload models behind the existing event envelope; distinguish disposable activity from real-session execution in payloads and replay. Trial evidence needs branch/control state, initial-state match, observed commitments, screenshot references, availability/timeout reason, elapsed time, and original-session isolation status. Outcomes must distinguish a proposed commitment, human approval, and an executed simulated commitment. These are requirements, not a second handwritten frontend schema. Define exact payload models in `schemas.py` and regenerate TS in the coordinated implementation PR. This brief authorizes these bounded additions; ask about genuinely unresolved semantic changes rather than re-requesting approval for the agreed behavior.
+**Contract integration for the agreed additions:** keep the existing Action, Ledger, Verdict, Event kinds, and taxonomy as the starting point. Publish trial progress/evidence using typed payload models behind the existing event envelope; distinguish disposable activity from real-session execution in payloads and replay. Trial evidence needs branch/control state, initial-state match, observed commitments, screenshot references, availability/timeout reason, elapsed time, and original-session isolation status. Outcomes must distinguish a proposed commitment, human approval, and an executed simulated commitment. These are requirements, not a second handwritten frontend schema. Define exact payload models in `schemas.py` and regenerate TS in the same coordinated commit. This brief authorizes these bounded additions; ask about genuinely unresolved semantic changes rather than re-requesting approval for the agreed behavior.
 
 Initial permission checks support item/quantity, stated price and total limits, add-on/subscription flags, and declared data categories. The current booleans cannot express arbitrary product-specific permissions or renewal caps. Do not infer blanket authorization from an ambiguous request; show the parsed ledger and ASK where the supported representation is insufficient. The fresh permission-change preset explicitly updates all relevant constraints before its run starts.
 
@@ -362,7 +362,7 @@ The shop needs a real simulated flow: product → cart → checkout → confirma
 12. **Execute clicks by coordinates only** (`executor.py`, `page.mouse.click`). Never `locator.click()` for agent actions.
 13. **Never send detector-only fields to the agent** (see §3). The agent view is built in one place (`agent.py`).
 14. **Eval runs always disable the decision cache.** A cached decision must always be visibly labelled in the UI.
-15. **Ownership:** `server/`, `eval/`, `deploy/`, `supabase/` → Claude Code user; `web/` (incl. arena) → Codex user. Work on branches, merge via PR with green CI. Contract changes touch both sides in one PR.
+15. **Ownership:** `server/`, `eval/`, `deploy/`, `supabase/` → Claude Code user; `web/` (incl. arena) → Codex user. Everyone commits directly to `main` (no feature branches or PRs); run the relevant checks locally before pushing and keep `main` green. Contract changes touch both sides in one commit, pushed after the other developer acknowledges it in chat.
 16. **Disposable trials are orchestration, not pure detectors.** Implement in `trials.py`, keep network/browser activity out of `detectors/`, and send no hidden evaluator/trap metadata to the agent or audit. Test state reproduction, both control meanings, unchanged original state, resource cleanup, egress containment, unsupported states, and timeout/uncertainty fallback.
 17. **Safe completion is the objective.** No blanket blocking to inflate safety, no weakened unprotected prompts, no success-only reporting, and no research/uniqueness claim unsupported by the experiments.
 
@@ -387,7 +387,7 @@ If a gate fails, **cut optional scope**, don't slip the day. Required track cove
 2. Coordinate Pydantic contracts and generate TS before dependent frontend integration. Keep the frontend on labelled sample SSE only until real events are ready.
 3. Codex builds the clean static purchase flow and initial traps; Claude Code implements the minimal agent against the same fixtures. Prove a clean end-to-end run before adding the full defense stack.
 4. Connect live screenshots/events, implement the first real interception, and validate both sides through the public URL.
-5. Follow the daily gates above. Use separate branches for web/arena and backend work, focused PRs, and a coordinated contract PR; do not edit each other's owned files without an explicit handoff.
+5. Follow the daily gates above. Push small, focused commits straight to `main`, with one coordinated contract commit; do not edit each other's owned files without an explicit handoff.
 
 ---
 
