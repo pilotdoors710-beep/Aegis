@@ -19,7 +19,15 @@ from sse_starlette.sse import EventSourceResponse
 
 from aegis.agent import Agent, LLMAgent
 from aegis.config import settings
-from aegis.events import MAX_RUNS_KEPT, SAMPLE_RUN_ID, RunBus, sample_eval_stats, sample_run
+from aegis.events import (
+    SAMPLE_RUN_ID,
+    PgCache,
+    PgStore,
+    RunBus,
+    make_store,
+    sample_eval_stats,
+    sample_run,
+)
 from aegis.llm import LLMRouter
 from aegis.loop import run_pair, start_url
 from aegis.presets import PRESETS
@@ -44,12 +52,18 @@ SAMPLE_FRAME_DELAY_S = 0.3
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    global _browser
+    global _browser, _bus
     pw = await async_playwright().start()
     _browser = await pw.chromium.launch(args=["--no-sandbox"])
+    store = make_store(settings)
+    if isinstance(store, PgStore):
+        _router.cache = PgCache(store)
+        await store.mark_interrupted()
+    _bus = RunBus(store)
     try:
         yield
     finally:
+        await store.close()
         await _browser.close()
         await pw.stop()
 
@@ -182,10 +196,10 @@ async def create_run(body: RunCreate) -> RunCreated:
     preset = next((p for p in PRESETS if p.id == body.preset_id), None)
     if preset is None:
         raise HTTPException(status_code=404, detail=f"unknown preset {body.preset_id!r}")
-    ahead = sum(r.status in ("queued", "running") for r in _bus.summaries(MAX_RUNS_KEPT))
+    ahead = sum(r.status in ("queued", "running") for r in _bus.summaries())
     position = max(0, ahead - settings.max_concurrent_runs + 1)
     run_id = uuid.uuid4().hex[:12]
-    _bus.create(RunSummary(
+    await _bus.create(RunSummary(
         run_id=run_id, preset_id=preset.id, task=preset.task, status="queued",
         created_at=datetime.now(UTC), model=settings.agent_models.split(",")[0] or None,
     ))  # fmt: skip
@@ -198,7 +212,10 @@ async def create_run(body: RunCreate) -> RunCreated:
 
 @app.get("/runs")
 async def list_runs(limit: int = Query(20, ge=1, le=100)) -> list[RunSummary]:
-    return _bus.summaries(limit)
+    # Live summaries in this process are fresher than the store's (writes are queued).
+    runs = {r.run_id: r for r in await _bus.store.list_runs(limit)}
+    runs |= {r.run_id: r for r in _bus.summaries()}
+    return sorted(runs.values(), key=lambda r: r.created_at, reverse=True)[:limit]
 
 
 def _live(run_id: str):  # noqa: ANN202
@@ -212,14 +229,23 @@ def _live(run_id: str):  # noqa: ANN202
 async def get_run(run_id: str) -> RunSummary:
     if run_id == SAMPLE_RUN_ID:
         return sample_run()[0]
-    return _live(run_id).summary
+    if run := _bus.get(run_id):
+        return run.summary
+    if summary := await _bus.store.get_run(run_id):
+        return summary
+    raise HTTPException(status_code=404, detail="run not found")
 
 
 @app.get("/runs/{run_id}/events")
 async def get_run_events(run_id: str) -> list[Event]:
+    """Replay (E3). Runs still in memory include inline JPEGs; stored runs carry screenshot_url."""
     if run_id == SAMPLE_RUN_ID:
         return sample_run()[1]
-    return _live(run_id).events
+    if run := _bus.get(run_id):
+        return run.events
+    if await _bus.store.get_run(run_id) is None:
+        raise HTTPException(status_code=404, detail="run not found")
+    return await _bus.store.get_events(run_id)
 
 
 @app.get("/runs/{run_id}/stream", response_class=EventSourceResponse)

@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     ask_timeout_s: int = 120
     # Decision cache: off | fallback (only when every provider fails) | on. Eval forces off.
     llm_cache_mode: Literal["off", "fallback", "on"] = "on"
+    # Supabase (server-side only; the web never gets these). Unset DB URL = in-memory store.
+    supabase_db_url: str = ""
+    supabase_url: str = ""
+    supabase_service_key: str = ""
     # R2 disposable consent trials (gated research experiment, brief §3).
     r2_enabled: bool = False
 

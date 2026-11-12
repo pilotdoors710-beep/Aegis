@@ -9,6 +9,11 @@ from pathlib import Path
 import pytest
 from playwright.async_api import Page, async_playwright
 
+from aegis.config import settings
+
+# Tests never touch the remote Supabase from .env: every store is the in-memory one.
+settings.supabase_db_url = ""
+
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = Path(__file__).with_name("fixtures")
 
