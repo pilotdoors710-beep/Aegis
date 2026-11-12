@@ -4,11 +4,13 @@ Clicks are ALWAYS page.mouse.click(x, y) at the target's bbox centre. Playwright
 checks would refuse a click intercepted by an overlay and silently protect the unshielded agent.
 """
 
+import asyncio
+import contextlib
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
 from playwright.async_api import Error as PlaywrightError
-from playwright.async_api import Page
+from playwright.async_api import Page, Request
 
 from aegis.schemas import Action
 
@@ -37,24 +39,44 @@ async def _center(page: Page, target_id: str) -> tuple[float, float] | None:
     return (xy[0], xy[1]) if xy else None
 
 
-async def _settle(page: Page) -> None:
-    # A click's navigation may start only after the click returns (slow host): pause, then wait
-    # for whichever document is current to finish loading.
-    await page.wait_for_timeout(250)
-    try:
-        await page.wait_for_load_state("domcontentloaded", timeout=SETTLE_TIMEOUT_MS)
-    except PlaywrightError:
-        pass
+class _NavWatch:
+    """Listens BEFORE the action, so a navigation it causes is never missed: on a slow host the
+    new document can commit long after the click returns, and a snapshot of the old or a
+    half-parsed page made the agent give up."""
+
+    def __init__(self, page: Page) -> None:
+        self.page, self.started, self.loaded = page, False, asyncio.Event()
+        page.on("request", self._request)
+        page.on("domcontentloaded", self._dom)
+
+    def _request(self, request: Request) -> None:
+        if request.is_navigation_request() and request.frame == self.page.main_frame:
+            self.started = True
+            self.loaded.clear()
+
+    def _dom(self, _: Page) -> None:
+        self.loaded.set()
+
+    async def settle(self) -> None:
+        await asyncio.sleep(0.15)  # handlers that set location.href start just after the click
+        if self.started:
+            with contextlib.suppress(TimeoutError):
+                await asyncio.wait_for(self.loaded.wait(), SETTLE_TIMEOUT_MS / 1000)
+
+    def close(self) -> None:
+        self.page.remove_listener("request", self._request)
+        self.page.remove_listener("domcontentloaded", self._dom)
 
 
 async def execute(page: Page, action: Action, pre_click: PreClick | None = None) -> ExecResult:
+    watch = _NavWatch(page)
     try:
         match action.type:
             case "click" | "submit" | "type":
                 if not action.target_id:
                     if action.type == "submit":
                         await page.keyboard.press("Enter")
-                        await _settle(page)
+                        await watch.settle()
                         return ExecResult(True, page.url)
                     return ExecResult(False, page.url, "missing target_id")
                 xy = await _center(page, action.target_id)
@@ -77,10 +99,12 @@ async def execute(page: Page, action: Action, pre_click: PreClick | None = None)
                 await page.goto(action.url, wait_until="domcontentloaded")
             case "done":
                 return ExecResult(True, page.url)
-        await _settle(page)
+        await watch.settle()
         return ExecResult(True, page.url)
     except PlaywrightError as e:
         return ExecResult(False, page.url, f"{type(e).__name__}: {str(e).splitlines()[0]}")
+    finally:
+        watch.close()
 
 
 _HIT_JS = """([id, x, y]) => {

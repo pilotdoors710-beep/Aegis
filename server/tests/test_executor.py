@@ -1,3 +1,4 @@
+import asyncio
 import re
 from pathlib import Path
 
@@ -48,3 +49,20 @@ async def test_veto_hook_blocks_click(page: Page, fixture_url: str) -> None:
     res = await execute(page, Action(type="click", target_id=cont.id), pre_click=veto)
     assert not res.ok and res.error == "occluded"
     assert await page.title() == "Mini Shop"
+
+
+async def test_slow_navigation_is_waited_for(page: Page, arena_url: str) -> None:
+    """On a slow host the next document commits long after the click returns."""
+
+    async def slow(route):  # noqa: ANN001
+        await asyncio.sleep(1.5)
+        await route.continue_()
+
+    await page.route("**/product.html*", slow)
+    await page.goto(f"{arena_url}/index.html?traps=none")
+    snap = await take_snapshot(page)
+    link = next(e for e in snap.elements if e.tag == "a" and e.text == "Aurora desk lamp")
+    result = await execute(page, Action(type="click", target_id=link.id, rationale="t"))
+    after = await take_snapshot(page)
+    assert result.ok and "product.html" in after.url
+    assert any(e.text == "Add to cart" for e in after.elements)

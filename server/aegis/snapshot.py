@@ -24,12 +24,15 @@ async def take_snapshot(page: Page, attempts: int = 4) -> PageSnapshot:
             # A half-loaded page reads as empty and the agent gives up: wait for the DOM first.
             await page.wait_for_load_state("domcontentloaded", timeout=10_000)
             raw = await page.evaluate(_script())
-            return PageSnapshot.model_validate(raw)
+            if raw is not None:
+                return PageSnapshot.model_validate(raw)
+            await page.wait_for_timeout(200)
+            continue
         except PlaywrightError as e:
             if i == attempts - 1 or "context was destroyed" not in str(e):
                 raise
             await page.wait_for_load_state("domcontentloaded", timeout=10_000)
-    raise AssertionError("unreachable")
+    raise RuntimeError("the page never finished loading")
 
 
 async def screenshot_b64(page: Page, quality: int = 60) -> str:

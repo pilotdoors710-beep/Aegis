@@ -3,6 +3,7 @@
 // for the lifetime of a document. Text is collected whatever its visibility: a typical DOM agent
 // reads hidden text, and leaving it out would silently protect the unshielded baseline.
 () => {
+  if (document.readyState === "loading") return null; // half-parsed page: caller waits, retries
   const NEARBY_PX = 80;
   const MAX_TEXT = 300;
   const INTERACTIVE_TAGS = new Set(["A", "BUTTON", "INPUT", "SELECT", "TEXTAREA", "SUMMARY"]);
