@@ -41,7 +41,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/runs/demo/stream": {
+    "/healthz/llm": {
         parameters: {
             query?: never;
             header?: never;
@@ -49,12 +49,155 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Demo Stream
-         * @description Canned SSE stream so the console can be built before the real loop exists.
+         * Healthz Llm
+         * @description One minimal completion through the router; names the provider that answered.
          */
-        get: operations["demo_stream_runs_demo_stream_get"];
+        get: operations["healthz_llm_healthz_llm_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/healthz/arena": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Healthz Arena
+         * @description The shared Chromium loads the arena home page from ARENA_BASE_URL.
+         */
+        get: operations["healthz_arena_healthz_arena_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/presets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Presets */
+        get: operations["list_presets_presets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Stats */
+        get: operations["stats_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Runs */
+        get: operations["list_runs_runs_get"];
+        put?: never;
+        /** Create Run */
+        post: operations["create_run_runs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Run */
+        get: operations["get_run_runs__run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runs/{run_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Run Events */
+        get: operations["get_run_events_runs__run_id__events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runs/{run_id}/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream Run
+         * @description SSE (C2): `event: run` frame first, then `event: <kind>` frames; ends after both dones.
+         */
+        get: operations["stream_run_runs__run_id__stream_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runs/{run_id}/ask/{ask_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolve Ask */
+        post: operations["resolve_ask_runs__run_id__ask__ask_id__post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -64,7 +207,739 @@ export interface paths {
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: never;
+    schemas: {
+        /** Action */
+        Action: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "click" | "type" | "select" | "navigate" | "submit" | "done";
+            /** Target Id */
+            target_id?: string | null;
+            /** Text */
+            text?: string | null;
+            /** Url */
+            url?: string | null;
+            /**
+             * Rationale
+             * @default
+             */
+            rationale: string;
+        };
+        /** AskDecision */
+        AskDecision: {
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "approve" | "deny";
+        };
+        /** AskEvent */
+        AskEvent: {
+            /** Run Id */
+            run_id: string;
+            /** Step */
+            step: number;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "shielded" | "unshielded";
+            /**
+             * Ts
+             * Format: date-time
+             */
+            ts: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "ask";
+            payload: components["schemas"]["AskPayload"];
+        };
+        /** AskPayload */
+        AskPayload: {
+            /** Ask Id */
+            ask_id: string;
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "final_payment" | "uncertain" | "retries_exhausted" | "guard_unavailable";
+            action?: components["schemas"]["Action"] | null;
+            /**
+             * Findings
+             * @default []
+             */
+            findings: components["schemas"]["Finding"][];
+            audit?: components["schemas"]["AuditReport"] | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "approved" | "denied" | "timed_out" | "auto_approved_demo";
+        };
+        /** AuditCheck */
+        AuditCheck: {
+            /** Constraint */
+            constraint: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "authorization" | "fulfillment";
+            /** Ledger Value */
+            ledger_value: string;
+            /** Observed Value */
+            observed_value: string;
+            /** Evidence */
+            evidence: string;
+            /** Element Id */
+            element_id?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "permitted" | "violation" | "uncertain";
+        };
+        /** AuditReport */
+        AuditReport: {
+            /** Checks */
+            checks: components["schemas"]["AuditCheck"][];
+            observed: components["schemas"]["CheckoutState"];
+            /** Recheck Of */
+            recheck_of?: number | null;
+        };
+        /** CheckoutLine */
+        CheckoutLine: {
+            /** Name */
+            name: string;
+            /**
+             * Qty
+             * @default 1
+             */
+            qty: number;
+            /** Amount */
+            amount?: number | null;
+            /** Element Id */
+            element_id?: string | null;
+        };
+        /** CheckoutState */
+        CheckoutState: {
+            /**
+             * Lines
+             * @default []
+             */
+            lines: components["schemas"]["CheckoutLine"][];
+            /**
+             * Ticked Options
+             * @default []
+             */
+            ticked_options: components["schemas"]["TickedOption"][];
+            /** Total */
+            total?: number | null;
+            /**
+             * Recurring Terms
+             * @default []
+             */
+            recurring_terms: components["schemas"]["RecurringTerm"][];
+            /**
+             * Data Sharing
+             * @default []
+             */
+            data_sharing: components["schemas"]["DataSharing"][];
+            shipping?: components["schemas"]["ShippingObservation"] | null;
+        };
+        /** Commitment */
+        Commitment: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "item" | "addon" | "subscription" | "fee" | "data_sharing" | "download";
+            /** Description */
+            description: string;
+            /** Amount */
+            amount?: number | null;
+            /** Period */
+            period?: string | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "proposed" | "approved" | "executed";
+        };
+        /** ConfigStats */
+        ConfigStats: {
+            /**
+             * Config
+             * @enum {string}
+             */
+            config: "U" | "F" | "I" | "I-minus-audit" | "I+R2";
+            /** Runs */
+            runs: number;
+            trap_success: components["schemas"]["Count"];
+            task_success: components["schemas"]["Count"];
+            safe_task_completion: components["schemas"]["Count"];
+            unauthorized_commitments: components["schemas"]["Count"];
+            clean_false_block: components["schemas"]["Count"];
+            unnecessary_ask: components["schemas"]["Count"];
+            authorized_option_rejection: components["schemas"]["Count"];
+            /** Expected Final Approvals */
+            expected_final_approvals: number;
+            /** Uncertainty Escalations */
+            uncertainty_escalations: number;
+            /** Denials */
+            denials: number;
+            /** Fast Detector Ms Median */
+            fast_detector_ms_median?: number | null;
+            /** Audit Ms Median */
+            audit_ms_median?: number | null;
+            /** Shield Added Ms Median */
+            shield_added_ms_median?: number | null;
+            /** Run Duration S Median */
+            run_duration_s_median?: number | null;
+        };
+        /** Count */
+        Count: {
+            /** Count */
+            count: number;
+            /** Of */
+            of: number;
+        };
+        /** DataSharing */
+        DataSharing: {
+            /** Description */
+            description: string;
+            /**
+             * Categories
+             * @default []
+             */
+            categories: string[];
+            /** Element Id */
+            element_id?: string | null;
+        };
+        /** DecisionEvent */
+        DecisionEvent: {
+            /** Run Id */
+            run_id: string;
+            /** Step */
+            step: number;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "shielded" | "unshielded";
+            /**
+             * Ts
+             * Format: date-time
+             */
+            ts: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "decision";
+            payload: components["schemas"]["DecisionPayload"];
+        };
+        /** DecisionPayload */
+        DecisionPayload: {
+            action: components["schemas"]["Action"];
+            /** Provider */
+            provider: string;
+            /** Model */
+            model: string;
+            /** Cached */
+            cached: boolean;
+            /** Llm Latency Ms */
+            llm_latency_ms: number;
+            /**
+             * Attempt
+             * @default 1
+             */
+            attempt: number;
+        };
+        /** DoneEvent */
+        DoneEvent: {
+            /** Run Id */
+            run_id: string;
+            /** Step */
+            step: number;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "shielded" | "unshielded";
+            /**
+             * Ts
+             * Format: date-time
+             */
+            ts: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "done";
+            payload: components["schemas"]["DonePayload"];
+        };
+        /** DonePayload */
+        DonePayload: {
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "completed" | "max_steps" | "denied" | "aborted" | "error";
+            outcome: components["schemas"]["Outcome"];
+        };
+        /** ErrorEvent */
+        ErrorEvent: {
+            /** Run Id */
+            run_id: string;
+            /** Step */
+            step: number;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "shielded" | "unshielded";
+            /**
+             * Ts
+             * Format: date-time
+             */
+            ts: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "error";
+            payload: components["schemas"]["ErrorPayload"];
+        };
+        /** ErrorPayload */
+        ErrorPayload: {
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
+            /** Recoverable */
+            recoverable: boolean;
+        };
+        /** EvalStats */
+        EvalStats: {
+            /**
+             * Label
+             * @enum {string}
+             */
+            label: "sample" | "pilot" | "final";
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /** Model */
+            model: string | null;
+            /** N */
+            n: number;
+            /** Configs */
+            configs: components["schemas"]["ConfigStats"][];
+        };
+        /** ExecutedEvent */
+        ExecutedEvent: {
+            /** Run Id */
+            run_id: string;
+            /** Step */
+            step: number;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "shielded" | "unshielded";
+            /**
+             * Ts
+             * Format: date-time
+             */
+            ts: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "executed";
+            payload: components["schemas"]["ExecutedPayload"];
+        };
+        /** ExecutedPayload */
+        ExecutedPayload: {
+            action: components["schemas"]["Action"];
+            /** Ok */
+            ok: boolean;
+            /** Url After */
+            url_after?: string | null;
+            /**
+             * Disposable
+             * @default false
+             */
+            disposable: boolean;
+            /**
+             * Defense Retry
+             * @default false
+             */
+            defense_retry: boolean;
+        };
+        /** Finding */
+        Finding: {
+            /** Detector */
+            detector: string;
+            /**
+             * Trap Type
+             * @enum {string}
+             */
+            trap_type: "hidden_info" | "preselection" | "trick_wording" | "obstruction" | "urgency" | "social_proof" | "disguised_ad" | "fake_control" | "clickjacking" | "prompt_injection" | "forced_action";
+            /**
+             * Severity
+             * @enum {string}
+             */
+            severity: "low" | "medium" | "high";
+            /** Element Id */
+            element_id?: string | null;
+            /** Evidence */
+            evidence: string;
+            /** Suggestion */
+            suggestion?: string | null;
+        };
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HealthArena */
+        HealthArena: {
+            /** Url */
+            url: string;
+            /** Title */
+            title: string;
+        };
+        /** HealthLLM */
+        HealthLLM: {
+            /** Provider */
+            provider: string;
+            /** Model */
+            model: string;
+            /** Latency Ms */
+            latency_ms: number;
+        };
+        /** Highlight */
+        Highlight: {
+            /** Element Id */
+            element_id: string;
+            /** Bbox */
+            bbox: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** Label */
+            label: string;
+            /**
+             * Severity
+             * @enum {string}
+             */
+            severity: "low" | "medium" | "high";
+        };
+        /**
+         * Ledger
+         * @description What the user asked for. Written once before browsing; page content never edits it.
+         */
+        Ledger: {
+            /** Goal */
+            goal: string;
+            /**
+             * Items
+             * @default []
+             */
+            items: components["schemas"]["LedgerItem"][];
+            /** Budget Max */
+            budget_max?: number | null;
+            /**
+             * Allow Addons
+             * @default false
+             */
+            allow_addons: boolean;
+            /**
+             * Allow Subscriptions
+             * @default false
+             */
+            allow_subscriptions: boolean;
+            /**
+             * Allowed Domains
+             * @default []
+             */
+            allowed_domains: string[];
+            /**
+             * Data Allowed
+             * @default []
+             */
+            data_allowed: string[];
+            /** Shipping Method */
+            shipping_method?: ("standard" | "express") | null;
+        };
+        /** LedgerItem */
+        LedgerItem: {
+            /** Name */
+            name: string;
+            /**
+             * Qty
+             * @default 1
+             */
+            qty: number;
+            /** Max Price */
+            max_price?: number | null;
+        };
+        /** Outcome */
+        Outcome: {
+            /** Task Completed */
+            task_completed?: boolean | null;
+            /** Total */
+            total?: number | null;
+            /**
+             * Commitments
+             * @default []
+             */
+            commitments: components["schemas"]["Commitment"][];
+        };
+        /** Preset */
+        Preset: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /** Task */
+            task: string;
+            /** Traps */
+            traps: string[];
+            /**
+             * Variant
+             * @default a
+             */
+            variant: string;
+            /**
+             * Auto Approve
+             * @default false
+             */
+            auto_approve: boolean;
+            /** Pair Of */
+            pair_of?: string | null;
+        };
+        /** RecurringTerm */
+        RecurringTerm: {
+            /** Description */
+            description: string;
+            /** Amount */
+            amount?: number | null;
+            /** Period */
+            period?: string | null;
+            /** Element Id */
+            element_id?: string | null;
+        };
+        /** RemovedText */
+        RemovedText: {
+            /** Reason */
+            reason: string;
+            /** Text */
+            text: string;
+        };
+        /** RunCreate */
+        RunCreate: {
+            /** Preset Id */
+            preset_id: string;
+            /** Auto Approve */
+            auto_approve?: boolean | null;
+        };
+        /** RunCreated */
+        RunCreated: {
+            /** Run Id */
+            run_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "done" | "error";
+            /**
+             * Queue Position
+             * @default 0
+             */
+            queue_position: number;
+        };
+        /**
+         * RunSummary
+         * @description Also sent as the SSE transport frame `event: run` (not an Event).
+         */
+        RunSummary: {
+            /** Run Id */
+            run_id: string;
+            /** Preset Id */
+            preset_id: string;
+            /** Task */
+            task: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "done" | "error";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            ledger?: components["schemas"]["Ledger"] | null;
+            /** @default {} */
+            outcomes: components["schemas"]["SideOutcomes"];
+            /** Model */
+            model?: string | null;
+            /**
+             * Is Sample
+             * @default false
+             */
+            is_sample: boolean;
+        };
+        /** ShippingObservation */
+        ShippingObservation: {
+            /** Method */
+            method?: ("standard" | "express") | null;
+            /** Cost */
+            cost?: number | null;
+            /**
+             * Evidence
+             * @default
+             */
+            evidence: string;
+            /** Element Id */
+            element_id?: string | null;
+        };
+        /** SideOutcomes */
+        SideOutcomes: {
+            unshielded?: components["schemas"]["Outcome"] | null;
+            shielded?: components["schemas"]["Outcome"] | null;
+        };
+        /** SnapshotEvent */
+        SnapshotEvent: {
+            /** Run Id */
+            run_id: string;
+            /** Step */
+            step: number;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "shielded" | "unshielded";
+            /**
+             * Ts
+             * Format: date-time
+             */
+            ts: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "snapshot";
+            payload: components["schemas"]["SnapshotPayload"];
+        };
+        /** SnapshotPayload */
+        SnapshotPayload: {
+            /** Url */
+            url: string;
+            /** Title */
+            title: string;
+            /** Screenshot B64 */
+            screenshot_b64?: string | null;
+            /** Screenshot Url */
+            screenshot_url?: string | null;
+            /** Element Count */
+            element_count: number;
+            /**
+             * Removed
+             * @default []
+             */
+            removed: components["schemas"]["RemovedText"][];
+        };
+        /** TickedOption */
+        TickedOption: {
+            /** Label */
+            label: string;
+            /** Checked */
+            checked: boolean;
+            /** Element Id */
+            element_id?: string | null;
+        };
+        /** ValidationError */
+        ValidationError: {
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
+            /** Input */
+            input?: unknown;
+            /** Context */
+            ctx?: Record<string, never>;
+        };
+        /** Verdict */
+        Verdict: {
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "ALLOW" | "BLOCK" | "REROUTE" | "ASK";
+            /**
+             * Findings
+             * @default []
+             */
+            findings: components["schemas"]["Finding"][];
+            /** Reroute Hint */
+            reroute_hint?: string | null;
+            /**
+             * Latency Ms
+             * @default 0
+             */
+            latency_ms: number;
+        };
+        /** VerdictEvent */
+        VerdictEvent: {
+            /** Run Id */
+            run_id: string;
+            /** Step */
+            step: number;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "shielded" | "unshielded";
+            /**
+             * Ts
+             * Format: date-time
+             */
+            ts: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "verdict";
+            payload: components["schemas"]["VerdictPayload"];
+        };
+        /** VerdictPayload */
+        VerdictPayload: {
+            verdict: components["schemas"]["Verdict"];
+            action: components["schemas"]["Action"];
+            audit?: components["schemas"]["AuditReport"] | null;
+            /**
+             * Highlights
+             * @default []
+             */
+            highlights: components["schemas"]["Highlight"][];
+        };
+    };
     responses: never;
     parameters: never;
     requestBodies: never;
@@ -117,7 +992,7 @@ export interface operations {
             };
         };
     };
-    demo_stream_runs_demo_stream_get: {
+    healthz_llm_healthz_llm_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -132,7 +1007,258 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["HealthLLM"];
+                };
+            };
+        };
+    };
+    healthz_arena_healthz_arena_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthArena"];
+                };
+            };
+        };
+    };
+    list_presets_presets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Preset"][];
+                };
+            };
+        };
+    };
+    stats_stats_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvalStats"];
+                };
+            };
+        };
+    };
+    list_runs_runs_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_run_runs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_run_runs__run_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_run_events_runs__run_id__events_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": (components["schemas"]["SnapshotEvent"] | components["schemas"]["DecisionEvent"] | components["schemas"]["VerdictEvent"] | components["schemas"]["ExecutedEvent"] | components["schemas"]["AskEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["DoneEvent"])[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stream_run_runs__run_id__stream_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_ask_runs__run_id__ask__ask_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                ask_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AskDecision"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AskPayload"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

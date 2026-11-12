@@ -32,6 +32,17 @@ class Settings(BaseSettings):
     openrouter_rpm: int = 15
     cerebras_rpm: int = 20
 
+    # Where the agent's Chromium finds the Trap Arena (Vercel in production).
+    arena_base_url: str = "http://localhost:3000/arena"
+    # Ordinary action limit per run side.
+    max_steps: int = 15
+    # How long an ASK waits for a human before it times out (treated as deny).
+    ask_timeout_s: int = 120
+    # Decision cache: off | fallback (only when every provider fails) | on. Eval forces off.
+    llm_cache_mode: Literal["off", "fallback", "on"] = "on"
+    # R2 disposable consent trials (gated research experiment, brief §3).
+    r2_enabled: bool = False
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
