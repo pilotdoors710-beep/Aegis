@@ -7,9 +7,10 @@ import asyncio
 import base64
 import time
 import uuid
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -28,6 +29,7 @@ from aegis.events import (
     sample_eval_stats,
     sample_run,
 )
+from aegis.intent import parse_ledger
 from aegis.llm import LLMRouter
 from aegis.loop import run_pair, start_url
 from aegis.presets import PRESETS
@@ -38,6 +40,7 @@ from aegis.schemas import (
     Event,
     HealthArena,
     HealthLLM,
+    Ledger,
     Preset,
     RunCreate,
     RunCreated,
@@ -175,15 +178,28 @@ _router = LLMRouter()  # one router per process so per-provider rate limits hold
 agent_factory: Callable[[], Agent] = lambda: LLMAgent(_router)  # noqa: E731
 
 
+async def _parse(task: str) -> tuple[Ledger, list[str]]:
+    host = urlsplit(settings.arena_base_url).hostname or ""
+    return await parse_ledger(task, _router, allowed_domains=[host])
+
+
+ledger_parser: Callable[[str], Awaitable[tuple[Ledger, list[str]]]] = _parse  # tests swap it
+
+
 async def _run(run_id: str, preset: Preset) -> None:
     global _run_slots
     assert _browser is not None
     _run_slots = _run_slots or asyncio.Semaphore(settings.max_concurrent_runs)
     async with _run_slots:
+        try:  # B1: the ledger is written once, before browsing, from the task text only
+            ledger, unresolved = await ledger_parser(preset.task)
+        except Exception as e:  # no ledger: the shielded side asks before it browses
+            ledger, unresolved = None, [f"Could not read the request ({type(e).__name__})."]
+        await _bus.update(run_id, ledger=ledger)
         await run_pair(
             _browser, _bus, run_id, task=preset.task, make_agent=agent_factory,
             url=validate_url(start_url(preset.traps, preset.variant), arena_origin()),
-            allowed_origin=arena_origin(),
+            allowed_origin=arena_origin(), ledger=ledger, unresolved=unresolved,
         )  # fmt: skip
 
 

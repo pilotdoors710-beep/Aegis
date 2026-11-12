@@ -9,6 +9,7 @@ from playwright.async_api import async_playwright
 import api.main as main
 from aegis.config import settings
 from aegis.events import RunBus
+from aegis.schemas import Ledger, LedgerItem
 from tests.scripted_agent import ScriptedAgent, click_text
 
 
@@ -25,6 +26,7 @@ async def client(
 ) -> AsyncIterator[httpx.AsyncClient]:
     monkeypatch.setattr(settings, "arena_base_url", arena_url)
     monkeypatch.setattr(main, "agent_factory", _clean_purchase)
+    monkeypatch.setattr(main, "ledger_parser", _ledger)
     monkeypatch.setattr(main, "_bus", RunBus())
     monkeypatch.setattr(main, "_run_slots", None)
     async with async_playwright() as pw:
@@ -39,6 +41,11 @@ async def client(
         main._browser = None
 
 
+async def _ledger(task: str) -> tuple[Ledger, list[str]]:
+    return Ledger(goal=task, items=[LedgerItem(name="Aurora desk lamp")], budget_max=1500,
+                  shipping_method="standard"), []  # fmt: skip
+
+
 def _frames(body: str) -> list[dict[str, str]]:
     out = []
     for block in body.replace("\r\n", "\n").split("\n\n"):
@@ -49,9 +56,9 @@ def _frames(body: str) -> list[dict[str, str]]:
 
 
 async def test_paired_run_streams_and_queues(client: httpx.AsyncClient) -> None:
-    first = (await client.post("/runs", json={"preset_id": "clean"})).json()
+    first = (await client.post("/runs", json={"preset_id": "clean", "auto_approve": True})).json()
     assert first["status"] == "running" and first["queue_position"] == 0
-    second = (await client.post("/runs", json={"preset_id": "clean"})).json()
+    second = (await client.post("/runs", json={"preset_id": "clean", "auto_approve": True})).json()
     assert second["status"] == "queued" and second["queue_position"] == 1
 
     run_id = first["run_id"]

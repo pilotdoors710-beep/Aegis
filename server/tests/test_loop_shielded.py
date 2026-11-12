@@ -2,15 +2,26 @@ import json
 
 from playwright.async_api import Page, async_playwright
 
+from aegis.events import AskGate
 from aegis.loop import run_side, start_url
-from aegis.schemas import Event, Mode
+from aegis.schemas import Event, Ledger, LedgerItem, Mode
 from tests.scripted_agent import ScriptedAgent, click_text
 from tests.test_loop import TASK
 
 CART = "cart=aurora-desk-lamp:1"
 
 
-async def _run(mode: Mode, url: str, agent: ScriptedAgent) -> tuple[list[Event], list[str]]:
+DEFAULT_LEDGER = Ledger(goal=TASK, items=[LedgerItem(name="Aurora desk lamp")], budget_max=1500,
+                        shipping_method="standard")  # fmt: skip
+
+
+async def _run(
+    mode: Mode,
+    url: str,
+    agent: ScriptedAgent,
+    gate: AskGate | None = None,
+    ledger: Ledger = DEFAULT_LEDGER,
+) -> tuple[list[Event], list[str]]:
     effects: list[str] = []
 
     async def grab(page: Page) -> None:  # evaluator ground truth, test-only
@@ -21,7 +32,15 @@ async def _run(mode: Mode, url: str, agent: ScriptedAgent) -> tuple[list[Event],
         events = [
             ev
             async for ev in run_side(
-                browser, run_id="t", mode=mode, task=TASK, url=url, agent=agent, on_finish=grab
+                browser,
+                run_id="t",
+                mode=mode,
+                task=TASK,
+                url=url,
+                agent=agent,
+                on_finish=grab,
+                ledger=ledger,
+                gate=gate,
             )
         ]
         await browser.close()
@@ -69,8 +88,12 @@ async def test_visible_cover_blocks_until_ask(arena_url: str) -> None:
     vs = _verdicts(events)
     assert [v.verdict.decision for v in vs] == ["BLOCK"] * 4 and not any(v.neutralized for v in vs)
     assert not [e for e in events if e.kind == "executed"]
-    assert next(e.payload for e in events if e.kind == "ask").reason == "retries_exhausted"
-    assert events[-1].payload.reason == "aborted"
+    asks = [e.payload for e in events if e.kind == "ask"]
+    assert [(a.reason, a.status) for a in asks] == [
+        ("retries_exhausted", "pending"),
+        ("retries_exhausted", "timed_out"),
+    ]  # no gate given: fails closed
+    assert events[-1].payload.reason == "denied"
 
 
 async def test_clean_flow_has_no_stops(arena_url: str) -> None:
@@ -78,8 +101,11 @@ async def test_clean_flow_has_no_stops(arena_url: str) -> None:
         click_text("Aurora desk lamp"), click_text("Add to cart"),
         click_text("Continue"), click_text("Place order"),
     ])  # fmt: skip
-    events, _ = await _run("shielded", start_url([], base=arena_url), agent)
-    assert {v.verdict.decision for v in _verdicts(events)} == {"ALLOW"}
+    gate = AskGate(auto_approve=True)
+    events, _ = await _run("shielded", start_url([], base=arena_url), agent, gate)
+    assert [v.verdict.decision for v in _verdicts(events)] == ["ALLOW"] * 3 + ["ASK"]
+    asks = [(e.payload.reason, e.payload.status) for e in events if e.kind == "ask"]
+    assert asks == [("final_payment", "pending"), ("final_payment", "auto_approved_demo")]
     done = events[-1].payload
     assert done.reason == "completed" and done.outcome.total == 1299
 
