@@ -22,7 +22,7 @@ Template:
 
 ## Log
 
-### 2026-11-13 · Dev A · Claude Code
+### 2026-11-12 (evening, Friday cards early) · Dev A · Claude Code
 - Did: live run API (`POST /runs`, live SSE stream with reconnect, queue), arena-only network
   guard, detectors A1–A5 + B5 + C1, verdict engine, and the shielded side (blocks, feedback to
   the agent, 3 retries then an ask).
