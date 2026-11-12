@@ -22,11 +22,18 @@ Template:
 
 ## Log
 
+### 2026-11-12 - Dev B - Codex side conversation - partner reference document
+- Saved [DEFERRED_EXTENSIONS.md](DEFERRED_EXTENSIONS.md) in the project root for the human partner to review.
+- Records ideas for supported external websites, disposable control experiments, and an optional Deep check mode.
+- Agents must not use this document as a work plan or activate it after core completion. A new explicit human instruction and reconciliation with the active brief are required.
+- Documentation only; no implementation, active scope, budget, contracts, or current priorities changed. User requested publishing this reference on main.
+
 ### 2026-11-12 · Dev A · Claude Code
 - Did: fixed `SUPABASE_URL` in `.env` (it had `/rest/v1/` on the end, so screenshot uploads got 404).
 - Did: the approval popup now closes as soon as the server accepts Approve/Deny (`web/app/(console)/approval-dialog.tsx`); before, it could stay open until a reload.
 - Works now: live run → approve → popup closes → run finishes (tested locally and on Vercel through the tunnel).
 - Next: the popup text shows code names (`items[0].max_price`, `e36`); make it plain English with a one-line "everything matches" summary.
+
 
 ### 2026-11-12 - Dev B - Codex - approval and evidence integration
 - Pulled Dev A's audit, recovery, R1 tests and page-load fixes. Built the approval dialog, audit evidence chains, and outcome comparison grouped by proposed/approved/executed commitments.
