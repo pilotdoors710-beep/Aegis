@@ -17,6 +17,7 @@ from playwright.async_api import Browser, Page, async_playwright
 
 from aegis.agent import Agent, LLMAgent, build_agent_view
 from aegis.config import settings
+from aegis.events import RunBus
 from aegis.executor import execute
 from aegis.llm import AllProvidersFailed, LLMRouter
 from aegis.schemas import (
@@ -32,9 +33,11 @@ from aegis.schemas import (
     ExecutedPayload,
     Mode,
     Outcome,
+    SideOutcomes,
     SnapshotEvent,
     SnapshotPayload,
 )
+from aegis.security import install_guard, origin
 from aegis.snapshot import screenshot_b64, take_snapshot
 
 VIEWPORT = {"width": 1280, "height": 720}
@@ -85,14 +88,27 @@ async def run_side(
     max_steps: int | None = None,
     on_start: PageHook | None = None,
     on_finish: PageHook | None = None,
+    allowed_origin: str | None = None,
 ) -> AsyncIterator[Event]:
     if mode != "unshielded":
         raise NotImplementedError("shielded mode lands with the verdict engine (A-D2-06)")
     max_steps = max_steps or settings.max_steps
     ctx = await browser.new_context(viewport=VIEWPORT, accept_downloads=True)  # type: ignore[arg-type]
+    blocked: list[str] = []
+    await install_guard(ctx, allowed_origin or origin(url), blocked.append)
 
     def env(step: int) -> dict:
         return {"run_id": run_id, "step": step, "mode": mode, "ts": datetime.now(UTC)}
+
+    def egress_events(step: int) -> list[Event]:
+        evs: list[Event] = [
+            ErrorEvent(**env(step), payload=ErrorPayload(
+                code="egress_blocked", message=f"request outside the arena blocked: {u[:200]}",
+                recoverable=True))
+            for u in blocked
+        ]  # fmt: skip
+        blocked.clear()
+        return evs
 
     history: list[str] = []
     reason = "max_steps"
@@ -103,6 +119,8 @@ async def run_side(
         if on_start:
             await on_start(page)
         await page.goto(url, wait_until="domcontentloaded")
+        for ev in egress_events(0):
+            yield ev
 
         for step in range(1, max_steps + 1):
             snap = await take_snapshot(page)
@@ -145,6 +163,8 @@ async def run_side(
                 **env(step),
                 payload=ExecutedPayload(action=action, ok=result.ok, url_after=result.url_after),
             )
+            for ev in egress_events(step):
+                yield ev
 
         outcome = await outcome_from_page(page)
         if on_finish:
@@ -154,6 +174,51 @@ async def run_side(
         yield DoneEvent(**env(step), payload=DonePayload(reason=reason, outcome=outcome))  # type: ignore[arg-type]
     finally:
         await ctx.close()
+
+
+async def run_pair(
+    browser: Browser,
+    bus: RunBus,
+    run_id: str,
+    *,
+    task: str,
+    url: str,
+    agent: Agent,
+    max_steps: int | None = None,
+    allowed_origin: str | None = None,
+) -> None:
+    """Both sides concurrently from the same task and start URL; events go to the bus."""
+    outcomes: dict[str, Outcome] = {}
+
+    async def side(mode: Mode) -> None:
+        step = 0
+        try:
+            async for ev in run_side(
+                browser, run_id=run_id, mode=mode, task=task, url=url, agent=agent,
+                max_steps=max_steps, allowed_origin=allowed_origin,
+            ):  # fmt: skip
+                step = ev.step
+                if isinstance(ev, DoneEvent):
+                    outcomes[mode] = ev.payload.outcome
+                await bus.publish(run_id, ev)
+        except Exception as e:  # one side failing must still end with its done event
+            env = {"run_id": run_id, "step": step, "mode": mode, "ts": datetime.now(UTC)}
+            msg = f"{type(e).__name__}: {str(e)[:300]}"
+            await bus.publish(
+                run_id,
+                ErrorEvent(
+                    **env, payload=ErrorPayload(code="side_failed", message=msg, recoverable=False)
+                ),
+            )
+            outcomes[mode] = Outcome()
+            await bus.publish(run_id, DoneEvent(
+                **env, payload=DonePayload(reason="error", outcome=outcomes[mode])))  # fmt: skip
+
+    await bus.update(run_id, status="running")
+    try:
+        await asyncio.gather(side("unshielded"), side("shielded"))
+    finally:
+        await bus.update(run_id, close=True, status="done", outcomes=SideOutcomes(**outcomes))
 
 
 async def _cli() -> None:

@@ -7,17 +7,21 @@ can generate types today. run_id "sample" always serves a labelled, contract-val
 import asyncio
 import base64
 import time
-from collections.abc import AsyncIterator
+import uuid
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from playwright.async_api import Browser, async_playwright
 from sse_starlette.sse import EventSourceResponse
 
+from aegis.agent import Agent, LLMAgent
 from aegis.config import settings
-from aegis.events import SAMPLE_RUN_ID, sample_eval_stats, sample_run
+from aegis.events import MAX_RUNS_KEPT, SAMPLE_RUN_ID, RunBus, sample_eval_stats, sample_run
 from aegis.llm import LLMRouter
+from aegis.loop import run_pair, start_url
 from aegis.presets import PRESETS
 from aegis.schemas import (
     AskDecision,
@@ -31,6 +35,7 @@ from aegis.schemas import (
     RunCreated,
     RunSummary,
 )
+from aegis.security import arena_origin, validate_url
 
 # One shared Chromium per process (brief §3); contexts are created per run side.
 _browser: Browser | None = None
@@ -152,35 +157,79 @@ async def stats() -> EvalStats:
 # --- Runs -----------------------------------------------------------------------------------
 
 
+_bus = RunBus()
+_run_slots: asyncio.Semaphore | None = None
+_tasks: set[asyncio.Task] = set()
+# Tests swap this for a ScriptedAgent factory; the LLM router is shared so rate limits hold.
+agent_factory: Callable[[], Agent] = lambda: LLMAgent(LLMRouter())  # noqa: E731
+
+
+async def _run(run_id: str, preset: Preset) -> None:
+    global _run_slots
+    assert _browser is not None
+    _run_slots = _run_slots or asyncio.Semaphore(settings.max_concurrent_runs)
+    async with _run_slots:
+        await run_pair(
+            _browser, _bus, run_id, task=preset.task, agent=agent_factory(),
+            url=validate_url(start_url(preset.traps, preset.variant), arena_origin()),
+            allowed_origin=arena_origin(),
+        )  # fmt: skip
+
+
 @app.post("/runs", status_code=201)
 async def create_run(body: RunCreate) -> RunCreated:
-    raise _not_built("POST /runs")
+    preset = next((p for p in PRESETS if p.id == body.preset_id), None)
+    if preset is None:
+        raise HTTPException(status_code=404, detail=f"unknown preset {body.preset_id!r}")
+    ahead = sum(r.status in ("queued", "running") for r in _bus.summaries(MAX_RUNS_KEPT))
+    position = max(0, ahead - settings.max_concurrent_runs + 1)
+    run_id = uuid.uuid4().hex[:12]
+    _bus.create(RunSummary(
+        run_id=run_id, preset_id=preset.id, task=preset.task, status="queued",
+        created_at=datetime.now(UTC), model=settings.agent_models.split(",")[0] or None,
+    ))  # fmt: skip
+    task = asyncio.create_task(_run(run_id, preset))
+    _tasks.add(task)  # keep a reference so the task is not garbage-collected
+    task.add_done_callback(_tasks.discard)
+    return RunCreated(run_id=run_id, status="queued" if position else "running",
+                      queue_position=position)  # fmt: skip
 
 
 @app.get("/runs")
 async def list_runs(limit: int = Query(20, ge=1, le=100)) -> list[RunSummary]:
-    raise _not_built("GET /runs")
+    return _bus.summaries(limit)
+
+
+def _live(run_id: str):  # noqa: ANN202
+    run = _bus.get(run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="run not found")
+    return run
 
 
 @app.get("/runs/{run_id}")
 async def get_run(run_id: str) -> RunSummary:
     if run_id == SAMPLE_RUN_ID:
         return sample_run()[0]
-    raise _not_built("GET /runs/{run_id}")
+    return _live(run_id).summary
 
 
 @app.get("/runs/{run_id}/events")
 async def get_run_events(run_id: str) -> list[Event]:
     if run_id == SAMPLE_RUN_ID:
         return sample_run()[1]
-    raise _not_built("GET /runs/{run_id}/events")
+    return _live(run_id).events
 
 
 @app.get("/runs/{run_id}/stream", response_class=EventSourceResponse)
-async def stream_run(run_id: str) -> EventSourceResponse:
+async def stream_run(run_id: str, request: Request) -> EventSourceResponse:
     """SSE (C2): `event: run` frame first, then `event: <kind>` frames; ends after both dones."""
     if run_id != SAMPLE_RUN_ID:
-        raise _not_built("live run streams")
+        _live(run_id)
+        last = request.headers.get("last-event-id", "")  # read raw: keeps the OpenAPI contract
+        return EventSourceResponse(
+            _bus.subscribe(run_id, int(last) if last.isdigit() else 0), ping=15
+        )
     summary, events = sample_run()
 
     async def gen() -> AsyncIterator[dict[str, str]]:

@@ -1,9 +1,11 @@
-"""Event bus (SSE fan-out + persistence come with the run API) and the labelled sample run.
+"""Event bus (in-memory SSE fan-out; persistence lands in A-D2-07) and the labelled sample run.
 
 The sample run is built from the schema models in code, so it cannot drift from the contract
 (DEV_PLAN.md §4 C3). It is always served as run_id "sample" with is_sample=True.
 """
 
+import asyncio
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 
 from aegis.presets import DEFAULT_TASK
@@ -383,3 +385,70 @@ def sample_eval_stats() -> EvalStats:
         n=1,
         configs=[cfg("U", 6, 10, 0), cfg("F", 3, 13, 1), cfg("I", 0, 16, 0)],
     )
+
+
+# --- Live run bus (C2) ----------------------------------------------------------------------
+# shortcut: in-memory only, lost on restart; Postgres persistence lands in A-D2-07.
+
+MAX_RUNS_KEPT = 50
+
+
+class _Run:
+    def __init__(self, summary: RunSummary) -> None:
+        self.summary = summary
+        self.frames: list[tuple[str, str]] = []  # (sse event name, json); SSE id = index + 1
+        self.events: list[Event] = []
+        self.closed = False
+        self.changed = asyncio.Condition()
+
+
+class RunBus:
+    """Per-run frame buffer + fan-out. Late subscribers and Last-Event-ID reconnects replay."""
+
+    def __init__(self) -> None:
+        self._runs: dict[str, _Run] = {}
+
+    def create(self, summary: RunSummary) -> None:
+        self._runs[summary.run_id] = _Run(summary)
+        while len(self._runs) > MAX_RUNS_KEPT:
+            oldest = next(iter(self._runs))
+            if not self._runs[oldest].closed:
+                break
+            del self._runs[oldest]
+
+    def get(self, run_id: str) -> _Run | None:
+        return self._runs.get(run_id)
+
+    def summaries(self, limit: int) -> list[RunSummary]:
+        return [r.summary for r in reversed(self._runs.values())][:limit]
+
+    async def _append(self, run: _Run, name: str, data: str, *, close: bool = False) -> None:
+        async with run.changed:
+            run.frames.append((name, data))
+            run.closed = run.closed or close
+            run.changed.notify_all()
+
+    async def publish(self, run_id: str, event: Event) -> None:
+        run = self._runs[run_id]
+        run.events.append(event)
+        await self._append(run, event.kind, event.model_dump_json())
+
+    async def update(self, run_id: str, *, close: bool = False, **changes: object) -> None:
+        """Change the RunSummary and send a `run` frame (C2)."""
+        run = self._runs[run_id]
+        run.summary = run.summary.model_copy(update=changes)
+        await self._append(run, "run", run.summary.model_dump_json(), close=close)
+
+    async def subscribe(self, run_id: str, last_id: int = 0) -> AsyncIterator[dict[str, str]]:
+        run = self._runs[run_id]
+        yield {"event": "run", "data": run.summary.model_dump_json()}
+        i = last_id
+        while True:
+            async with run.changed:
+                await run.changed.wait_for(lambda n=i: len(run.frames) > n or run.closed)
+                pending, closed = run.frames[i:], run.closed
+            for name, data in pending:
+                i += 1
+                yield {"event": name, "id": str(i), "data": data}
+            if closed and i >= len(run.frames):
+                return
