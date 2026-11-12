@@ -36,7 +36,8 @@ def fast_detectors() -> list[Detector]:
 
 
 # Findings from these detectors remove their element's text from the shielded agent view.
-SANITIZING = {"B5_quarantine", "C1_persuasion"}
+# A3: text a person cannot read is withheld like hidden text (catches what B5's phrases miss).
+SANITIZING = {"B5_quarantine", "C1_persuasion", "A3_faint_text"}
 
 
 def run_fast(snap: PageSnapshot, action: Action | None, ledger: Ledger | None) -> list[Finding]:

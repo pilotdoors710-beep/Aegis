@@ -74,9 +74,14 @@ def _agent_element(el: Element, gone: list[str] = []) -> AgentElement:  # noqa: 
 def build_agent_view(snap: PageSnapshot, sanitize: list[Finding] | None = None) -> AgentView:
     """Never includes the page URL (it can carry arena config) or detector-only fields.
 
-    sanitize (shielded mode only, even if empty): B5/C1 findings whose element text is stripped,
+    Both modes: UI that is not rendered at all (display:none, closed <details>, 0x0) is absent,
+    as for a typical DOM agent; opacity:0 and faint text still reach the unshielded view.
+    shortcut: visibility:hidden keeps a box so the unshielded view still sees it; upgrade if a trap
+    relies on it.
+    sanitize (shielded mode only, even if empty): B5/C1/A3 findings whose element text is stripped,
     and every element a person cannot see is left out (hidden text is logged as removed).
     """
+    snap = snap.model_copy(update={"elements": [e for e in snap.elements if has_box(e)]})
     strip = {f.element_id: f.detector for f in sanitize or [] if f.detector in SANITIZING}
     if sanitize is not None:
         for e in snap.elements:
@@ -85,8 +90,7 @@ def build_agent_view(snap: PageSnapshot, sanitize: list[Finding] | None = None) 
     removed = [
         RemovedText(reason=strip[e.id], text=e.text)
         for e in snap.elements
-        # not-rendered UI (a closed popup, 0x0) is simply absent; hidden text with a box is logged
-        if e.id in strip and e.text and (strip[e.id] != HIDDEN or has_box(e))
+        if e.id in strip and e.text
     ]
     gone = [r.text for r in removed]
     interactive = [

@@ -143,7 +143,10 @@
   const rects = new Map();
   for (const [el, interactive, text] of nodes) {
     const style = getComputedStyle(el);
-    const r = el.getBoundingClientRect();
+    // Chrome keeps a layout box for content inside a closed <details>; checkVisibility() knows it
+    // is not rendered. Report it like display:none (no box), so has_box() means "rendered".
+    const rendered = !el.checkVisibility || el.checkVisibility();
+    const r = rendered ? el.getBoundingClientRect() : new DOMRect(0, 0, 0, 0);
     rects.set(el, r);
     const opacity = effectiveOpacity(el);
     const visible = isVisible(el, style, r, opacity);

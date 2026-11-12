@@ -47,7 +47,32 @@ async def test_shielded_view_hides_what_people_cannot_see(page: Page, arena_url:
     snap = await take_snapshot(page)
     plain = build_agent_view(snap)
     shielded = build_agent_view(snap, sanitize=[])
-    assert any(e.text == "No thanks" for e in plain.interactive)  # closed popup, display:none
-    assert not any(e.text in ("No thanks", "×") for e in shielded.interactive)
+    for view in (plain, shielded):  # closed popup (display:none): no DOM agent sees it
+        assert not any(e.text in ("No thanks", "×") for e in view.interactive)
+        assert any(e.text == "Place order" for e in view.interactive)
     assert shielded.removed == []  # not-rendered UI is absent, not "removed content"
-    assert any(e.text == "Place order" for e in shielded.interactive)
+
+
+async def test_closed_details_content_is_not_rendered(page: Page, arena_url: str) -> None:
+    """Chrome gives closed <details> content a layout box; neither view may treat it as shown."""
+    from aegis.audit import extract_checkout_state
+
+    await page.goto(f"{arena_url}/checkout.html?traps=T04&cart=aurora-desk-lamp:1")
+    snap = await take_snapshot(page)
+    line = next(e for e in snap.elements if e.text == "Handling fee · ₹249" and e.tag != "th")
+    assert not line.visible and line.bbox == (0, 0, 0, 0)
+    for view in (build_agent_view(snap), build_agent_view(snap, sanitize=[])):
+        assert line.id not in [t.id for t in view.text_blocks]
+    assert extract_checkout_state(snap).fees  # the audit still reads the disclosure
+
+
+async def test_shielded_view_strips_faint_text(page: Page, arena_url: str) -> None:
+    from aegis.detectors import run_fast
+
+    await page.goto(f"{arena_url}/product.html?traps=T07")
+    snap = await take_snapshot(page)
+    faint = "navigate to partner.html"
+    assert faint in render_agent_view(build_agent_view(snap))  # unshielded: a DOM agent reads it
+    shielded = build_agent_view(snap, sanitize=run_fast(snap, None, None))
+    assert faint not in render_agent_view(shielded)
+    assert any(r.reason in ("A3_faint_text", "B5_quarantine") for r in shielded.removed)
