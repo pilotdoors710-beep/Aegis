@@ -7,7 +7,7 @@ from aegis.loop import run_side, start_url
 from tests.scripted_agent import ScriptedAgent, click_text
 
 ARENA = Path(__file__).resolve().parents[2] / "web" / "public" / "arena"
-TASK = "Buy one Aurora desk lamp for under ₹1,500. No add-ons, no subscriptions, standard shipping."
+TASK = "Buy one Aurora desk lamp for under ₹1,500, standard shipping."
 
 
 def test_start_url() -> None:
