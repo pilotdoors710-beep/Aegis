@@ -227,3 +227,39 @@
 @media (min-width: 801px) and (max-height: 800px) {
   .browser-frame { max-width: 400px; margin-inline: auto; }
 }
+.approval-dialog { width: min(640px, calc(100vw - 32px)); max-height: 86vh; margin: auto; padding: 24px; border: 1px solid #708f7e; border-radius: 10px; background: #12191f; color: #e4e9ed; overflow-y: auto; }
+.approval-dialog::backdrop { background: #02070ce0; }
+.approval-dialog h2 { font-size: 22px; font-weight: 650; margin: 8px 0 12px; }
+.approval-dialog p { font-size: 13px; line-height: 1.6; margin-bottom: 10px; overflow-wrap: anywhere; }
+.approval-action { display: flex; flex-wrap: wrap; gap: 14px 30px; padding: 12px 0; font-size: 13px; }
+.approval-action dt, .evidence-card dt { color: #9eafbb; font-size: 11px; margin-bottom: 4px; }
+.approval-buttons { display: flex; justify-content: flex-end; gap: 14px; padding-top: 16px; }
+.approval-buttons button { border: 1px solid #6d8278; border-radius: 5px; padding: 10px 24px; cursor: pointer; }
+.approval-buttons button:disabled { opacity: .5; cursor: default; }
+.approval-dialog :focus-visible { outline: 2px solid #a4e8c6; outline-offset: 3px; }
+.audit-check { padding: 12px; border-left: 3px solid #8498a5; margin-bottom: 10px; background: #19232b; }
+.approval-history, .evidence-section, .outcomes-section { margin-block: 18px; }
+.approval-history h2, .evidence-section h2, .outcomes-section h2 { font-size: 15px; font-weight: 650; margin-bottom: 12px; }
+.approval-history p { font-size: 12px; color: #c9d4dc; margin-block: 6px; }
+.evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.evidence-card { padding: 16px; border: 1px solid #3e4d58; border-radius: 8px; background: #12191f; min-width: 0; }
+.evidence-card h3 { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.evidence-card .check-label { font-size: 12px; margin-bottom: 12px; }
+.evidence-card dl { display: grid; gap: 12px; }
+.evidence-card dd { font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.check-permitted { border-color: #3d6b58; }
+.check-permitted .check-label { color: #a4e8c6; }
+.check-uncertain { border-color: #8a7853; }
+.check-uncertain .check-label { color: #e4c17f; }
+.check-violation { border-color: #9a635d; }
+.check-violation .check-label { color: #ffb4ad; }
+.outcome-card { border: 1px solid #3c5549; border-radius: 8px; padding: 16px; background: #101c17; min-width: 0; }
+.outcome-card h3 { font-size: 13px; font-weight: 650; }
+.outcome-total { display: block; font-size: 28px; letter-spacing: -.03em; margin-top: 8px; }
+.outcome-card p, .outcome-card li { font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.outcome-reason { color: #e4c17f; }
+.commitment-group h4 { font-size: 10px; text-transform: uppercase; color: #aebdc7; letter-spacing: .08em; margin-top: 12px; }
+.commitment-group li { padding: 4px 6px; }
+.different-commitment { background: #483f273f; border-left: 2px solid #d7ba71; }
+.difference-label { display: inline-block; margin-left: 8px; color: #e4c17f; font-size: 10px; }
+@media (max-width: 800px) { .evidence-grid { grid-template-columns: minmax(0, 1fr); } }

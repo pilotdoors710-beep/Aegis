@@ -11,7 +11,7 @@ Set `NEXT_PUBLIC_API_URL` using `.env.example`, then run `pnpm dev`. The browser
 - `/health`: remote Chromium infrastructure check.
 - `/arena/index.html?traps=none`: clean simulated shop.
 
-Live launch calls `POST /runs` directly and reports unavailable APIs clearly. Dev A has deployed live runs and persistence; real paired-run verification is recorded in the session notes. A successful launch opens one stream on the run page. The sample button always plays the fixed `sample` run; it does not execute presets. Sample approvals are recorded events, not fresh human consent. Cached decisions carry a replayed-decision badge.
+Live launch calls `POST /runs` directly and reports unavailable APIs clearly. Dev A has deployed live runs and persistence; real paired-run verification is recorded in the session notes. A successful launch opens one stream on the run page. The sample button always plays the fixed `sample` run; it does not execute presets. Sample approvals open a read-only modal and cannot send consent. Replay pages never expose approval controls. Recorded sample responses are not fresh human consent. Cached decisions carry a replayed-decision badge.
 
 The shielded pane draws verdict highlight coordinates over the corresponding step's screenshot. Clicking a verdict inspects that step; Return to latest resumes the latest screenshot. Coordinates from an older page are never drawn over a newer snapshot. The unprotected feed excludes verdicts.
 
@@ -21,7 +21,14 @@ Arena handoff for Dev A (Day 2):
 - T08 uses the existing `partner-offers` checkbox and the label “Uncheck to not stop receiving partner offers”. It starts checked on first checkout entry. **Checked means data sharing true; unchecked means false.** Clearing it persists on revisiting checkout. The clean twin uses “Send me partner offers”, initially unchecked, with the same checked/unchecked meaning.
 - Both data-sharing states appear in plain words on the confirmation and match `arena-outcome.data_sharing`. No new hooks, pages, prices, or API schemas were added. Dev A owns detector and clean-twin tests under `server/tests/`.
 
-Checks: `pnpm typecheck`, `pnpm lint`, `pnpm build`, and `node --test lib/events.test.mjs lib/verify-day1.test.mjs`. Generated `lib/api-types.ts` must come from the server OpenAPI; never edit it manually.
+Day 3 console and arena:
+
+- A pending shielded ASK opens a keyboard-accessible review dialog with the proposed action, reason, findings, and audit values. Approve/Deny calls only that request's endpoint; duplicate clicks are suppressed. Failed requests remain retryable. A disconnected stream disables approval. Resolution and timeout come from server events, and simulated demo approvals are explicitly labelled.
+- Audit evidence cards show permission, page evidence, verdict, correction proposal/execution, and a recheck linked by `recheck_of`. Missing evidence is shown as missing. Permitted options stay neutral; uncertain checks ask for a human decision.
+- Outcome cards group proposed, approved, and executed commitments, show stop reasons and totals, and mark commitments unique to one side. Incomplete runs are never described as safe completion.
+- Gift wrap is available on checkout in all configurations via the existing `gift-wrap` hook. It starts unchecked, costs ₹49 once, persists across pages, appears in the receipt and `arena-outcome.addons`, and never creates a recurring term. Clean lamp plus gift wrap totals ₹1,348. Its label matches Dev A's R1 fixture, “Gift wrap · ₹49”.
+
+Checks: `pnpm typecheck`, `pnpm lint`, `pnpm build`, and `node --test lib/events.test.mjs lib/run-evidence.test.mjs lib/verify-day1.test.mjs`. Generated `lib/api-types.ts` must come from the server OpenAPI; never edit it manually.
 
 Deployment verification:
 
@@ -29,4 +36,4 @@ Deployment verification:
 2. Give Dev A the production web origin for `CORS_ORIGINS` and its `/arena` URL for `ARENA_BASE_URL`.
 3. From `web/`, run `pnpm verify:day1 --web https://YOUR-WEB-HOST --server https://YOUR-SERVER-HOST`. This checks public routes, exact-origin CORS, remote Chromium, arena access, one LLM smoke call, presets, and the complete labelled sample stream. It does not create a real agent run.
 4. At 1280×720, confirm `/health` renders its screenshot. Play the sample, click a verdict to inspect its highlight, and verify one event-stream connection ends after both sides finish. Open sample replay and step forward/back. Repeat public access from a phone hotspot.
-5. Once Dev A deploys live runs, launch the clean preset and verify both sides reach done. A mocked browser run validates frontend wiring but does not satisfy the deployed live-run gate.
+5. After Dev A restarts the backend at current main, launch the clean preset and verify the ledger arrives, a final-payment ASK opens, and both sides complete the purchase. A mocked browser run validates frontend wiring but does not satisfy the deployed live-run gate.
