@@ -34,12 +34,16 @@ def _rate_limit() -> openai.RateLimitError:
     return openai.RateLimitError("429", response=httpx.Response(429, request=req), body=None)
 
 
-def _router(clients: dict, chain: str = "gemini:m1,groq:m2") -> LLMRouter:
-    cfg = Settings(agent_models=chain, gemini_rpm=6000, groq_rpm=6000)
+def _router(clients: dict, chain: str = "gemini:m1,groq:m2", mode: str = "on") -> LLMRouter:
+    cfg = Settings(agent_models=chain, gemini_rpm=6000, groq_rpm=6000, llm_cache_mode=mode)  # type: ignore[arg-type]
     return LLMRouter(cfg, clients=clients)  # type: ignore[arg-type]
 
 
 MSG = [{"role": "user", "content": "hi"}]
+
+
+def _timeout() -> openai.APITimeoutError:
+    return openai.APITimeoutError(request=httpx.Request("POST", "https://x"))
 
 
 def test_parse_chain_keeps_colons_in_model_id() -> None:
@@ -149,3 +153,21 @@ async def test_json_validate_failed_with_empty_generation() -> None:
     c = FakeClient([bad, '{"n": 3}'])
     out, _ = await _router({"groq": c}, chain="groq:m2").complete_json(MSG, Out, use_cache=False)
     assert out.n == 3
+
+
+async def test_fallback_mode_replays_only_when_all_providers_fail() -> None:
+    a = FakeClient(["fresh", "fresh again", _timeout()])
+    router = _router({"gemini": a}, chain="gemini:m1", mode="fallback")
+    assert not (await router.complete(MSG)).cached  # stored, not replayed
+    r = await router.complete(MSG)
+    assert (r.text, r.cached) == ("fresh again", False)  # a live call even though cached
+    r = await router.complete(MSG)  # provider down -> labelled replay
+    assert r.cached and r.text in ("fresh", "fresh again")
+
+
+async def test_off_mode_never_stores() -> None:
+    a = FakeClient(["one", _timeout()])
+    router = _router({"gemini": a}, chain="gemini:m1", mode="off")
+    await router.complete(MSG)
+    with pytest.raises(AllProvidersFailed):
+        await router.complete(MSG)

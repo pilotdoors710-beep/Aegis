@@ -2,8 +2,10 @@
 
 All providers expose OpenAI-compatible endpoints, so one SDK serves them all. The router walks an
 ordered chain (AGENT_MODELS), skips a provider whose local rate bucket is empty, and falls through
-on 429 / timeout / connection / 5xx errors. Identical requests are served from a decision cache and
-reported with cached=True so the UI can label them. Callers doing eval MUST pass use_cache=False.
+on 429 / timeout / connection / 5xx errors. LLM_CACHE_MODE: "on" replays identical requests from
+the decision cache, "fallback" stores answers but replays only when every provider failed, "off"
+never touches it. Replays are reported with cached=True so the UI can label them. Callers doing
+eval MUST pass use_cache=False, which forces "off".
 """
 
 import asyncio
@@ -164,10 +166,12 @@ class LLMRouter:
         if not self.chain:
             raise AllProvidersFailed("AGENT_MODELS is empty")
         errors: list[str] = []
+        mode = self._cfg.llm_cache_mode if use_cache else "off"
+        keys = [cache_key(f"{p}:{m}:{json_mode}", messages) for p, m in self.chain]
         for i, (provider, model) in enumerate(self.chain):
             last = i == len(self.chain) - 1
-            key = cache_key(f"{provider}:{model}:{json_mode}", messages)
-            if use_cache and (hit := await self.cache.get(key)):
+            key = keys[i]
+            if mode == "on" and (hit := await self.cache.get(key)):
                 return LLMResult(hit.text, hit.provider, hit.model, True, 0)
             try:
                 client = self._client(provider)
@@ -214,7 +218,7 @@ class LLMRouter:
             result = LLMResult(
                 text, provider, model, False, int((time.perf_counter() - started) * 1000)
             )
-            cacheable = use_cache
+            cacheable = mode != "off"
             if validator:  # never cache output the caller can't parse
                 try:
                     validator(text)
@@ -223,6 +227,10 @@ class LLMRouter:
             if cacheable:
                 await self.cache.set(key, result)
             return result
+        if mode == "fallback":  # every provider failed: a labelled replay beats a dead demo
+            for key in keys:
+                if hit := await self.cache.get(key):
+                    return LLMResult(hit.text, hit.provider, hit.model, True, 0)
         raise AllProvidersFailed("; ".join(errors))
 
     async def complete_json(

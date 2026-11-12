@@ -51,4 +51,39 @@ code=$(curl -s -o /dev/null -w '%{http_code}' -m 15 "$WEB/")
 [ "$code" = "200" ] || fail "$WEB/ returned $code"
 pass "console on the web host: 200"
 
-echo "all checks passed"
+# Real paired run (A-D2-08): both sides must finish within RUN_TIMEOUT s, with no cached decision.
+PRESET="${PRESET:-clean}"
+RUN_TIMEOUT="${RUN_TIMEOUT:-180}"
+body=$(curl -s -m 15 -X POST "$SERVER/runs" -H 'content-type: application/json' \
+  -d "{\"preset_id\":\"$PRESET\",\"auto_approve\":true}")
+run_id=$(echo "$body" | json 'd["run_id"]') || fail "POST /runs: $body"
+pass "POST /runs ($PRESET): run $run_id, $(echo "$body" | json 'd["status"]')"
+started=$(date +%s)
+summary=$(curl -sN -m "$RUN_TIMEOUT" "$SERVER/runs/$run_id/stream" 2>/dev/null | tr -d '\r' | python3 -c '
+import json, sys
+dones, cached, errors = {}, 0, []
+for line in sys.stdin:
+    if not line.startswith("data:"):
+        continue
+    d = json.loads(line[5:])
+    k = d.get("kind")
+    if k == "decision" and d["payload"]["cached"]:
+        cached += 1
+    elif k == "error":
+        errors.append(d["mode"] + ":" + d["payload"]["code"])
+    elif k == "done":
+        o = d["payload"]["outcome"]
+        dones[d["mode"]] = d["payload"]["reason"] + " total=" + str(o.get("total"))
+print(len(dones), cached, "; ".join(f"{m} {r}" for m, r in sorted(dones.items())) or "-", errors or "")
+')
+elapsed=$(( $(date +%s) - started ))
+read -r ndone ncached rest <<< "$summary"
+[ "$ndone" = "2" ] || fail "paired run: $ndone/2 sides finished within ${RUN_TIMEOUT} s ($rest)"
+[ "$ncached" = "0" ] || fail "paired run used $ncached cached decisions; the duration would be meaningless"
+pass "paired run finished in ${elapsed} s: $rest"
+
+n=$(curl -s -m 30 "$SERVER/runs/$run_id/events" | json 'len(d)') || fail "GET /runs/$run_id/events failed"
+[ "${n:-0}" -gt 0 ] || fail "replay: no events for $run_id"
+pass "replay: $n events for $run_id"
+
+echo "all checks passed (paired run ${elapsed} s)"

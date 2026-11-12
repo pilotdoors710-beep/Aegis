@@ -39,7 +39,8 @@ class Settings(BaseSettings):
     # How long an ASK waits for a human before it times out (treated as deny).
     ask_timeout_s: int = 120
     # Decision cache: off | fallback (only when every provider fails) | on. Eval forces off.
-    llm_cache_mode: Literal["off", "fallback", "on"] = "on"
+    # Default fallback: live runs make fresh decisions; replays only rescue a provider outage.
+    llm_cache_mode: Literal["off", "fallback", "on"] = "fallback"
     # Supabase (server-side only; the web never gets these). Unset DB URL = in-memory store.
     supabase_db_url: str = ""
     supabase_url: str = ""
