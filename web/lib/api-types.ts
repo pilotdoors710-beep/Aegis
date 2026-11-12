@@ -157,7 +157,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Run Events */
+        /**
+         * Get Run Events
+         * @description Replay (E3). Runs still in memory include inline JPEGs; stored runs carry screenshot_url.
+         */
         get: operations["get_run_events_runs__run_id__events_get"];
         put?: never;
         post?: never;
