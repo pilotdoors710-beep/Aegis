@@ -7,7 +7,7 @@ commit as any change here.
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 # --- Enumerations ---------------------------------------------------------------------------
 
@@ -74,7 +74,10 @@ class LedgerItem(BaseModel):
 
 
 class Ledger(BaseModel):
-    """What the user asked for. Written once before browsing; page content never edits it."""
+    """What the user asked for. Written once before browsing and frozen: page content never
+    edits it."""
+
+    model_config = ConfigDict(frozen=True)
 
     goal: str
     items: list[LedgerItem] = []

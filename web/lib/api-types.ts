@@ -650,7 +650,8 @@ export interface components {
         };
         /**
          * Ledger
-         * @description What the user asked for. Written once before browsing; page content never edits it.
+         * @description What the user asked for. Written once before browsing and frozen: page content never
+         *     edits it.
          */
         Ledger: {
             /** Goal */
