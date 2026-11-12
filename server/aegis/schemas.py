@@ -92,7 +92,7 @@ class Ledger(BaseModel):
 
 class Finding(BaseModel):
     detector: str
-    trap_type: TrapType
+    trap_type: TrapType | Literal["guard_unavailable"]  # the latter: D4, a check itself failed
     severity: Severity
     element_id: str | None = None
     evidence: str

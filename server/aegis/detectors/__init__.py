@@ -20,7 +20,7 @@ def quote(text: str, n: int = 80) -> str:
     return repr(text if len(text) <= n else text[: n - 1] + "…")
 
 
-def _all() -> list[Detector]:
+def fast_detectors() -> list[Detector]:
     from aegis.detectors import (
         a1_visibility,
         a2_hit_test,
@@ -40,4 +40,4 @@ SANITIZING = {"B5_quarantine", "C1_persuasion"}
 
 
 def run_fast(snap: PageSnapshot, action: Action | None, ledger: Ledger | None) -> list[Finding]:
-    return [f for d in _all() for f in d(snap, action, ledger)]
+    return [f for d in fast_detectors() for f in d(snap, action, ledger)]

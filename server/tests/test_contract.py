@@ -52,14 +52,14 @@ def test_rest_sample_and_presets(client: TestClient) -> None:
     assert client.get("/runs/demo/stream").status_code in (404, 501)
 
 
-def test_routes_declared_and_ask_still_501(client: TestClient) -> None:
+def test_routes_declared(client: TestClient) -> None:
     paths = app.openapi()["paths"]
     for p in ["/runs", "/runs/{run_id}", "/runs/{run_id}/events", "/runs/{run_id}/stream",
               "/runs/{run_id}/ask/{ask_id}", "/presets", "/stats", "/healthz/llm",
               "/healthz/arena"]:  # fmt: skip
         assert p in paths, p
     assert "/runs/demo/stream" not in paths
-    assert client.post("/runs/abc/ask/x", json={"decision": "approve"}).status_code == 501
+    assert client.post("/runs/abc/ask/x", json={"decision": "approve"}).status_code == 404
 
 
 def test_sample_stream_framing(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:

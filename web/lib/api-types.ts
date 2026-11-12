@@ -596,11 +596,8 @@ export interface components {
         Finding: {
             /** Detector */
             detector: string;
-            /**
-             * Trap Type
-             * @enum {string}
-             */
-            trap_type: "hidden_info" | "preselection" | "trick_wording" | "obstruction" | "urgency" | "social_proof" | "disguised_ad" | "fake_control" | "clickjacking" | "prompt_injection" | "forced_action";
+            /** Trap Type */
+            trap_type: ("hidden_info" | "preselection" | "trick_wording" | "obstruction" | "urgency" | "social_proof" | "disguised_ad" | "fake_control" | "clickjacking" | "prompt_injection" | "forced_action") | "guard_unavailable";
             /**
              * Severity
              * @enum {string}

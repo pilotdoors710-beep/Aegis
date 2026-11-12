@@ -1,7 +1,6 @@
 """FastAPI entrypoint (DEV_PLAN.md §4 C2/C3).
 
-Unbuilt routes are declared with their final request/response models and return 501, so the web
-can generate types today. run_id "sample" always serves a labelled, contract-valid sample run.
+run_id "sample" always serves a labelled, contract-valid sample run.
 """
 
 import asyncio
@@ -21,6 +20,7 @@ from aegis.agent import Agent, LLMAgent
 from aegis.config import settings
 from aegis.events import (
     SAMPLE_RUN_ID,
+    AskGate,
     PgCache,
     PgStore,
     RunBus,
@@ -75,10 +75,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-def _not_built(what: str) -> HTTPException:
-    return HTTPException(status_code=501, detail=f"{what} is not implemented yet")
 
 
 # --- Health ---------------------------------------------------------------------------------
@@ -199,10 +195,11 @@ async def create_run(body: RunCreate) -> RunCreated:
     ahead = sum(r.status in ("queued", "running") for r in _bus.summaries())
     position = max(0, ahead - settings.max_concurrent_runs + 1)
     run_id = uuid.uuid4().hex[:12]
+    auto = preset.auto_approve if body.auto_approve is None else body.auto_approve
     await _bus.create(RunSummary(
         run_id=run_id, preset_id=preset.id, task=preset.task, status="queued",
         created_at=datetime.now(UTC), model=settings.agent_models.split(",")[0] or None,
-    ))  # fmt: skip
+    ), AskGate(auto_approve=auto))  # fmt: skip
     task = asyncio.create_task(_run(run_id, preset))
     _tasks.add(task)  # keep a reference so the task is not garbage-collected
     task.add_done_callback(_tasks.discard)
@@ -270,4 +267,8 @@ async def stream_run(run_id: str, request: Request) -> EventSourceResponse:
 
 @app.post("/runs/{run_id}/ask/{ask_id}")
 async def resolve_ask(run_id: str, ask_id: str, body: AskDecision) -> AskPayload:
-    raise _not_built("POST /runs/{run_id}/ask/{ask_id}")
+    run = _live(run_id)
+    resolved = run.gate.resolve(ask_id, body.decision)
+    if resolved is None:
+        raise HTTPException(status_code=404, detail="no pending ask with that id")
+    return resolved

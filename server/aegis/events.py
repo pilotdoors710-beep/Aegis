@@ -9,19 +9,21 @@ import base64
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
 from datetime import UTC, datetime, timedelta
+from typing import Literal
 
 import httpx
 import psycopg
 from psycopg.types.json import Jsonb
 from pydantic import TypeAdapter
 
-from aegis.config import Settings
+from aegis.config import Settings, settings
 from aegis.llm import LLMResult
 from aegis.presets import DEFAULT_TASK
 from aegis.schemas import (
     Action,
     AskEvent,
     AskPayload,
+    AskStatus,
     AuditCheck,
     AuditReport,
     CheckoutLine,
@@ -610,6 +612,41 @@ def make_store(cfg: Settings) -> Store:
     return MemoryStore()
 
 
+# --- Human gate (D2) ------------------------------------------------------------------------
+
+
+class AskGate:
+    """In-memory futures for one run's asks (brief §3). The loop opens an ask BEFORE announcing
+    it, so a fast click can never miss it. No answer in time = timed_out, treated as denial."""
+
+    def __init__(self, *, auto_approve: bool = False, timeout_s: float | None = None) -> None:
+        self.auto_approve = auto_approve
+        self.timeout_s = settings.ask_timeout_s if timeout_s is None else timeout_s
+        self._open: dict[str, tuple[asyncio.Future[AskStatus], AskPayload]] = {}
+
+    def open(self, payload: AskPayload) -> None:
+        self._open[payload.ask_id] = (asyncio.get_running_loop().create_future(), payload)
+
+    async def wait(self, ask_id: str) -> AskStatus:
+        fut, _ = self._open[ask_id]
+        try:
+            if self.auto_approve:  # labelled demo approval, never reported as human consent
+                return "auto_approved_demo"
+            return await asyncio.wait_for(fut, self.timeout_s)
+        except TimeoutError:
+            return "timed_out"
+        finally:
+            self._open.pop(ask_id, None)
+
+    def resolve(self, ask_id: str, decision: Literal["approve", "deny"]) -> AskPayload | None:
+        entry = self._open.get(ask_id)
+        if entry is None or entry[0].done():
+            return None
+        status: AskStatus = "approved" if decision == "approve" else "denied"
+        entry[0].set_result(status)
+        return entry[1].model_copy(update={"status": status})
+
+
 # --- Live run bus (C2) ----------------------------------------------------------------------
 # Live frames stay in memory for streaming; every Event and summary change is also persisted.
 
@@ -617,8 +654,9 @@ MAX_RUNS_KEPT = 50
 
 
 class _Run:
-    def __init__(self, summary: RunSummary) -> None:
+    def __init__(self, summary: RunSummary, gate: AskGate) -> None:
         self.summary = summary
+        self.gate = gate
         self.frames: list[tuple[str, str]] = []  # (sse event name, json); SSE id = index + 1
         self.events: list[Event] = []
         self.closed = False
@@ -633,8 +671,8 @@ class RunBus:
         self.store: Store = store or MemoryStore()
         self.store.on_error = self._persist_failed
 
-    async def create(self, summary: RunSummary) -> None:
-        self._runs[summary.run_id] = _Run(summary)
+    async def create(self, summary: RunSummary, gate: AskGate | None = None) -> None:
+        self._runs[summary.run_id] = _Run(summary, gate or AskGate())
         await self.store.save_run(summary)
         while len(self._runs) > MAX_RUNS_KEPT:
             oldest = next(iter(self._runs))
