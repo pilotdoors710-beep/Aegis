@@ -9,7 +9,7 @@ from typing import Protocol
 
 from pydantic import BaseModel
 
-from aegis.detectors import SANITIZING
+from aegis.detectors import SANITIZING, has_box
 from aegis.llm import LLMResult, LLMRouter
 from aegis.schemas import Action, Element, Finding, PageSnapshot, RemovedText
 
@@ -18,6 +18,7 @@ MAX_TEXT_BLOCKS = 40
 TEXT_CAP = 160
 NEARBY_CAP = 120
 REMOVED_LABEL = "[text removed by Aegis]"
+HIDDEN = "A1_hidden"  # RemovedText.reason for text a person cannot see
 
 INTERACTIVE_TAGS = {"a", "button", "input", "select", "textarea", "summary"}
 INTERACTIVE_ROLES = {
@@ -73,12 +74,26 @@ def _agent_element(el: Element, gone: list[str] = []) -> AgentElement:  # noqa: 
 def build_agent_view(snap: PageSnapshot, sanitize: list[Finding] | None = None) -> AgentView:
     """Never includes the page URL (it can carry arena config) or detector-only fields.
 
-    sanitize (shielded mode only): B5/C1 findings whose element text is stripped from the view.
+    sanitize (shielded mode only, even if empty): B5/C1 findings whose element text is stripped,
+    and every element a person cannot see is left out (hidden text is logged as removed).
     """
     strip = {f.element_id: f.detector for f in sanitize or [] if f.detector in SANITIZING}
-    removed = [RemovedText(reason=strip[e.id], text=e.text) for e in snap.elements if e.id in strip]
+    if sanitize is not None:
+        for e in snap.elements:
+            if not e.visible and e.id not in strip:
+                strip[e.id] = HIDDEN
+    removed = [
+        RemovedText(reason=strip[e.id], text=e.text)
+        for e in snap.elements
+        # not-rendered UI (a closed popup, 0x0) is simply absent; hidden text with a box is logged
+        if e.id in strip and e.text and (strip[e.id] != HIDDEN or has_box(e))
+    ]
     gone = [r.text for r in removed]
-    interactive = [_agent_element(e, gone) for e in snap.elements if is_interactive(e)]
+    interactive = [
+        _agent_element(e, gone)
+        for e in snap.elements
+        if is_interactive(e) and strip.get(e.id) != HIDDEN
+    ]
     texts = [
         _agent_element(e, gone)
         for e in snap.elements

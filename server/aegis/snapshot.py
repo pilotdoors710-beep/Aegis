@@ -21,6 +21,8 @@ async def take_snapshot(page: Page, attempts: int = 4) -> PageSnapshot:
     # A click may start a navigation that lands after the executor settled: wait and retry.
     for i in range(attempts):
         try:
+            # A half-loaded page reads as empty and the agent gives up: wait for the DOM first.
+            await page.wait_for_load_state("domcontentloaded", timeout=10_000)
             raw = await page.evaluate(_script())
             return PageSnapshot.model_validate(raw)
         except PlaywrightError as e:

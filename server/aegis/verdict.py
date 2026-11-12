@@ -87,6 +87,13 @@ ADVICE = {
     "guard_unavailable": "a safety check could not run, so this action cannot be verified.",
 }
 PAST = {"BLOCK": "BLOCKED", "REROUTE": "REROUTED", "ASK": "HELD FOR THE USER", "ALLOW": "ALLOWED"}
+# Detector-specific advice wins over the trap type: an invisible target is not an upsell.
+DETECTOR_ADVICE = {
+    "A1_visibility": "that element is not visible on the page, so a person could not click it. "
+    "Ignore it and continue with a visible control.",
+    "A2_hit_test": "something visible (such as a popup) covers that control. Close the popup "
+    "with its visible close or 'No thanks' control first, or reach the goal another way.",
+}
 DEFAULT_ADVICE = "this action was flagged as unsafe. Choose a different action."
 
 
@@ -144,8 +151,10 @@ def combine(
 def agent_feedback(verdict: Verdict, action: Action) -> str:
     """One delimited history entry for the agent's next prompt (ids and categories only)."""
     stop = blocking_findings(verdict.findings, action)
-    kinds = dict.fromkeys(f.trap_type for f in stop)
-    reasons = " ".join(f"[{k}] {ADVICE.get(k, DEFAULT_ADVICE)}" for k in kinds)
+    advice = dict.fromkeys(
+        DETECTOR_ADVICE.get(f.detector) or ADVICE.get(f.trap_type, DEFAULT_ADVICE) for f in stop
+    )
+    reasons = " ".join(advice)
     return (
         f"<<<AEGIS SECURITY FEEDBACK: your proposed {action.type} on {action.target_id} was "
         f"{PAST[verdict.decision]} and NOT executed. {reasons} Choose a different next action. "

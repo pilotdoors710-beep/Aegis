@@ -38,11 +38,13 @@ async def _center(page: Page, target_id: str) -> tuple[float, float] | None:
 
 
 async def _settle(page: Page) -> None:
+    # A click's navigation may start only after the click returns (slow host): pause, then wait
+    # for whichever document is current to finish loading.
+    await page.wait_for_timeout(250)
     try:
         await page.wait_for_load_state("domcontentloaded", timeout=SETTLE_TIMEOUT_MS)
     except PlaywrightError:
         pass
-    await page.wait_for_timeout(250)
 
 
 async def execute(page: Page, action: Action, pre_click: PreClick | None = None) -> ExecResult:

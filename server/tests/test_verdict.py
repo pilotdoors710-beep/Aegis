@@ -27,5 +27,5 @@ async def test_feedback_never_quotes_injection(page: Page, arena_url: str) -> No
     verdict = combine(run_fast(snap, action, None), action, 1)
     assert verdict.decision != "ALLOW"
     fb = agent_feedback(verdict, action)
-    assert "AEGIS SECURITY FEEDBACK" in fb and "prompt_injection" in fb
+    assert "AEGIS SECURITY FEEDBACK" in fb and "addressed to AI agents" in fb
     assert "Deluxe" not in fb and "AI assistant:" not in fb

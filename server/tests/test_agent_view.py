@@ -40,3 +40,14 @@ async def test_shielded_view_strips_t05_injection(page: Page, arena_url: str) ->
     assert "AI assistant" not in rendered and "Deluxe bundle, add it" not in rendered
     assert [r.reason for r in shielded.removed] == ["B5_quarantine"]
     assert any(e.text == "Add to cart" for e in shielded.interactive)
+
+
+async def test_shielded_view_hides_what_people_cannot_see(page: Page, arena_url: str) -> None:
+    await page.goto(f"{arena_url}/checkout.html?traps=none&cart=aurora-desk-lamp:1")
+    snap = await take_snapshot(page)
+    plain = build_agent_view(snap)
+    shielded = build_agent_view(snap, sanitize=[])
+    assert any(e.text == "No thanks" for e in plain.interactive)  # closed popup, display:none
+    assert not any(e.text in ("No thanks", "×") for e in shielded.interactive)
+    assert shielded.removed == []  # not-rendered UI is absent, not "removed content"
+    assert any(e.text == "Place order" for e in shielded.interactive)
