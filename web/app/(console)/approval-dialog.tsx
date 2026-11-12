@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { api, type Schema } from "@/lib/api";
-import { approvalLabels, type AskEvent } from "@/lib/run-evidence";
+import { type AskEvent } from "@/lib/run-evidence";
 
 export function ApprovalDialog({ ask, sample, connected }: { ask: AskEvent; sample: boolean; connected: boolean }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -25,6 +25,7 @@ export function ApprovalDialog({ ask, sample, connected }: { ask: AskEvent; samp
     try {
       const result = await api.resolveAsk(ask.run_id, ask.payload.ask_id, { decision });
       setAcknowledged(result.status);
+      dialog.current?.close(); // the server accepted the decision; don't wait on the stream to close
     } catch (error) {
       setError(error instanceof Error ? error.message : "Could not send your decision.");
     } finally { submitting.current = false; setBusy(false); }
@@ -43,7 +44,6 @@ export function ApprovalDialog({ ask, sample, connected }: { ask: AskEvent; samp
     </div>
     {!connected && <p role="alert">The live connection is unavailable. Reconnect before responding; no approval has been sent.</p>}
     {error && <p className="error-message" role="alert">{error} You can retry while this request remains pending.</p>}
-    {acknowledged && <p role="status">{approvalLabels[acknowledged]}. Waiting for the server’s run update.</p>}
     <div className="approval-buttons"><button ref={deny} disabled={sample || !connected || busy || acknowledged !== null} onClick={() => decide("deny")}>Deny</button><button className="primary-button" disabled={sample || !connected || busy || acknowledged !== null} onClick={() => decide("approve")}>{busy ? "Sending…" : "Approve"}</button></div>
   </dialog>;
 }
