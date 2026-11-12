@@ -9,13 +9,15 @@ from typing import Protocol
 
 from pydantic import BaseModel
 
+from aegis.detectors import SANITIZING
 from aegis.llm import LLMResult, LLMRouter
-from aegis.schemas import Action, Element, PageSnapshot
+from aegis.schemas import Action, Element, Finding, PageSnapshot, RemovedText
 
 MAX_INTERACTIVE = 60
 MAX_TEXT_BLOCKS = 40
 TEXT_CAP = 160
 NEARBY_CAP = 120
+REMOVED_LABEL = "[text removed by Aegis]"
 
 INTERACTIVE_TAGS = {"a", "button", "input", "select", "textarea", "summary"}
 INTERACTIVE_ROLES = {
@@ -41,6 +43,7 @@ class AgentView(BaseModel):
     title: str
     interactive: list[AgentElement]
     text_blocks: list[AgentElement]  # page text in DOM order, including hidden text
+    removed: list[RemovedText] = []  # shielded only: what B5/C1 stripped (console, never prompt)
 
 
 def is_interactive(el: Element) -> bool:
@@ -51,27 +54,41 @@ def _cap(s: str, n: int) -> str:
     return s if len(s) <= n else s[: n - 1] + "…"
 
 
-def _agent_element(el: Element) -> AgentElement:
+def _agent_element(el: Element, gone: list[str] = []) -> AgentElement:  # noqa: B006 (read-only)
+    nearby = el.nearby_text
+    if gone:  # a neighbour's stripped text must not leak back in through nearby_text
+        nearby = " | ".join(p for p in nearby.split(" | ") if not any(p in g for g in gone))
     return AgentElement(
         id=el.id,
         tag=el.tag,
         role=el.role,
-        text=_cap(el.text, TEXT_CAP),
-        nearby_text=_cap(el.nearby_text, NEARBY_CAP),
+        text=REMOVED_LABEL if el.text in gone else _cap(el.text, TEXT_CAP),
+        nearby_text=_cap(nearby, NEARBY_CAP),
         href=el.href,
         checked=el.checked,
         value=el.value,
     )
 
 
-def build_agent_view(snap: PageSnapshot) -> AgentView:
-    """Never includes the page URL (it can carry arena config) or detector-only fields."""
-    interactive = [_agent_element(e) for e in snap.elements if is_interactive(e)]
-    texts = [_agent_element(e) for e in snap.elements if not is_interactive(e) and e.text]
+def build_agent_view(snap: PageSnapshot, sanitize: list[Finding] | None = None) -> AgentView:
+    """Never includes the page URL (it can carry arena config) or detector-only fields.
+
+    sanitize (shielded mode only): B5/C1 findings whose element text is stripped from the view.
+    """
+    strip = {f.element_id: f.detector for f in sanitize or [] if f.detector in SANITIZING}
+    removed = [RemovedText(reason=strip[e.id], text=e.text) for e in snap.elements if e.id in strip]
+    gone = [r.text for r in removed]
+    interactive = [_agent_element(e, gone) for e in snap.elements if is_interactive(e)]
+    texts = [
+        _agent_element(e, gone)
+        for e in snap.elements
+        if not is_interactive(e) and e.text and e.id not in strip
+    ]
     return AgentView(
         title=snap.title,
         interactive=interactive[:MAX_INTERACTIVE],
         text_blocks=texts[:MAX_TEXT_BLOCKS],
+        removed=removed,
     )
 
 

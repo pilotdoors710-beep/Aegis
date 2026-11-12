@@ -21,11 +21,22 @@ def quote(text: str, n: int = 80) -> str:
 
 
 def _all() -> list[Detector]:
-    from aegis.detectors import a1_visibility, a2_hit_test, a3_faint_text, a4_link_truth, a5_context
+    from aegis.detectors import (
+        a1_visibility,
+        a2_hit_test,
+        a3_faint_text,
+        a4_link_truth,
+        a5_context,
+        b5_quarantine,
+        c1_persuasion,
+    )
 
-    return [
-        m.detect for m in (a1_visibility, a2_hit_test, a3_faint_text, a4_link_truth, a5_context)
-    ]
+    mods = (a1_visibility, a2_hit_test, a3_faint_text, a4_link_truth, a5_context)
+    return [m.detect for m in (*mods, b5_quarantine, c1_persuasion)]
+
+
+# Findings from these detectors remove their element's text from the shielded agent view.
+SANITIZING = {"B5_quarantine", "C1_persuasion"}
 
 
 def run_fast(snap: PageSnapshot, action: Action | None, ledger: Ledger | None) -> list[Finding]:
