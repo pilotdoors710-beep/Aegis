@@ -11,7 +11,7 @@ type BrowserHealth = {
   elapsed_ms: number;
 };
 
-// INF-gate page: proves the deployed web app can reach the remote headless Chromium.
+// INF check remains accessible alongside the Shield Console.
 export default function Home() {
   const [data, setData] = useState<BrowserHealth | null>(null);
   const [error, setError] = useState<string | null>(null);
