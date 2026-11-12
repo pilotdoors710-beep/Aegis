@@ -25,6 +25,12 @@ Outputs per directory: `runs.jsonl` (one row per run, with actions and ground tr
 | `groq:qwen/qwen3.8-27b` | ✓ ₹1,299 | 10 | 28 s | 1,000 | 8,000 | ≈1,140 | same headers |
 | `gemini:gemini-3.5-flash-lite` | ✓ ₹1,299 | 5 | 62 s | not checked | not checked | — | 4 RPM configured; first attempt failed on our own rate bucket (fixed) |
 
+Other providers (checked the same day): **Gemini** returns no rate-limit headers, so its RPD/TPM
+must be read from the AI Studio dashboard (not yet recorded). **OpenRouter**'s key is free-tier
+(no credits); `openai/gpt-oss-120b:free` no longer exists, 13 other `:free` models are listed, and
+free-tier keys without credits are limited to a small daily request count, so OpenRouter is not
+usable for eval blocks.
+
 The binding limit on Groq is **TPM, not RPM**: 8,000 TPM ÷ ≈1,250 tokens ≈ 6 calls/min, so
 `GROQ_RPM=5`. The router now waits for the last provider's bucket, retries a 429 after
 `retry-after`, and sends Groq's `json_validate_failed` 400 into the JSON repair path.
