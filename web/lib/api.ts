@@ -4,9 +4,13 @@ export type Schema = components["schemas"];
 export type RunEvent = operations["get_run_events_runs__run_id__events_get"]["responses"][200]["content"]["application/json"][number];
 export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
 
+export class ApiError extends Error {
+  constructor(public status: number, message: string) { super(message); this.name = "ApiError"; }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, init);
-  if (!response.ok) throw new Error(response.status === 501 ? "This server feature is not available yet." : `Server request failed (HTTP ${response.status}).`);
+  if (!response.ok) throw new ApiError(response.status, response.status === 501 ? "This server feature is not available yet." : `Server request failed (HTTP ${response.status}).`);
   return response.json() as Promise<T>;
 }
 

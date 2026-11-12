@@ -193,3 +193,37 @@
     @apply font-sans;
   }
 }
+.browser-frame { position: relative; width: 100%; overflow: hidden; }
+.browser-frame img { position: absolute; inset: 0; }
+.highlight-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.highlight-layer rect { fill: #ff5b5b18; stroke: #ff6868; stroke-width: 4; }
+.highlight-layer text { fill: #ffb4ad; font: bold 24px sans-serif; paint-order: stroke; stroke: #090c10; stroke-width: 5px; }
+.ledger-panel { margin: 0; padding: 12px 16px; border-bottom: 1px solid #29343d; font-size: 11px; }
+.ledger-panel h4 { font-weight: 650; color: #a4e8c6; }
+.ledger-panel p { color: #b5c4ce; font-size: 11px; margin-top: 4px; }
+.ledger-panel dl { gap: 8px 18px; margin-top: 8px; font-size: 11px; }
+.ledger-panel dl div { max-width: 100%; overflow-wrap: anywhere; }
+.verdict-row { text-align: left; width: 100%; cursor: pointer; color: #e4c17f; font-size: 11px; border-radius: 3px; }
+.verdict-row[aria-pressed="true"] { outline: 1px solid #e4c17f; outline-offset: 3px; }
+.verdict-row p { margin-top: 4px; }
+.event-feed li > div { min-width: 0; flex: 1; }
+.event-meta { display: block; font-size: 9px; color: #8fa2af; margin-top: 3px; }
+.inspect-button { display: block; width: 100%; padding: 7px; background: #332c1d; color: #e4c17f; font-size: 11px; cursor: pointer; }
+.primary-button:disabled { opacity: .55; cursor: wait; }
+.replay-controls { display: flex; align-items: center; gap: 16px; margin-block: 16px; }
+.replay-controls input { flex: 1; min-width: 60px; accent-color: #a4e8c6; }
+.replay-controls button { padding: 8px 12px; border: 1px solid #3a4c59; border-radius: 4px; cursor: pointer; }
+.replay-controls button:disabled { opacity: .4; cursor: default; }
+.run-list { display: grid; gap: 10px; margin-block: 18px; }
+.run-list a { display: block; padding: 15px; border: 1px solid #29343d; border-radius: 6px; }
+.run-list a:hover { border-color: #a4e8c6; }
+@media (min-width: 801px) {
+  .console-content:has(.run-section) { padding-top: 18px; }
+  .run-section { margin-top: 10px; }
+  .event-feed { height: 132px; }
+}
+.ledger-panel { height: 120px; overflow-y: auto; }
+.sample-outcome { height: 110px; overflow-y: auto; }
+@media (min-width: 801px) and (max-height: 800px) {
+  .browser-frame { max-width: 400px; margin-inline: auto; }
+}

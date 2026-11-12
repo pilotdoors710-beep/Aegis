@@ -48,7 +48,7 @@ export function useRunStream(runId: string): StreamState {
       });
     }
     source.onerror = (event) => {
-      if (!closed && !(event instanceof MessageEvent)) fail("The event stream was interrupted. Restart the sample to try again.");
+      if (!closed && !(event instanceof MessageEvent)) fail("The event stream was interrupted. Reload to reconnect; check the run history before launching another run.");
     };
     return () => { closed = true; source.close(); };
   }, [runId]);

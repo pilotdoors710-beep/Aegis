@@ -22,6 +22,14 @@ Template:
 
 ## Log
 
+### 2026-11-12 - Dev B - Codex
+- Built Day 2 console highlights, clickable verdict evidence, the shielded permission panel, and replay step controls.
+- Wired preset launch and run history to the existing API, including queue and unavailable-server messages. Samples and replays stay labelled.
+- Added T07 faint instructions and T08 trick consent with clean twins. T08 checked shares data; clearing it stops sharing. Handoff details are in `web/README.md`.
+- Checks passed: frontend types, lint, build, seven stream/verifier tests, and Chrome checks of the arena, replay, highlights, and mocked live launch at 1280x720.
+- Synced Dev A's new backend and displayed overlay-neutralization evidence. Real run `7512266a1d89` launched from the local production console and streamed both sides to completion, but both aborted without a purchase.
+- Blocked: saved product/checkout snapshots had only four elements and an empty shop before deferred JavaScript ran. Dev A should wait for navigation and page readiness before snapshotting (executor/snapshot ownership). The successful paired-purchase gate remains open; Dev A also owns T07/T08 detector tests.
+
 ### 2026-11-12 (evening, Friday cards early) · Dev A · Claude Code
 - Did: live run API (`POST /runs`, live SSE stream with reconnect, queue), arena-only network
   guard, detectors A1–A5 + B5 + C1, verdict engine, and the shielded side (blocks, feedback to
@@ -32,6 +40,7 @@ Template:
   Supabase (A-D2-07). Paired run takes ~2:45, above the 90 s demo gate: LLM rate limits.
 - Open question: T02's invisible overlay leaves the shielded agent no way forward (it ends in an
   ask). Decide whether Aegis may neutralize an invisible overlay, or keep it as block + ask.
+
 
 ### 2026-11-12 · Dev A · Claude Code
 - Built the shared data format (schemas), a sample live run, and the server routes the console uses.

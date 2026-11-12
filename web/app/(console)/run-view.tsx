@@ -1,40 +1,86 @@
 "use client";
 
+import { useState } from "react";
 import { useRunStream } from "@/lib/events";
-import type { RunEvent } from "@/lib/api";
+import type { RunEvent, Schema } from "@/lib/api";
+
+type VerdictEvent = Extract<RunEvent, { kind: "verdict" }>;
 
 function describe(event: RunEvent): string {
   switch (event.kind) {
     case "snapshot": return event.payload.title;
-    case "decision": return `${event.payload.cached ? "Replayed decision · " : ""}${event.payload.action.rationale}`;
-    case "verdict": return `${event.payload.verdict.decision} · ${event.payload.verdict.findings?.map((finding) => finding.evidence).join(" ") || "Checks passed"}`;
+    case "decision": return event.payload.action.rationale;
+    case "verdict": return event.payload.verdict.decision;
     case "executed": return `${event.payload.ok ? "Executed" : "Execution failed"}: ${event.payload.action.type}`;
-    case "ask": return `Sample approval: ${event.payload.status} · ${event.payload.reason.replaceAll("_", " ")}`;
+    case "ask": return `Approval ${event.payload.status.replaceAll("_", " ")} · ${event.payload.reason.replaceAll("_", " ")}`;
     case "error": return event.payload.message;
     case "done": return `Finished: ${event.payload.reason}`;
   }
 }
 
-export function RunView({ runId }: { runId: string }) {
-  const { summary, events, status, error } = useRunStream(runId);
+function Ledger({ ledger }: { ledger: Schema["Ledger"] | null | undefined }) {
+  return <aside className="ledger-panel" aria-label="Permission ledger"><h4>Permission ledger</h4>{ledger ? <><p>{ledger.goal}</p><dl>
+    <div><dt>Items</dt><dd>{ledger.items?.map((item) => `${item.qty ?? 1} × ${item.name}`).join(", ") || "Not specified"}</dd></div>
+    <div><dt>Budget</dt><dd>{ledger.budget_max == null ? "Not specified" : `₹${ledger.budget_max}`}</dd></div>
+    <div><dt>Add-ons</dt><dd>{ledger.allow_addons ? "Permitted as requested" : "Not permitted"}</dd></div>
+    <div><dt>Subscriptions</dt><dd>{ledger.allow_subscriptions ? "Permitted as requested" : "Not permitted"}</dd></div>
+    <div><dt>Shipping</dt><dd>{ledger.shipping_method ?? "Not specified"}</dd></div>
+    <div><dt>Data</dt><dd>{ledger.data_allowed?.join(", ") || "No sharing authorized"}</dd></div>
+  </dl></> : <p role="status">Parsing your request…</p>}</aside>;
+}
+
+function AgentPane({ mode, events, summary }: { mode: RunEvent["mode"]; events: RunEvent[]; summary: Schema["RunSummary"] | null }) {
+  const [selected, setSelected] = useState<VerdictEvent | null>(null);
+  const side = events.filter((event) => event.mode === mode);
+  const inspected = selected && side.includes(selected) ? selected : null;
+  const snapshots = side.filter((event) => event.kind === "snapshot");
+  const snapshot = inspected ? snapshots.findLast((event) => event.step === inspected.step) : snapshots.at(-1);
+  const image = snapshot?.payload;
+  // A verdict's coordinates apply only to its own snapshot, never to a later page.
+  const verdict = inspected ?? side.findLast((event) => event.kind === "verdict" && event.step === snapshot?.step);
+  const highlights = verdict?.kind === "verdict" ? verdict.payload.highlights ?? [] : [];
+  const done = side.findLast((event) => event.kind === "done");
+  return <article className="agent-pane">
+    <div className="pane-heading"><h3>{mode === "shielded" ? "With Aegis" : "Unprotected agent"}</h3><span>Step {inspected?.step ?? side.at(-1)?.step ?? 0}</span></div>
+    <div className="browser-frame">
+      {image?.screenshot_b64 || image?.screenshot_url ? <>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img alt={`${mode} browser at step ${snapshot?.step}`} src={image.screenshot_url || `data:image/jpeg;base64,${image.screenshot_b64}`} />
+        {mode === "shielded" && <svg className="highlight-layer" viewBox="0 0 1280 720" role="img" aria-label="Flagged page elements">{highlights.map((highlight) => {
+          const [x, y, width, height] = highlight.bbox;
+          return <g key={highlight.element_id}><rect x={x} y={y} width={width} height={height} /><text x={Math.max(2, Math.min(x, 1000))} y={Math.max(24, y - 8)}>{highlight.label}</text></g>;
+        })}</svg>}
+      </> : <span>Waiting for a browser snapshot</span>}
+    </div>
+    {mode === "shielded" && <Ledger ledger={summary?.ledger} />}
+    {inspected && <button className="inspect-button" onClick={() => setSelected(null)}>Inspecting step {inspected.step} · Return to latest</button>}
+    <ol className="event-feed" aria-label={`${mode} events`}>{side.filter((event) => mode === "shielded" || event.kind !== "verdict").map((event, index) => <li key={index}>
+      <span className={`event-kind kind-${event.kind}`}>{event.kind}</span><div>
+        {event.kind === "verdict" ? <button className="verdict-row" aria-pressed={inspected === event} onClick={() => setSelected(event)}>
+          <strong>{event.payload.verdict.decision}</strong><span> · {event.payload.verdict.latency_ms} ms · Step {event.step}</span>
+          {event.payload.verdict.findings?.map((finding, i) => <p key={i}><strong>{finding.detector} · {finding.trap_type}</strong><br />{finding.evidence}</p>)}
+          {!event.payload.verdict.findings?.length && <p>Checks passed</p>}
+          {event.payload.neutralized?.map((cover) => <p key={cover.element_id}><strong>Overlay neutralized</strong><br />{cover.evidence}</p>)}
+          {event.payload.verdict.reroute_hint && <p>Next: {event.payload.verdict.reroute_hint}</p>}
+        </button> : <p>{describe(event)}</p>}
+        {event.kind === "decision" && <><span className="event-meta">{event.payload.provider} · {event.payload.model} · {event.payload.llm_latency_ms} ms</span>{event.payload.cached && <strong className="badge">Replayed decision</strong>}</>}
+        {event.kind === "snapshot" && event.payload.removed?.map((removed, i) => <p key={i}>Removed ({removed.reason}): {removed.text}</p>)}
+      </div>
+    </li>)}</ol>
+    <div className="sample-outcome">{done?.kind === "done" ? <><strong>{summary?.is_sample ? "Sample outcome" : "Outcome"} · {done.payload.outcome.total == null ? "Total unknown" : `₹${done.payload.outcome.total}`}</strong><p>{done.payload.outcome.task_completed ? "Task completed" : "Task incomplete"}</p>{done.payload.outcome.commitments?.map((commitment, index) => <p key={index}>{commitment.description} · {commitment.state}</p>)}</> : <p>Outcome pending</p>}</div>
+  </article>;
+}
+
+export function RunComparison({ summary, events, status, error, replay = false }: { summary: Schema["RunSummary"] | null; events: RunEvent[]; status: string; error?: string | null; replay?: boolean }) {
   return <section className="run-section" aria-label="Run comparison">
-    <div className="section-heading"><h2>Run comparison</h2><div>{summary?.is_sample && <strong className="badge">SAMPLE DATA</strong>} <span role="status">{status}</span></div></div>
+    <div className="section-heading"><h2>Run comparison</h2><div>{replay && <strong className="badge">REPLAY</strong>} {summary?.is_sample && <strong className="badge">SAMPLE DATA</strong>} <span role="status">{status}</span></div></div>
     {error && <p className="error-message" role="alert">{error}</p>}
     {summary && <p className="run-task">{summary.task}</p>}
-    <div className="comparison-grid">{(["unshielded", "shielded"] as const).map((mode) => {
-      const side = events.filter((event) => event.mode === mode);
-      const snapshot = side.findLast((event) => event.kind === "snapshot");
-      const image = snapshot?.kind === "snapshot" ? snapshot.payload : null;
-      const done = side.findLast((event) => event.kind === "done");
-      return <article key={mode} className="agent-pane">
-        <div className="pane-heading"><h3>{mode === "shielded" ? "With Aegis" : "Unprotected agent"}</h3><span>Step {side.at(-1)?.step ?? 0}</span></div>
-        <div className="browser-frame">{image?.screenshot_b64 || image?.screenshot_url ?
-          // eslint-disable-next-line @next/next/no-img-element
-          <img alt={`${mode} ${summary?.is_sample ? "sample" : "browser"} screenshot`} src={image.screenshot_b64 ? `data:image/jpeg;base64,${image.screenshot_b64}` : image.screenshot_url!} /> : <span>Waiting for a browser snapshot</span>}</div>
-        <ol className="event-feed" aria-label={`${mode} events`}>{side.map((event, index) => <li key={index}><span className={`event-kind kind-${event.kind}`}>{event.kind}</span><p>{describe(event)}</p></li>)}</ol>
-        {done?.kind === "done" && <div className="sample-outcome"><strong>Sample outcome · {done.payload.outcome.total == null ? "Total unknown" : `₹${done.payload.outcome.total}`}</strong>{done.payload.outcome.commitments?.map((commitment, index) => <p key={index}>{commitment.description} · {commitment.state}</p>)}</div>}
-      </article>;
-    })}</div>
-    <aside className="console-card ledger-panel"><h3>Permission ledger</h3>{summary?.ledger ? <><p>{summary.ledger.goal}</p><dl><div><dt>Budget</dt><dd>{summary.ledger.budget_max == null ? "Not specified" : `₹${summary.ledger.budget_max}`}</dd></div><div><dt>Add-ons</dt><dd>{summary.ledger.allow_addons ? "Permitted" : "Not permitted"}</dd></div><div><dt>Subscriptions</dt><dd>{summary.ledger.allow_subscriptions ? "Permitted" : "Not permitted"}</dd></div><div><dt>Shipping</dt><dd>{summary.ledger.shipping_method ?? "Not specified"}</dd></div></dl></> : <p>Waiting for the server’s interpretation of the task.</p>}</aside>
+    <div className="comparison-grid">{(["unshielded", "shielded"] as const).map((mode) => <AgentPane key={mode} mode={mode} events={events} summary={summary} />)}</div>
   </section>;
+}
+
+export function RunView({ runId, queue = 0 }: { runId: string; queue?: number }) {
+  const stream = useRunStream(runId);
+  return <>{queue > 0 && !stream.events.length && stream.status !== "error" && <p role="status">Queued at launch: position {queue}. Waiting for this run to start.</p>}<RunComparison {...stream} /></>;
 }
