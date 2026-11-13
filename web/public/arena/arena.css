@@ -25,6 +25,8 @@ p { margin: 10px 0; }
 button, .button { display: inline-block; border: 0; border-radius: 3px; padding: 13px 22px; background: var(--accent); color: white; text-decoration: none; font: inherit; cursor: pointer; }
 button:hover, .button:hover { background: #294334; }
 button:disabled { opacity: .5; cursor: default; }
+button.secondary { display: block; margin-top: 12px; padding: 9px 16px; background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+button.secondary:hover { background: #e9eadd; }
 a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid #bd6b30; outline-offset: 4px; }
 .back { display: inline-block; margin-bottom: 24px; }
 .product-visual { padding: 38px; background: #e7e9dc; min-height: 350px; display: grid; place-items: center; }
