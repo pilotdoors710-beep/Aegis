@@ -22,6 +22,13 @@ Template:
 
 ## Log
 
+### 2026-11-13 (late night) · Dev B · Antigravity · MathScramble component integration
+- Integrated Louis Studios' `MathScramble` component into `web/components/ui/math-scramble.tsx` and created `web/components/ui/demo.tsx`.
+- Enhanced the landing page description “A runtime shield between autonomous agents and the live web—stopping deception before it becomes a commitment.” with the interactive MathScramble canvas wave effect.
+- Configured words to flip into mathematical symbols using the Aegis palette (#DD700B accent, #FCF8D8 highlights, #D9DADF, #7C7D75) on hover and ambient autoplay drift.
+- Preserved full accessibility, DOM readability for search engines and test suites, reduced motion static rendering, and no-JS fallback.
+- TypeScript compilation, ESLint, 12 node tests, and Next.js build pass cleanly.
+
 ### 2026-11-13 (late night) · Dev B · Antigravity · Aegis landing hero redesign
 - Rebuilt landing page into a centered, cinematic in-viewport hero (100svh, non-scrolling) over the animated ThreeUI FlowField background.
 - Staged entrance timeline: AEGIS masked title (0–800ms), "COMMIT BEFORE CODE" quote + expanding orange rule (700–1,400ms), verbatim description (1,300–2,100ms), and visible "SLIDE TO ENTER" label + interactive pill slider (2,050–2,550ms, locked until reveal).
