@@ -1,4 +1,8 @@
-export const PALETTE = [[221, 112, 11], [124, 125, 117], [252, 248, 8]] as const;
+export const PALETTE = [
+  [94, 44, 29],   // Deep Burnt Copper (#5E2C1D) - Shadow / Outer Dither
+  [168, 100, 66], // Muted Warm Bronze (#A86442) - Primary Midtone Dither
+  [232, 197, 158], // Soft Warm Champagne (#E8C59E) - Bright Highlights
+] as const;
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 
 export function randomSource(seed = 231117) {

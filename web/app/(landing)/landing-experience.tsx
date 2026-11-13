@@ -7,6 +7,7 @@ import { ArrowRight } from "lucide-react";
 import { SEEN_KEY, signalConsoleEntry, TIMING, animate, type Phase } from "@/lib/landing/phases";
 import { SquareTunnel } from "./square-tunnel";
 import { SliderControl } from "./slider-control";
+import { AegisArtwork } from "./aegis-artwork";
 import { MathScramble } from "@/components/ui/math-scramble";
 import styles from "./landing.module.css";
 
@@ -25,6 +26,7 @@ export function LandingExperience() {
   const [tunnelOpacity, setTunnelOpacity] = useState(0);
   const [tunnelProgress, setTunnelProgress] = useState(0);
   const [tunnelPrepared, setTunnelPrepared] = useState(false);
+  const [exitElapsed, setExitElapsed] = useState(-1);
 
   // Progressive background dimming states
   const [flowOpacity, setFlowOpacity] = useState(0.85);
@@ -174,6 +176,7 @@ export function LandingExperience() {
     // 1,800ms: complete tunnel and navigate to /console
     const stopExit = animate(TIMING.exitTotal, (p) => {
       const t = p * TIMING.exitTotal;
+      setExitElapsed(t);
 
       if (t >= TIMING.crossfadeStart) {
         const fade = Math.min(1, (t - TIMING.crossfadeStart) / (TIMING.crossfadeEnd - TIMING.crossfadeStart));
@@ -229,6 +232,15 @@ export function LandingExperience() {
         aria-hidden="true"
       />
 
+      {/* Centered viewport-sized particle artwork with custom palette */}
+      <AegisArtwork
+        phase={phase}
+        reduced={reduced}
+        exitElapsed={exitElapsed}
+        onLoaded={() => {}}
+        onSettled={() => {}}
+      />
+
       {/* Dark background overlay for crossfading to dark tunnel */}
       <div
         className={styles.darkOverlay}
@@ -276,7 +288,7 @@ export function LandingExperience() {
               color="transparent"
               highlightColor="transparent"
               background="transparent"
-              colors={["#DD700B", "#FCF8D8", "#D9DADF", "#7C7D75", "#f25b23", "#e9c84f"]}
+              colors={["#DD700B", "#FCF8D8", "#E8C59E", "#A86442", "#5E2C1D", "#D9DADF"]}
               font='var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
               highlightFont='var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
               fontSize={15}

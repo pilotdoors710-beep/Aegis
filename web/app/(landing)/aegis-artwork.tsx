@@ -115,27 +115,39 @@ export function AegisArtwork({ phase, reduced, exitElapsed, onLoaded, onSettled,
 
   // Handle assembly animation
   useEffect(() => {
-    cancelAssembly.current?.();
     if (reduced) {
+      cancelAssembly.current?.();
+      cancelAssembly.current = null;
       progressRef.current = 1;
       renderer.current?.draw(1, 0, 1);
       return;
     }
-    if (phase === "assembling" && renderer.current) {
-      progressRef.current = 0;
-      cancelAssembly.current = animate(TIMING.assembly, (p) => {
-        progressRef.current = p;
-        renderer.current?.draw(p, 0, 1);
-      }, () => {
-        progressRef.current = 1;
-        onSettledRef.current();
-      });
-    } else if (phase === "ready") {
-      progressRef.current = 1;
-      renderer.current?.draw(1, hoverRef.current, 1);
+    if (phase === "exiting" || phase === "disassembling" || phase === "entering") {
+      cancelAssembly.current?.();
+      cancelAssembly.current = null;
+      return;
     }
-    return () => cancelAssembly.current?.();
-  }, [phase, reduced]);
+    if (!renderer.current) return;
+
+    if (progressRef.current === 0 && !cancelAssembly.current) {
+      if (phase === "assembling" || phase === "title") {
+        cancelAssembly.current = animate(TIMING.assembly, (p) => {
+          progressRef.current = p;
+          renderer.current?.draw(p, 0, 1);
+        }, () => {
+          progressRef.current = 1;
+          cancelAssembly.current = null;
+          onSettledRef.current();
+        });
+      } else {
+        progressRef.current = 1;
+        renderer.current.draw(1, 0, 1);
+        onSettledRef.current();
+      }
+    } else if (progressRef.current >= 1 && phase === "ready") {
+      renderer.current.draw(1, hoverRef.current, 1);
+    }
+  }, [phase, reduced, painted]);
 
   // Handle hover spreading: smoothly expand particle spacing outward by 6% over 300ms
   const startHoverTransition = useCallback((targetHover: number) => {
