@@ -119,6 +119,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/scan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Scan
+         * @description Loads a public page read-only (no clicks, no agent, no LLM) and runs the fast detectors.
+         */
+        post: operations["scan_scan_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/stats": {
         parameters: {
             query?: never;
@@ -523,6 +543,70 @@ export interface components {
             reason: "completed" | "max_steps" | "denied" | "aborted" | "error";
             outcome: components["schemas"]["Outcome"];
         };
+        /** Element */
+        Element: {
+            /** Id */
+            id: string;
+            /** Tag */
+            tag: string;
+            /** Role */
+            role?: string | null;
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+            /**
+             * Nearby Text
+             * @default
+             */
+            nearby_text: string;
+            /** Href */
+            href?: string | null;
+            /**
+             * Download
+             * @default false
+             */
+            download: boolean;
+            /**
+             * Onclick
+             * @default false
+             */
+            onclick: boolean;
+            /**
+             * Bbox
+             * @default [
+             *       0,
+             *       0,
+             *       0,
+             *       0
+             *     ]
+             */
+            bbox: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /**
+             * Visible
+             * @default true
+             */
+            visible: boolean;
+            /**
+             * Opacity
+             * @default 1
+             */
+            opacity: number;
+            /** Contrast Ratio */
+            contrast_ratio?: number | null;
+            /** Occluded By */
+            occluded_by?: string | null;
+            /** Checked */
+            checked?: boolean | null;
+            /** Value */
+            value?: string | null;
+        };
         /** ErrorEvent */
         ErrorEvent: {
             /** Run Id */
@@ -897,6 +981,60 @@ export interface components {
              * @default false
              */
             is_sample: boolean;
+        };
+        /** ScanReport */
+        ScanReport: {
+            /** Url */
+            url: string;
+            /** Final Url */
+            final_url: string;
+            /** Title */
+            title: string;
+            /**
+             * Findings
+             * @default []
+             */
+            findings: components["schemas"]["Finding"][];
+            /**
+             * Notes
+             * @default []
+             */
+            notes: components["schemas"]["Finding"][];
+            /**
+             * Flagged
+             * @default []
+             */
+            flagged: components["schemas"]["Element"][];
+            /**
+             * Element Count
+             * @default 0
+             */
+            element_count: number;
+            /** Screenshot B64 */
+            screenshot_b64?: string | null;
+            /**
+             * Detector Ms
+             * @default 0
+             */
+            detector_ms: number;
+            /**
+             * Elapsed Ms
+             * @default 0
+             */
+            elapsed_ms: number;
+            /**
+             * Blocked Requests
+             * @default 0
+             */
+            blocked_requests: number;
+        };
+        /**
+         * ScanRequest
+         * @description E5: scan one public web page with the fast detectors (read-only, no agent, no clicks).
+         */
+        ScanRequest: {
+            /** Url */
+            url: string;
         };
         /** ShippingObservation */
         ShippingObservation: {
@@ -1287,6 +1425,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TrialReport"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    scan_scan_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScanRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScanReport"];
                 };
             };
             /** @description Validation Error */

@@ -21,6 +21,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from aegis.agent import Agent, LLMAgent
 from aegis.config import settings
+from aegis.detectors import run_fast
 from aegis.events import (
     SAMPLE_RUN_ID,
     AskGate,
@@ -41,6 +42,7 @@ from aegis.schemas import (
     AskPayload,
     EvalStats,
     Event,
+    Finding,
     HealthArena,
     HealthLLM,
     LabRequest,
@@ -50,10 +52,12 @@ from aegis.schemas import (
     RunCreate,
     RunCreated,
     RunSummary,
+    ScanReport,
+    ScanRequest,
     TrialReport,
 )
-from aegis.security import arena_origin, install_guard, validate_url
-from aegis.snapshot import take_snapshot
+from aegis.security import ScanGuard, arena_origin, install_guard, validate_scan_url, validate_url
+from aegis.snapshot import screenshot_b64, take_snapshot
 from aegis.trials import run_trials
 
 log = logging.getLogger("aegis.api")
@@ -223,6 +227,62 @@ async def lab_trial(body: LabRequest) -> TrialReport:
                 ledger=lab_ledger(body), start_url=url, allowed_origin=arena_origin(), replay=[],
                 viewport=VIEWPORT, frozen_time=FROZEN_TIME, outcome_reader=outcome_from_page,
                 timeout_s=settings.trial_timeout_s,
+            )  # fmt: skip
+        finally:
+            await ctx.close()
+
+
+# --- E5: scan any public URL -----------------------------------------------------------------
+
+SCAN_LOAD_S = 15
+SCAN_SETTLE_MS = 2_500  # late overlays, cookie banners and timers usually appear by then
+_scan_lock = asyncio.Lock()  # one scan at a time on the shared Chromium
+
+
+def is_note(f: Finding) -> bool:
+    return f.detector in ("A1_visibility", "A3_faint_text") and f.trap_type == "hidden_info"
+
+
+@app.post("/scan")
+async def scan(body: ScanRequest) -> ScanReport:
+    """Loads a public page read-only (no clicks, no agent, no LLM) and runs the fast detectors."""
+    assert _browser is not None
+    try:
+        url = await validate_scan_url(body.url.strip())
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=f"Cannot scan this URL: {e}") from e
+    t0 = time.perf_counter()
+    async with _scan_lock:
+        guard = ScanGuard()
+        ctx = await _browser.new_context(
+            viewport=VIEWPORT, service_workers="block", accept_downloads=False,  # type: ignore[arg-type]
+        )  # fmt: skip
+        try:
+            await guard.install(ctx)
+            page = await ctx.new_page()
+            try:
+                await page.goto(url, wait_until="domcontentloaded", timeout=SCAN_LOAD_S * 1000)
+            except Exception as e:  # noqa: BLE001 - any load failure is the user's answer
+                msg = f"The page did not load: {e}"[:300]
+                raise HTTPException(status_code=502, detail=msg) from e
+            await page.wait_for_timeout(SCAN_SETTLE_MS)
+            snap = await take_snapshot(page)
+            d0 = time.perf_counter()
+            findings = run_fast(snap, None, None)
+            detector_ms = round((time.perf_counter() - d0) * 1000)
+            shot = await screenshot_b64(page)
+            if await guard.leaked():
+                raise HTTPException(status_code=422, detail="Cannot scan this URL: the page was "
+                                    "served from a non-public address")  # fmt: skip
+            notes = [f for f in findings if is_note(f)]
+            findings = [f for f in findings if not is_note(f)]
+            ids = {f.element_id for f in findings}
+            return ScanReport(
+                url=url, final_url=page.url, title=snap.title, findings=findings, notes=notes,
+                flagged=[e for e in snap.elements if e.id in ids],
+                element_count=len(snap.elements), screenshot_b64=shot, detector_ms=detector_ms,
+                elapsed_ms=round((time.perf_counter() - t0) * 1000),
+                blocked_requests=len(guard.blocked),
             )  # fmt: skip
         finally:
             await ctx.close()

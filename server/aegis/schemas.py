@@ -245,6 +245,28 @@ class LabRequest(BaseModel):
     permit_sharing: bool = False  # the user allows sharing their email with partners
 
 
+class ScanRequest(BaseModel):
+    """E5: scan one public web page with the fast detectors (read-only, no agent, no clicks)."""
+
+    url: str = Field(min_length=1, max_length=2000)
+
+
+class ScanReport(BaseModel):
+    url: str
+    final_url: str  # after redirects
+    title: str
+    findings: list[Finding] = []
+    # Plain hidden/faint text (A1/A3 hidden_info): everywhere on real sites (screen-reader labels,
+    # carousels, closed menus), so kept apart. Hidden text that instructs an agent is a B5 finding.
+    notes: list[Finding] = []
+    flagged: list[Element] = []  # elements the findings point at (bbox for the red boxes)
+    element_count: int = 0
+    screenshot_b64: str | None = None  # JPEG, 1280x720 viewport, with no boxes drawn
+    detector_ms: int = 0  # fast detectors only
+    elapsed_ms: int = 0  # whole scan: load, wait, snapshot, detectors, screenshot
+    blocked_requests: int = 0  # requests refused by the public-address guard
+
+
 # --- Event payloads (typed per kind, behind the brief's envelope) ---------------------------
 
 
