@@ -1,6 +1,12 @@
 from playwright.async_api import Page
 
-from aegis.audit import audit, correction_hint, extract_checkout_state, is_irreversible
+from aegis.audit import (
+    audit,
+    correction_hint,
+    extract_checkout_state,
+    is_irreversible,
+    same_thing,
+)
 from aegis.schemas import AuditReport, Ledger, LedgerItem
 from aegis.snapshot import take_snapshot
 
@@ -121,3 +127,27 @@ async def test_irreversible_controls(page: Page, arena_url: str) -> None:
     assert is_irreversible(by["Place order"], "click")
     assert not is_irreversible(by["Your cart"], "click")
     assert is_irreversible(None, "submit")
+
+
+# r1b: the ledger names the plan "Aurora Care plan"; the realistic checkout row is
+# "2-year Aurora Care · ₹99/yr, renews". Generic words (plan, year) must not block the match.
+CARE = Ledger(goal="g", items=[LAMP, LedgerItem(name="Aurora Care plan")], budget_max=1500,
+              allow_addons=True, allow_subscriptions=True, shipping_method="standard")  # fmt: skip
+
+
+def test_same_thing_ignores_generic_words() -> None:
+    assert same_thing("Aurora Care plan", "2-year Aurora Care · ₹99/yr, renews")
+    assert not same_thing("Annual protection plan", "2-year Aurora Care · ₹99/yr, renews")
+    assert not same_thing("Plan", "Annual protection plan")
+
+
+async def test_t03b_authorized_care_permitted(page: Page, arena_url: str) -> None:
+    r = await _report(page, arena_url, CARE, traps="T03&variant=b")
+    assert _status(r, "allow_subscriptions") == ["permitted"]
+    assert _bad(r) == [] and r.observed.total == 1398
+
+
+async def test_t03b_default_ledger_flags_care(page: Page, arena_url: str) -> None:
+    r = await _report(page, arena_url, DEFAULT, traps="T03&variant=b")
+    assert _status(r, "allow_subscriptions") == ["violation"]
+    assert r.observed.total == 1398

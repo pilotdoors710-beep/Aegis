@@ -32,6 +32,9 @@ FEE = re.compile(r"\b(?:fee|surcharge|service charge)\b", re.I)
 DATA = re.compile(r"\b(?:share|sharing|partner|third[- ]part|email|phone|data)\w*", re.I)
 NEGATION = re.compile(r"\b(?:not|don'?t|no|uncheck|untick|stop|opt[- ]?out|unless)\b", re.I)
 STOPWORDS = {"the", "a", "an", "and", "with", "of", "for"}
+# Words that describe a product's form or term rather than name it: "Aurora Care plan" (ledger)
+# and "2-year Aurora Care" (order summary) are the same thing.
+GENERIC = {"plan", "year", "years", "month", "months", "renews", "renewing", "auto"}
 
 
 def money(text: str) -> float | None:
@@ -41,7 +44,7 @@ def money(text: str) -> float | None:
 
 def _tokens(name: str) -> set[str]:
     name = re.sub(r"\(.*?\)|·.*$|₹[\d,]+|/\w+", " ", name.lower())
-    return {t for t in re.findall(r"[a-z]+", name) if t not in STOPWORDS}
+    return {t for t in re.findall(r"[a-z]+", name) if t not in STOPWORDS | GENERIC}
 
 
 def same_thing(a: str, b: str) -> bool:

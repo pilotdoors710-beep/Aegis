@@ -11,6 +11,7 @@ eval MUST pass use_cache=False, which forces "off".
 import asyncio
 import hashlib
 import json
+import logging
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -21,6 +22,8 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel, ValidationError
 
 from aegis.config import Settings, settings
+
+log = logging.getLogger("aegis.llm")
 
 BASE_URLS = {
     "gemini": "https://generativelanguage.googleapis.com/v1beta/openai/",
@@ -99,6 +102,14 @@ class MemoryCache:
 
     async def set(self, key: str, value: LLMResult) -> None:
         self._d[key] = value
+
+
+class _LoggedErrors(list[str]):
+    """Fall-through reasons; each one is also logged so a silent model switch shows in the logs."""
+
+    def append(self, reason: str) -> None:
+        log.warning("LLM fall-through: %s", reason)
+        super().append(reason)
 
 
 class _Bucket:
@@ -185,7 +196,7 @@ class LLMRouter:
     ) -> LLMResult:
         if not self.chain:
             raise AllProvidersFailed("AGENT_MODELS is empty")
-        errors: list[str] = []
+        errors = _LoggedErrors()
         mode = self._cfg.llm_cache_mode if use_cache else "off"
         keys = [cache_key(f"{p}:{m}:{json_mode}", messages) for p, m, _ in self.slots]
         for i, (provider, model, slot) in enumerate(self.slots):
