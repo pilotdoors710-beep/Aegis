@@ -22,6 +22,13 @@ Template:
 
 ## Log
 
+### 2026-11-14 · Dev A · Claude Code · E5 scan any URL
+- Did: `POST /scan` + `/scan` page. Opens any public page once (no agent, no clicks, no LLM), runs the fast detectors, returns findings + boxed screenshot. Plain hidden/faint text is listed apart as "notes" (screen-reader labels etc. are everywhere on real sites).
+- Safety: only hosts that resolve to public IPs, ports 80/443; every request is checked, and if Chromium actually reached a private address (DNS rebinding) the whole report is dropped. Matters because the backend runs on the home PC.
+- Scanning real sites found two detector bugs, fixed test-first: B5 missed hidden orders like "in your response…"; A4 flagged footer links labelled "X" as fake close buttons. Changes F/I behaviour, so it lands before the eval freeze.
+- Works now: 168 backend tests; web types, lint, build pass. Test URLs that light up: garden-advice.netlify.app (hidden AI instructions), theme-dawn-demo.myshopify.com/collections/all (crossed-out prices); wikipedia.org is clean.
+- Next: push, restart `aegis.service`. Note: local `next build` reused a stale Turbopack cache and dropped new CSS; moving `.next/cache` aside fixed it (Vercel builds clean). B5 is still a phrase list and misses some injections.
+
 ### 2026-11-13 (late night) · Dev B · Antigravity · dithered logo palette update & particle disintegration on slide
 - Updated dithered logo palette: Transparent background `rgba(0, 0, 0, 0)`, Deep Burnt Copper `#5E2C1D` (`[94, 44, 29]`) for shadow/outer dither, Muted Warm Bronze `#A86442` (`[168, 100, 66]`) for midtones, and Soft Warm Champagne `#E8C59E` (`[232, 197, 158]`) for bright highlights.
 - Regenerated `public/landing/aegis-dithered.png` via `prepare-assets.mjs` with the updated color palette.
