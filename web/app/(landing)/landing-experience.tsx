@@ -11,7 +11,7 @@ import { AegisArtwork } from "./aegis-artwork";
 import { MathScramble } from "@/components/ui/math-scramble";
 import styles from "./landing.module.css";
 
-const Scene = dynamic(() => import("./scene").then((m) => m.Scene), { ssr: false });
+const FluxLines = dynamic(() => import("@/components/FluxLines"), { ssr: false });
 
 type Stage = "loading" | "title" | "quote" | "description" | "ready";
 
@@ -30,7 +30,7 @@ export function LandingExperience() {
 
   // Progressive background dimming states
   const [flowOpacity, setFlowOpacity] = useState(0.85);
-  const [veilOpacity, setVeilOpacity] = useState(0.15);
+  const [veilOpacity, setVeilOpacity] = useState(0.05);
   const [flowContrast, setFlowContrast] = useState(1.0);
 
   const accepted = useRef(false);
@@ -74,40 +74,40 @@ export function LandingExperience() {
       if (isRed) {
         changePhase("ready");
         setStage("ready");
-        setFlowOpacity(0.32);
-        setVeilOpacity(0.65);
-        setFlowContrast(0.70);
-        setTunnelPrepared(true);
-      } else {
-        // 0–800ms: AEGIS rises through clipped mask; FlowField ~85% opacity, 15% veil
-        changePhase("title");
-        setStage("title");
-        setFlowOpacity(0.85);
+        setFlowOpacity(0.65);
         setVeilOpacity(0.15);
         setFlowContrast(1.0);
         setTunnelPrepared(true);
+      } else {
+        // 0–800ms: AEGIS rises through clipped mask; FluxLines ~85% opacity, 5% veil
+        changePhase("title");
+        setStage("title");
+        setFlowOpacity(0.85);
+        setVeilOpacity(0.05);
+        setFlowContrast(1.0);
+        setTunnelPrepared(true);
 
-        // 700–1,400ms: Quote fades and rises, orange rule expands; FlowField ~55% opacity, 45% veil
+        // 700–1,400ms: Quote fades and rises, orange rule expands; FluxLines ~75% opacity, 10% veil
         timers.current.push(
           setTimeout(() => {
             if (!mounted || phaseRef.current === "exiting" || phaseRef.current === "entering") return;
             changePhase("quote");
             setStage("quote");
-            setFlowOpacity(0.55);
-            setVeilOpacity(0.45);
-            setFlowContrast(0.85);
+            setFlowOpacity(0.75);
+            setVeilOpacity(0.10);
+            setFlowContrast(1.0);
           }, TIMING.quoteStart)
         );
 
-        // 1,300–2,100ms: Description fades upward as a complete block; FlowField ~32% opacity, 65% veil
+        // 1,300–2,100ms: Description fades upward as a complete block; FluxLines ~65% opacity, 15% veil
         timers.current.push(
           setTimeout(() => {
             if (!mounted || phaseRef.current === "exiting" || phaseRef.current === "entering") return;
             changePhase("description");
             setStage("description");
-            setFlowOpacity(0.32);
-            setVeilOpacity(0.65);
-            setFlowContrast(0.70);
+            setFlowOpacity(0.65);
+            setVeilOpacity(0.15);
+            setFlowContrast(1.0);
           }, TIMING.descStart)
         );
 
@@ -128,9 +128,9 @@ export function LandingExperience() {
       if (isRed) {
         changePhase("ready");
         setStage("ready");
-        setFlowOpacity(0.32);
-        setVeilOpacity(0.65);
-        setFlowContrast(0.70);
+        setFlowOpacity(0.65);
+        setVeilOpacity(0.15);
+        setFlowContrast(1.0);
         setTunnelPrepared(true);
       }
     };
@@ -209,7 +209,7 @@ export function LandingExperience() {
       data-reduced={reduced}
       data-initialized={initialized}
     >
-      {/* ThreeUI FlowField background scene with progressive dimming */}
+      {/* React Bits FluxLines background with progressive dimming */}
       <div
         className={styles.sceneWrapper}
         style={{
@@ -219,7 +219,18 @@ export function LandingExperience() {
         }}
         aria-hidden="true"
       >
-        <Scene />
+        <FluxLines
+          colors={['#ffffff', '#ffffff', '#ffffff']}
+          glow={2}
+          rimWidth={0.2}
+          lineWidth={1}
+          flowDirection="down"
+          mouseInteraction={!reduced && phase !== "exiting" && phase !== "entering"}
+          clickSwirl={!reduced && phase !== "exiting" && phase !== "entering"}
+          paused={reduced || phase === "exiting" || phase === "entering"}
+          intro={!reduced}
+          dpr={1.5}
+        />
       </div>
 
       {/* Neutral veil for progressive dimming: #7C7D75 */}
@@ -247,7 +258,7 @@ export function LandingExperience() {
         prepared={tunnelPrepared && !reduced}
         opacity={tunnelOpacity}
         progress={tunnelProgress}
-        onContextLost={navigate}
+        onContextLost={() => { if (accepted.current) navigate(); }}
       />
 
       {/* Two-column composition: hero text on left, actual big dithered artwork on right */}

@@ -12,7 +12,7 @@
   justify-content: center;
 }
 
-/* ThreeUI FlowField container */
+/* Decorative FluxLines background; window listeners preserve foreground input. */
 .sceneWrapper {
   position: fixed;
   inset: 0;

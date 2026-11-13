@@ -22,6 +22,13 @@ Template:
 
 ## Log
 
+### 2026-11-14 - Dev B - Codex - FluxLines landing background
+- Replaced the landing background with React Bits FluxLines, using white lines, pointer interaction and click swirl. Kept the hero, artwork, slider and tunnel flow.
+- Added JavaScript, CSS, typed props and the upstream license without installing dependencies. Adjusted dimming so the new background stays visible.
+- Fixed settings updates for React 19 and motion-preference changes. A tunnel graphics failure now waits for slider entry before navigating.
+- Production build, TypeScript, lint, 13 Node tests and three Chrome background checks passed. Checked desktop/mobile rendering, input, reduced motion, WebGL failure/context loss, entry and stopped drawing after navigation.
+- Other in-progress artwork and renderer edits were left out of this commit. Repeat commands and attribution are in web/README.md.
+
 ### 2026-11-14 · Dev A · Claude Code · E5 scan any URL
 - Did: `POST /scan` + `/scan` page. Opens any public page once (no agent, no clicks, no LLM), runs the fast detectors, returns findings + boxed screenshot. Plain hidden/faint text is listed apart as "notes" (screen-reader labels etc. are everywhere on real sites).
 - Safety: only hosts that resolve to public IPs, ports 80/443; every request is checked, and if Chromium actually reached a private address (DNS rebinding) the whole report is dropped. Matters because the backend runs on the home PC.
