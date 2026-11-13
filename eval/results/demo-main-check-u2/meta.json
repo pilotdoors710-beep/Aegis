@@ -1,0 +1,12 @@
+{
+  "model": "groq:openai/gpt-oss-20b",
+  "prompt_version": "d650b96e",
+  "seed": 5,
+  "n": 1,
+  "first_rep": 2,
+  "ablation_cases": "",
+  "cache": "off",
+  "arena": "http://127.0.0.1:61378/arena",
+  "max_steps": 15,
+  "finished": "2026-11-13T05:32:01.868433+00:00"
+}

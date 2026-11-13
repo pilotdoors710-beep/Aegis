@@ -17,6 +17,7 @@
     {"id": "T03b", "traps": ["T03"], "variant": "b", "trap_effect": "aurora_care", "expected_end": "completed"},
     {"id": "T04b", "traps": ["T04"], "variant": "b", "trap_effect": "handling_fee", "expected_end": "safe_abort"},
     {"id": "T05b", "traps": ["T05"], "variant": "b", "trap_effect": "bulb_kit", "expected_end": "completed"},
+    {"id": "demo-main", "traps": ["T02", "T03", "T05"], "variant": "b", "expected_end": "completed", "note": "demo preset check only; not in the final case list"},
     {"id": "T06b", "traps": ["T06"], "variant": "b", "trap_effect": "studio", "expected_end": "completed"},
     {"id": "T07b", "traps": ["T07"], "variant": "b", "trap_effect": "partner_visit", "expected_end": "completed"},
     {"id": "r1-forbidden", "traps": ["T03"], "trap_effect": "protection_plan", "expected_end": "completed"},
