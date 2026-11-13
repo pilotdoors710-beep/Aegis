@@ -134,6 +134,10 @@ def parse_chain(spec: str) -> list[tuple[str, str]]:
     return chain
 
 
+def _slot(provider: str, key_index: int) -> str:
+    return provider if key_index == 0 else f"{provider}#{key_index + 1}"
+
+
 class LLMRouter:
     def __init__(
         self,
@@ -145,17 +149,26 @@ class LLMRouter:
         self.cache = cache or MemoryCache()
         self._clients = clients or {}
         self._cfg = cfg
-        self._buckets = {p: _Bucket(getattr(cfg, f"{p}_rpm")) for p, _ in self.chain}
+        # One slot per (chain entry, API key). Slot name: "groq", then "groq#2", "groq#3".
+        self.slots = [
+            (p, m, _slot(p, k)) for p, m in self.chain for k in range(max(1, len(self._keys(p))))
+        ]
+        self._buckets = {s: _Bucket(getattr(cfg, f"{p}_rpm")) for p, _, s in self.slots}
 
-    def _client(self, provider: str) -> AsyncOpenAI:
-        if provider not in self._clients:
-            key = getattr(self._cfg, f"{provider}_api_key")
-            if not key:
+    def _keys(self, provider: str) -> list[str]:
+        names = [f"{provider}_api_key", f"{provider}_api_key_2", f"{provider}_api_key_3"]
+        return [k for k in (getattr(self._cfg, n, "") for n in names) if k]
+
+    def _client(self, provider: str, slot: str) -> AsyncOpenAI:
+        if slot not in self._clients:
+            keys = self._keys(provider)
+            idx = int(slot.partition("#")[2] or 1) - 1
+            if idx >= len(keys):
                 raise AllProvidersFailed(f"{provider.upper()}_API_KEY is not set")
-            self._clients[provider] = AsyncOpenAI(
-                api_key=key, base_url=BASE_URLS[provider], timeout=30.0, max_retries=0
+            self._clients[slot] = AsyncOpenAI(
+                api_key=keys[idx], base_url=BASE_URLS[provider], timeout=30.0, max_retries=0
             )
-        return self._clients[provider]
+        return self._clients[slot]
 
     async def complete(
         self,
@@ -170,19 +183,19 @@ class LLMRouter:
             raise AllProvidersFailed("AGENT_MODELS is empty")
         errors: list[str] = []
         mode = self._cfg.llm_cache_mode if use_cache else "off"
-        keys = [cache_key(f"{p}:{m}:{json_mode}", messages) for p, m in self.chain]
-        for i, (provider, model) in enumerate(self.chain):
-            last = i == len(self.chain) - 1
+        keys = [cache_key(f"{p}:{m}:{json_mode}", messages) for p, m, _ in self.slots]
+        for i, (provider, model, slot) in enumerate(self.slots):
+            last = i == len(self.slots) - 1
             key = keys[i]
             if mode == "on" and (hit := await self.cache.get(key)):
                 return LLMResult(hit.text, hit.provider, hit.model, True, 0)
             try:
-                client = self._client(provider)
+                client = self._client(provider, slot)
             except AllProvidersFailed as e:
                 errors.append(str(e))
                 continue
-            if not await self._buckets[provider].acquire(None if last else MAX_BUCKET_WAIT_S):
-                errors.append(f"{provider}: local rate bucket empty")
+            if not await self._buckets[slot].acquire(None if last else MAX_BUCKET_WAIT_S):
+                errors.append(f"{slot}: local rate bucket empty")
                 continue
             started = time.perf_counter()
             resp = None
@@ -198,11 +211,11 @@ class LLMRouter:
                     break
                 except openai.RateLimitError as e:
                     if not last or attempt == LAST_PROVIDER_429_RETRIES:
-                        errors.append(f"{provider}: RateLimitError")
+                        errors.append(f"{slot}: RateLimitError")
                         break
                     await asyncio.sleep(_retry_after(e))
                 except RETRYABLE as e:
-                    errors.append(f"{provider}: {type(e).__name__}")
+                    errors.append(f"{slot}: {type(e).__name__}")
                     break
                 except openai.BadRequestError as e:
                     # Groq rejects JSON-mode output that isn't valid JSON (400 json_validate_failed)
@@ -216,7 +229,7 @@ class LLMRouter:
                 continue
             text = resp.choices[0].message.content or ""
             if not text.strip():  # reasoning models can burn max_tokens and return nothing
-                errors.append(f"{provider}: empty response")
+                errors.append(f"{slot}: empty response")
                 continue
             result = LLMResult(
                 text, provider, model, False, int((time.perf_counter() - started) * 1000)
@@ -231,7 +244,7 @@ class LLMRouter:
                 await self.cache.set(key, result)
             return result
         if mode == "fallback":  # every provider failed: a labelled replay beats a dead demo
-            for key in keys:
+            for key in dict.fromkeys(keys):
                 if hit := await self.cache.get(key):
                     return LLMResult(hit.text, hit.provider, hit.model, True, 0)
         raise AllProvidersFailed("; ".join(errors))

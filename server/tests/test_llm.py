@@ -34,8 +34,11 @@ def _rate_limit() -> openai.RateLimitError:
     return openai.RateLimitError("429", response=httpx.Response(429, request=req), body=None)
 
 
-def _router(clients: dict, chain: str = "gemini:m1,groq:m2", mode: str = "on") -> LLMRouter:
-    cfg = Settings(agent_models=chain, gemini_rpm=6000, groq_rpm=6000, llm_cache_mode=mode)  # type: ignore[arg-type]
+def _router(
+    clients: dict, chain: str = "gemini:m1,groq:m2", mode: str = "on", **keys: str
+) -> LLMRouter:
+    keys = {"groq_api_key_2": "", "groq_api_key_3": "", **keys}  # ignore real .env extras
+    cfg = Settings(agent_models=chain, gemini_rpm=6000, groq_rpm=6000, llm_cache_mode=mode, **keys)  # type: ignore[arg-type]
     return LLMRouter(cfg, clients=clients)  # type: ignore[arg-type]
 
 
@@ -183,3 +186,18 @@ async def test_off_mode_never_stores() -> None:
     await router.complete(MSG)
     with pytest.raises(AllProvidersFailed):
         await router.complete(MSG)
+
+
+async def test_second_key_takes_over_same_model_on_429() -> None:
+    """A tokens/day 429 on key 1 moves to key 2 of the same model before the next chain entry."""
+    k1, k2, other = FakeClient([_rate_limit()]), FakeClient(["ok"]), FakeClient(["no"])
+    router = _router(
+        {"groq": k1, "groq#2": k2, "gemini": other},
+        chain="groq:m2,gemini:m1",
+        groq_api_key="a",
+        groq_api_key_2="b",
+    )
+    assert [s for _, _, s in router.slots] == ["groq", "groq#2", "gemini"]
+    res = await router.complete(MSG, use_cache=False)
+    assert (res.provider, res.model, res.text) == ("groq", "m2", "ok")
+    assert (k1.calls, k2.calls, other.calls) == (1, 1, 0)

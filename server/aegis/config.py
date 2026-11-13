@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     agent_models: str = ""
     gemini_api_key: str = ""
     groq_api_key: str = ""
+    # Extra accounts for the same provider: tried in order on a 429 before the next chain entry,
+    # so a pinned model survives one key's tokens/day cap (separate quota, same model).
+    groq_api_key_2: str = ""
+    groq_api_key_3: str = ""
     openrouter_api_key: str = ""
     cerebras_api_key: str = ""
     # Requests/minute each provider may receive from us (stay under the free-tier cap).
