@@ -4,15 +4,7 @@
   min-height: 100svh;
   width: 100%;
   overflow-x: hidden;
-  background: linear-gradient(
-    to right,
-    #777670 0%,
-    #96958f 15%,
-    #adaca7 30%,
-    #adaca7 70%,
-    #96958f 85%,
-    #777670 100%
-  );
+  background: #000000;
   color: #f1efe5;
 }
 

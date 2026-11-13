@@ -22,6 +22,13 @@ Template:
 
 ## Log
 
+### 2026-11-13 · Dev B · Antigravity · remove grey background and dithering image from landing display
+- Removed the horizontal grey gradient background from the landing page, switching to pitch black so the ThreeUI FlowField shader glows with full contrast.
+- Temporarily removed the dithering Medusa shield image from the website display via toggle `SHOW_DITHERING_IMAGE = false`.
+- Preserved all dithering image files (`aegis-artwork.tsx`, `pixels.ts`, `renderer.ts`, image assets), components, and animations completely intact.
+- Preserved the landing page timing, hold, reveal scroll, slider interaction, square tunnel flight, and console navigation.
+- All web typechecks, ESLint, 12 unit tests, and Next.js production build pass cleanly.
+
 ### 2026-11-13 · Dev B · Antigravity · refresh on console redirects to landing page
 - Configured reload detection in the Shield Console layout via synchronous inline script and client redirect effect.
 - Hitting browser refresh (F5, Ctrl+R, reload button) on the main page (/console) now seamlessly redirects to the landing page (/) without flashing console UI.

@@ -12,6 +12,10 @@ import styles from "./landing.module.css";
 
 const Scene = dynamic(() => import("./scene").then((m) => m.Scene), { ssr: false });
 
+// Dithering image temporarily removed from website display per user request.
+// AegisArtwork files, components, and animations are preserved intact.
+const SHOW_DITHERING_IMAGE = false;
+
 export function LandingExperience() {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>("loading");
@@ -64,7 +68,37 @@ export function LandingExperience() {
     if (params.get("intro") === "skip") {
       navigate();
     } else {
-      queueMicrotask(() => { if (mounted) setInitialized(true); });
+      queueMicrotask(() => {
+        if (mounted) {
+          setInitialized(true);
+          if (!SHOW_DITHERING_IMAGE) {
+            changePhase("ready");
+            setTunnelPrepared(true);
+            const queryMotion = matchMedia("(prefers-reduced-motion: reduce)");
+            if (!queryMotion.matches) {
+              timers.current.push(
+                setTimeout(() => {
+                  if (userInteracted.current || autoScrollRan.current || accepted.current) return;
+                  autoScrollRan.current = true;
+                  const startY = window.scrollY;
+                  const targetY = startY + 160;
+                  stopAutoScroll.current = animate(TIMING.scroll, (p) => {
+                    if (userInteracted.current) {
+                      stopAutoScroll.current?.();
+                      stopAutoScroll.current = null;
+                      return;
+                    }
+                    const eased = 0.5 - 0.5 * Math.cos(p * Math.PI);
+                    window.scrollTo(0, startY + (targetY - startY) * eased);
+                  }, () => {
+                    stopAutoScroll.current = null;
+                  });
+                }, TIMING.hold)
+              );
+            }
+          }
+        }
+      });
     }
     router.prefetch("/console");
 
@@ -230,15 +264,17 @@ export function LandingExperience() {
         onContextLost={navigate}
       />
 
-      {/* Centered viewport-sized particle artwork */}
-      <AegisArtwork
-        phase={phase}
-        reduced={reduced}
-        exitElapsed={exitElapsed}
-        onLoaded={onLoaded}
-        onSettled={settled}
-        onInteraction={onUserInteraction}
-      />
+      {/* Centered viewport-sized particle artwork (temporarily removed from display) */}
+      {SHOW_DITHERING_IMAGE && (
+        <AegisArtwork
+          phase={phase}
+          reduced={reduced}
+          exitElapsed={exitElapsed}
+          onLoaded={onLoaded}
+          onSettled={settled}
+          onInteraction={onUserInteraction}
+        />
+      )}
 
       {/* Scrollable container hosting the slider control just below initial fold */}
       <div className={styles.scrollContent}>
