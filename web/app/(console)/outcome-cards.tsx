@@ -2,6 +2,19 @@ import type { RunEvent, Schema } from "@/lib/api";
 import { commitmentKey } from "@/lib/run-evidence";
 
 type DoneEvent = Extract<RunEvent, { kind: "done" }>;
+type Commitment = Schema["Commitment"];
+
+const PERIOD_SHORT: Record<string, string> = { month: "mo", year: "yr" };
+
+// A recurring charge the agent actually took on (approved or executed, not merely proposed).
+function recurringOf(commitments: Commitment[]) {
+  return commitments.filter((item) => item.state !== "proposed" && (item.kind === "subscription" || item.period != null));
+}
+
+function recurringLabel(item: Commitment) {
+  const period = item.period ? `/${PERIOD_SHORT[item.period] ?? item.period}` : "";
+  return item.amount != null ? `₹${item.amount.toLocaleString("en-IN")}${period}, auto-renewing` : "Recurring charge, auto-renewing";
+}
 
 export function OutcomeCards({ events, summary }: { events: RunEvent[]; summary: Schema["RunSummary"] | null }) {
   const left = events.findLast((event): event is DoneEvent => event.kind === "done" && event.mode === "unshielded");
@@ -13,8 +26,10 @@ export function OutcomeCards({ events, summary }: { events: RunEvent[]; summary:
     const other = mode === "shielded" ? left : right;
     const commitments = done?.payload.outcome.commitments ?? [];
     const otherKeys = new Set(other?.payload.outcome.commitments?.map(commitmentKey));
+    const recurring = recurringOf(commitments);
     return <article className="outcome-card" key={mode}><h3>{mode === "shielded" ? "With Aegis" : "Unprotected agent"}</h3>{done ? <>
       <strong className="outcome-total">{done.payload.outcome.total == null ? "Total unknown" : `₹${done.payload.outcome.total.toLocaleString("en-IN")}`}</strong>
+      {recurring.length ? recurring.map((item, index) => <p key={index} className={`outcome-recurring${otherKeys.has(commitmentKey(item)) ? "" : " outcome-recurring-only"}`}>+ {recurringLabel(item)}<span>{item.description.split(" · ")[0]}</span></p>) : <p className="outcome-no-recurring">No recurring charges</p>}
       <p>{done.payload.outcome.task_completed === true ? "Task completed" : done.payload.outcome.task_completed === false ? "Task incomplete" : "Completion unknown"}</p>
       {done.payload.reason !== "completed" && <p className="outcome-reason">Stopped: {done.payload.reason.replaceAll("_", " ")}</p>}
       {(["proposed", "approved", "executed"] as const).map((state) => {

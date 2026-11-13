@@ -258,6 +258,10 @@
 .outcome-total { display: block; font-size: 28px; letter-spacing: -.03em; margin-top: 8px; }
 .outcome-card p, .outcome-card li { font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
 .outcome-reason { color: #e4c17f; }
+.outcome-card .outcome-recurring { margin: 6px 0 8px; padding: 6px 10px; border: 1px solid #8a7853; border-radius: 6px; background: #3a311d; color: #f1d58f; font-size: 17px; font-weight: 700; line-height: 1.3; }
+.outcome-card .outcome-recurring-only { border-color: #c5524a; background: #4a1f1c; color: #ffc2bc; }
+.outcome-recurring span { display: block; font-size: 11px; font-weight: 400; opacity: .85; }
+.outcome-card .outcome-no-recurring { margin-top: 6px; color: #a4e8c6; font-size: 14px; font-weight: 600; }
 .commitment-group h4 { font-size: 10px; text-transform: uppercase; color: #aebdc7; letter-spacing: .08em; margin-top: 12px; }
 .commitment-group li { padding: 4px 6px; }
 .different-commitment { background: #483f273f; border-left: 2px solid #d7ba71; }
