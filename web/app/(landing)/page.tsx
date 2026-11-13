@@ -5,8 +5,8 @@ import { LandingExperience } from "./landing-experience";
 const slab = localFont({ src: "../../public/landing/fonts/roboto-slab.ttf", weight: "800", display: "swap", variable: "--font-landing-slab" });
 
 export const metadata: Metadata = {
-  title: "Aegis — Check before committing.",
-  description: "Aegis protects browser agents from deceptive interfaces and checks that their actions match what you authorized.",
+  title: "Aegis — Commit before code.",
+  description: "A runtime shield between autonomous agents and the live web—stopping deception before it becomes a commitment.",
 };
 
 export default function LandingPage() {

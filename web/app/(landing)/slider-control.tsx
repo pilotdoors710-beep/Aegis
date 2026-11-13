@@ -114,6 +114,7 @@ export function SliderControl({ disabled = false, onCommit }: SliderControlProps
       className={styles.sliderTrack}
       role="slider"
       aria-label="Slide to enter Aegis console"
+      aria-disabled={disabled}
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={progressPercent}
@@ -121,6 +122,7 @@ export function SliderControl({ disabled = false, onCommit }: SliderControlProps
       onKeyDown={handleKeyDown}
       data-dragging={isDragging}
       data-committed={committed}
+      data-disabled={disabled}
     >
       <div
         className={styles.sliderThumb}

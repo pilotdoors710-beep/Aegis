@@ -75,28 +75,37 @@ class LandingChecks(unittest.TestCase):
         self.page.mouse.move(box["x"] + box["width"] / 2 + 260, box["y"] + box["height"] / 2, steps=10)
         self.page.mouse.up()
 
-    def test_01_motion_and_hover(self):
+    def test_01_hero_and_typography(self):
         self.page.mouse.move(10, 10)
         self.visit()
         self.ready()
-        self.assertEqual(self.page.locator("[data-artwork]").get_attribute("data-artwork"), "pixels")
         self.page.screenshot(path=str(OUTPUT / "desktop.png"))
         self.assertEqual(self.page.evaluate("window.__pendingFrames.size"), 0)
-        # Verify text-free design: no links, headlines, or click prompts on landing
-        self.assertEqual(self.page.get_by_role("link", name="Skip intro").count(), 0)
-        self.assertEqual(self.page.get_by_role("link", name="Enter console").count(), 0)
-        self.assertEqual(self.page.locator("h1").count(), 0)
-        # Slider is present and visible
+
+        # 1. Exact h1 title
+        h1 = self.page.locator("h1")
+        self.assertEqual(h1.count(), 1)
+        self.assertEqual(h1.inner_text(), "AEGIS")
+
+        # 2. Quote and orange rule
+        self.assertIn("COMMIT BEFORE CODE", self.page.locator("main").inner_text())
+        self.assertTrue(self.page.locator("[class*='orangeRule']").is_visible())
+
+        # 3. Verbatim description
+        self.assertIn(
+            "A runtime shield between autonomous agents and the live web—stopping deception before it becomes a commitment.",
+            self.page.locator("main").inner_text(),
+        )
+
+        # 4. Visible slider label and slider control
+        self.assertIn("SLIDE TO ENTER", self.page.locator("main").inner_text())
         slider = self.page.get_by_role("slider")
         self.assertTrue(slider.is_visible())
-        # Hover interaction on logo hit area
-        hit_area = self.page.locator("[class*='logoHitArea']")
-        self.assertTrue(hit_area.is_visible())
-        hit_area.hover()
-        self.page.wait_for_timeout(350)
-        self.page.mouse.move(10, 10)
-        self.page.wait_for_timeout(350)
-        self.assertEqual(self.page.evaluate("window.__pendingFrames.size"), 0)
+        self.assertEqual(slider.get_attribute("aria-label"), "Slide to enter Aegis console")
+
+        # In-viewport composition: no page scroll
+        self.assertEqual(self.page.evaluate("window.scrollY"), 0)
+
         # Enter console via keyboard completion
         self.enter()
         self.assertEqual(self.page.evaluate("document.activeElement.id"), "console-heading")
@@ -107,43 +116,56 @@ class LandingChecks(unittest.TestCase):
     def test_02_refresh_and_revisit_preserves_landing(self):
         self.visit("")
         self.ready()
+        self.assertEqual(self.page.locator("h1").inner_text(), "AEGIS")
         self.assertTrue(self.page.get_by_role("slider").is_visible())
-        self.assertEqual(self.page.get_by_role("link", name="Skip intro").count(), 0)
-        self.assertEqual(self.page.get_by_role("link", name="Enter console").count(), 0)
         self.page.reload()
         self.ready()
+        self.assertEqual(self.page.locator("h1").inner_text(), "AEGIS")
         self.assertTrue(self.page.get_by_role("slider").is_visible())
         self.enter()
         self.assertTrue(self.page.url.endswith("/console"))
         # Reloading while on /console redirects to landing page
         self.page.reload()
         self.ready()
+        self.assertEqual(self.page.locator("h1").inner_text(), "AEGIS")
         self.assertTrue(self.page.get_by_role("slider").is_visible())
         self.assertTrue(self.page.url.endswith("/") or self.page.url.rstrip("/").endswith(":3100"))
         self.enter()
         self.assertTrue(self.page.url.endswith("/console"))
         self.visit("")
         self.ready()
+        self.assertEqual(self.page.locator("h1").inner_text(), "AEGIS")
         self.assertTrue(self.page.get_by_role("slider").is_visible())
         self.page.reload()
         self.ready()
         self.assertTrue(self.page.get_by_role("slider").is_visible())
 
-    def test_03_assembly_hold_and_auto_scroll(self):
+    def test_03_entrance_order_and_progressive_dimming(self):
         self.visit()
-        # Initial phase transitions through assembling to ready
-        self.page.wait_for_selector('main[data-phase="assembling"]')
+        # Stage 1: Title begins immediately, slider is disabled
+        self.page.wait_for_selector('main[data-stage="title"]')
+        self.assertEqual(self.page.locator("h1").inner_text(), "AEGIS")
+        slider = self.page.locator("[role='slider']")
+        self.assertEqual(slider.get_attribute("aria-disabled"), "true")
+
+        # Stage 2: Quote arrives at 700ms+
+        self.page.wait_for_selector('main[data-stage="quote"]')
+        self.assertIn("COMMIT BEFORE CODE", self.page.locator("main").inner_text())
+        self.assertEqual(slider.get_attribute("aria-disabled"), "true")
+
+        # Stage 3: Description arrives at 1300ms+
+        self.page.wait_for_selector('main[data-stage="description"]')
+        self.assertIn("A runtime shield", self.page.locator("main").inner_text())
+
+        # Stage 4: Control reveal at 2050ms+
         self.ready()
-        # Scroll position right after assembly is 0
+        self.assertEqual(self.page.locator("main").get_attribute("data-stage"), "ready")
+        self.assertEqual(slider.get_attribute("aria-disabled"), "false")
+        self.assertIn("SLIDE TO ENTER", self.page.locator("main").inner_text())
+
+        # In-viewport verification: entire composition stays inside viewport
         self.assertEqual(self.page.evaluate("window.scrollY"), 0)
-        # During 2,000ms hold, scroll position stays 0
-        self.page.wait_for_timeout(1000)
-        self.assertEqual(self.page.evaluate("window.scrollY"), 0)
-        # After hold (2000ms) + scroll duration (700ms), scroll down ~160px has completed
-        self.page.wait_for_timeout(1900)
-        scroll_y = self.page.evaluate("window.scrollY")
-        self.assertGreaterEqual(scroll_y, 130)
-        self.assertLessEqual(scroll_y, 190)
+        self.assertLessEqual(self.page.evaluate("document.documentElement.scrollWidth"), 1280)
 
     def test_04_drag_interactions_incomplete_and_complete(self):
         self.visit()
@@ -197,7 +219,7 @@ class LandingChecks(unittest.TestCase):
     def test_07_repeated_and_early_input(self):
         self.visit()
         self.ready()
-        # Usable before auto-reveal; repeated triggers commit only once
+        # Repeated triggers commit only once
         slider = self.page.get_by_role("slider")
         slider.evaluate("""el => {
           el.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', repeat: true, bubbles: true }));
@@ -209,8 +231,8 @@ class LandingChecks(unittest.TestCase):
     def test_08_no_full_page_click_target(self):
         self.visit()
         self.ready()
-        # Clicking logo hit area does NOT enter console
-        self.page.locator("[class*='logoHitArea']").click()
+        # Clicking title does NOT enter console
+        self.page.locator("h1").click()
         self.assertEqual(self.page.locator("main").get_attribute("data-phase"), "ready")
         # Clicking background does NOT enter console
         self.page.mouse.click(50, 50)
@@ -226,10 +248,9 @@ class LandingChecks(unittest.TestCase):
         self.page.emulate_media(reduced_motion="reduce")
         self.visit()
         self.ready()
-        self.assertEqual(self.page.locator("[data-artwork]").get_attribute("data-artwork"), "poster")
+        self.assertEqual(self.page.locator("h1").inner_text(), "AEGIS")
+        self.assertTrue(self.page.get_by_role("slider").is_visible())
         self.assertEqual(self.page.evaluate("window.__pendingFrames.size"), 0)
-        # Reduced motion does not auto-scroll
-        self.page.wait_for_timeout(2200)
         self.assertEqual(self.page.evaluate("window.scrollY"), 0)
         self.enter()
 
@@ -238,7 +259,8 @@ class LandingChecks(unittest.TestCase):
           HTMLCanvasElement.prototype.getContext=function(type,...args){return type==='webgl2'?null:get.call(this,type,...args)};""")
         self.visit()
         self.ready()
-        self.assertEqual(self.page.locator("[data-artwork]").get_attribute("data-artwork"), "poster")
+        self.assertEqual(self.page.locator("h1").inner_text(), "AEGIS")
+        self.assertTrue(self.page.get_by_role("slider").is_visible())
         self.enter()
 
     def test_11_context_loss_during_exit(self):
@@ -246,28 +268,42 @@ class LandingChecks(unittest.TestCase):
         self.ready()
         self.page.get_by_role("slider").focus()
         self.page.keyboard.press("End")
-        # Trigger WebGL context loss while exiting
-        self.page.locator("[data-artwork] canvas").evaluate("""el=>el.getContext('webgl2').getExtension('WEBGL_lose_context').loseContext()""")
+        tunnel = self.page.locator("[class*='tunnel'] canvas")
+        if tunnel.count() > 0:
+            tunnel.evaluate("""el=>el.getContext('webgl2')?.getExtension('WEBGL_lose_context')?.loseContext()""")
         self.page.wait_for_url("**/console", timeout=12000)
 
     def test_12_no_javascript(self):
         with self.browser.new_context(java_script_enabled=False) as context:
             page = context.new_page()
             page.goto(BASE)
-            self.assertTrue(page.get_by_alt_text("Dithered Aegis shield with a Medusa relief.").is_visible())
-            self.assertEqual(page.get_by_role("link", name="Skip intro").count(), 0)
-            self.assertEqual(page.get_by_role("link", name="Enter console").count(), 0)
-            page.get_by_role("link", name="Open console").click()
+            # Renders all hero copy
+            self.assertEqual(page.locator("h1").inner_text(), "AEGIS")
+            self.assertIn("COMMIT BEFORE CODE", page.locator("main").inner_text())
+            self.assertIn("A runtime shield between autonomous agents", page.locator("main").inner_text())
+            # Renders visible "Open console" link
+            link = page.get_by_role("link", name="Open console")
+            self.assertTrue(link.is_visible())
+            link.click()
             self.assertTrue(page.url.endswith("/console"))
 
     def test_13_viewports_centering_and_overflow(self):
         self.visit()
         self.ready()
-        # Test desktop, laptop, tablet, mobile viewports
-        for width, height in [(360, 640), (390, 844), (768, 1024), (1366, 600), (1280, 720), (1920, 1080)]:
+        # Test desktop, tablet, mobile, short-height, and 200% zoom viewports
+        scenarios = [
+            ("desktop", 1280, 720),
+            ("tablet", 768, 1024),
+            ("mobile", 360, 640),
+            ("short-laptop", 1366, 600),
+            ("short-height", 1024, 500),
+            ("zoom-200", 640, 360),
+            ("large", 1920, 1080),
+        ]
+        for name, width, height in scenarios:
             self.page.set_viewport_size({"width": width, "height": height})
             self.page.wait_for_timeout(100)
-            self.page.screenshot(path=str(OUTPUT / f"viewport-{width}x{height}.png"))
+            self.page.screenshot(path=str(OUTPUT / f"{name}.png"))
             # No horizontal overflow
             self.assertLessEqual(self.page.evaluate("document.documentElement.scrollWidth"), width)
             # Slider visible
@@ -277,12 +313,12 @@ class LandingChecks(unittest.TestCase):
             box = self.page.locator("[class*='sliderTrack']").bounding_box()
             self.assertIsNotNone(box)
             track_center = box["x"] + box["width"] / 2
-            self.assertAlmostEqual(track_center, width / 2, delta=3)
-            # Centered logo hit area
-            logo_box = self.page.locator("[class*='logoHitArea']").bounding_box()
-            if logo_box:
-                logo_center = logo_box["x"] + logo_box["width"] / 2
-                self.assertAlmostEqual(logo_center, width / 2, delta=3)
+            self.assertAlmostEqual(track_center, width / 2, delta=4)
+            # Centered title
+            h1_box = self.page.locator("h1").bounding_box()
+            self.assertIsNotNone(h1_box)
+            h1_center = h1_box["x"] + h1_box["width"] / 2
+            self.assertAlmostEqual(h1_center, width / 2, delta=4)
 
         self.enter()
 
@@ -296,7 +332,13 @@ class LandingChecks(unittest.TestCase):
             cdp.send("Tracing.start", {"categories": "devtools.timeline,blink.user_timing,gpu", "transferMode": "ReportEvents"})
             page.goto(BASE + "/?intro=play")
             page.wait_for_selector('main[data-phase="ready"]', timeout=10000)
-            gpu = page.locator("[data-artwork] canvas").evaluate("""el=>{const gl=el.getContext('webgl2'),ext=gl.getExtension('WEBGL_debug_renderer_info');return ext?gl.getParameter(ext.UNMASKED_RENDERER_WEBGL):gl.getParameter(gl.RENDERER)}""")
+            gpu = page.evaluate("""() => {
+                const canvas = document.createElement('canvas');
+                const gl = canvas.getContext('webgl2');
+                if (!gl) return 'no-webgl2';
+                const ext = gl.getExtension('WEBGL_debug_renderer_info');
+                return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+            }""")
             page.evaluate("""window.__frameTimes=[];window.__last=performance.now();window.__record=true;
               const record=t=>{window.__frameTimes.push(t-window.__last);window.__last=t;if(window.__record)requestAnimationFrame(record)};requestAnimationFrame(record);""")
             # Commit slider

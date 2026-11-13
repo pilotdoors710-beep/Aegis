@@ -22,6 +22,14 @@ Template:
 
 ## Log
 
+### 2026-11-13 (late night) · Dev B · Antigravity · Aegis landing hero redesign
+- Rebuilt landing page into a centered, cinematic in-viewport hero (100svh, non-scrolling) over the animated ThreeUI FlowField background.
+- Staged entrance timeline: AEGIS masked title (0–800ms), "COMMIT BEFORE CODE" quote + expanding orange rule (700–1,400ms), verbatim description (1,300–2,100ms), and visible "SLIDE TO ENTER" label + interactive pill slider (2,050–2,550ms, locked until reveal).
+- Added progressive FlowField dimming (~85% -> 55% -> 32%) and contrast softening via #7C7D75 neutral veil overlay (`mix-blend-mode: multiply`), keeping shader speed constant.
+- Applied refined palette: #FCF8D8 title, #D9DADF quote, #ADACA7 description/labels, #7C7D75 veil/borders, #DD700B rule/slider accent.
+- Preserved 3D square-frame tunnel transition into /console, 90% slider commit, keyboard/pointer capture controls, recovery link, reduced-motion immediate layout, and no-JS fallback. Artwork assets preserved.
+- Web typecheck, lint, 12 unit tests, and production build pass cleanly.
+
 ### 2026-11-13 (night) · Dev A · Claude Code · Trap Lab (judge-written R2 trial)
 - Did: research sweep of papers, GitHub and blogs. The closest work (Veer) plans fixes on the live page and says it can't try alternatives; nothing found runs both states of a box in throwaway copies. That makes R2 the "wow" demo, so I made it interactive.
 - Built `/lab` + `POST /lab/trial` on top of the existing `trials.py`. A judge types any checkbox label and secretly picks its real effect (care plan / share email / nothing, ticked = on or off). Aegis runs two disposable copies, reads both receipts and says which box state fits the permission. About 0.8 s, no LLM.

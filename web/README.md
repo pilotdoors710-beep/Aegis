@@ -34,10 +34,16 @@ Day 3 console and arena:
 
 Checks: `pnpm typecheck`, `pnpm lint`, `pnpm build`, and `node --test lib/events.test.mjs lib/run-evidence.test.mjs lib/verify-day1.test.mjs`. Generated `lib/api-types.ts` must come from the server OpenAPI; never edit it manually.
 
-Landing entrance (13 Nov):
+Landing entrance (13 Nov — Hero Redesign):
 
-- Original Medusa shield artwork assembles from deterministic square pixels, then follows the same paths backward on entry. The next scene flies through equal-size solid square frames with independent rotations, physical walls and two-pass WebGL bloom. No animation dependency was added.
-- Entering the console is triggered by clicking anywhere on the page, using Enter/Space on the continue button, or via the stalled-route Open console link. The landing page appears on direct visits and whenever refreshed (no automatic redirect to /console). Reduced motion uses the static poster and a 150ms fade. Missing images, WebGL failure, storage restrictions and context loss preserve entry. Text stays selectable. The console heading receives focus once after entry.
+- Centered, cinematic hero composed entirely in-viewport (100svh, non-scrolling) over the animated ThreeUI FlowField background:
+  1. `AEGIS` title: single `h1` in Roboto Slab (#FCF8D8), rising through a clipped mask and sharpening from blur (0–800ms).
+  2. `COMMIT BEFORE CODE` quote: restrained uppercase sans-serif (#D9DADF) accompanied by an expanding orange rule (#DD700B, 700–1,400ms).
+  3. Description: verbatim mission statement (#ADACA7) fading upward as a unified block (1,300–2,100ms).
+  4. Slider control: visible "SLIDE TO ENTER" monospace label (#ADACA7) and centered pill slider (#1c1d1a track, #7C7D75 border, #DD700B thumb, 2,050–2,550ms), disabled until revealed.
+- Progressive FlowField dimming: background opacity and contrast soften across beats (~85% -> 55% -> 32%) using a neutral #7C7D75 veil overlay (`mix-blend-mode: multiply`) without altering shader speed.
+- Slider interaction: drag right with pointer capture or keyboard (Right Arrow / End); completing 90% travel commits entrance, fading hero copy and slider into the existing 3D square-frame tunnel flight, completing at 1,800ms with navigation to `/console`.
+- The landing page appears on direct visits and whenever refreshed. Reduced motion shows the complete composition immediately without entrance delay. With JavaScript disabled, renders all hero copy plus an "Open console" link. Emergency recovery link appears if navigation stalls. Reusable artwork assets remain preserved.
 - Artwork, generation prompt, actual source resolution and font license: [public/landing/ARTWORK.md](public/landing/ARTWORK.md). The master is 1,449,102 bytes, the poster 33,035 bytes. Landing CSS and Roboto Slab stay scoped to this route; the Tailwind loader excludes plain CSS modules so Next.js retains their class exports.
 - Production Chrome 157 checks passed at 360×640, 390×844, 768×1024, 1280×720 and 1920×1080, plus 200% zoom. Sixteen browser scenarios cover navigation, early/repeated input, keyboard/touch, selection, resizing, hidden-tab pause/resume, reduced-motion changes, no JavaScript, failed images/WebGL/storage, context loss, focus and stalled-route recovery. Console launch/approval/sample/replay checks use mocked responses from the server's schema-built fixtures; they do not prove a deployed live run.
 - The final recorded exit on this laptop's Intel UHD / ANGLE D3D11 graphics had 204 sampled frame intervals: median 7ms, maximum 48.7ms, one above 33ms. The Chrome trace also contains initial-load/layout work above 33ms; this is a desktop measurement with recording overhead, not a universal 60fps guarantee. Real phone, Safari and Firefox checks remain outstanding.

@@ -1,16 +1,38 @@
-export type Phase = "loading" | "assembling" | "ready" | "exiting" | "disassembling" | "tunnel" | "entering";
+export type Phase =
+  | "loading"
+  | "title"
+  | "quote"
+  | "description"
+  | "ready"
+  | "exiting"
+  | "entering"
+  | "assembling"
+  | "disassembling"
+  | "tunnel";
+
 export const TIMING = {
+  titleStart: 0,
+  titleEnd: 800,
+  quoteStart: 700,
+  quoteEnd: 1400,
+  descStart: 1300,
+  descEnd: 2100,
+  controlStart: 2050,
+  controlEnd: 2550,
+  totalEntrance: 2550,
+  crossfadeStart: 400,
+  crossfadeEnd: 850,
+  exitTotal: 1800,
+  recovery: 5000,
+  // Retained legacy timings for backward compatibility with artwork modules
   assembly: 1200,
   hold: 2000,
   scroll: 700,
   explosion: 650,
   disassembly: 650,
-  crossfadeStart: 400,
-  crossfadeEnd: 850,
-  exitTotal: 1800,
   tunnel: 1400,
-  recovery: 5000,
 };
+
 export const SEEN_KEY = "aegis:intro-seen:v1";
 let focusOnEntry = false;
 export function signalConsoleEntry() { focusOnEntry = true; }

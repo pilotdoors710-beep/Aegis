@@ -5,50 +5,40 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { SEEN_KEY, signalConsoleEntry, TIMING, animate, type Phase } from "@/lib/landing/phases";
-import { AegisArtwork } from "./aegis-artwork";
 import { SquareTunnel } from "./square-tunnel";
 import { SliderControl } from "./slider-control";
 import styles from "./landing.module.css";
 
 const Scene = dynamic(() => import("./scene").then((m) => m.Scene), { ssr: false });
 
-// Dithering image temporarily removed from website display per user request.
-// AegisArtwork files, components, and animations are preserved intact.
-const SHOW_DITHERING_IMAGE = false;
+type Stage = "loading" | "title" | "quote" | "description" | "ready";
 
 export function LandingExperience() {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>("loading");
+  const [stage, setStage] = useState<Stage>("loading");
   const [reduced, setReduced] = useState(false);
   const [routeSlow, setRouteSlow] = useState(false);
   const [initialized, setInitialized] = useState(false);
-  const [exitElapsed, setExitElapsed] = useState(-1);
   const [darkOverlayOpacity, setDarkOverlayOpacity] = useState(0);
   const [tunnelOpacity, setTunnelOpacity] = useState(0);
   const [tunnelProgress, setTunnelProgress] = useState(0);
   const [tunnelPrepared, setTunnelPrepared] = useState(false);
 
+  // Progressive background dimming states
+  const [flowOpacity, setFlowOpacity] = useState(0.85);
+  const [veilOpacity, setVeilOpacity] = useState(0.15);
+  const [flowContrast, setFlowContrast] = useState(1.0);
+
   const accepted = useRef(false);
   const navigated = useRef(false);
-  const available = useRef(false);
   const root = useRef<HTMLElement>(null);
   const phaseRef = useRef<Phase>("loading");
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const userInteracted = useRef(false);
-  const autoScrollRan = useRef(false);
-  const stopAutoScroll = useRef<(() => void) | null>(null);
 
   const changePhase = useCallback((value: Phase) => {
     phaseRef.current = value;
     setPhase(value);
-  }, []);
-
-  const onUserInteraction = useCallback(() => {
-    userInteracted.current = true;
-    if (stopAutoScroll.current) {
-      stopAutoScroll.current();
-      stopAutoScroll.current = null;
-    }
   }, []);
 
   const navigate = useCallback(() => {
@@ -67,125 +57,102 @@ export function LandingExperience() {
     const params = new URLSearchParams(location.search);
     if (params.get("intro") === "skip") {
       navigate();
-    } else {
-      queueMicrotask(() => {
-        if (mounted) {
-          setInitialized(true);
-          if (!SHOW_DITHERING_IMAGE) {
-            changePhase("ready");
-            setTunnelPrepared(true);
-            const queryMotion = matchMedia("(prefers-reduced-motion: reduce)");
-            if (!queryMotion.matches) {
-              timers.current.push(
-                setTimeout(() => {
-                  if (userInteracted.current || autoScrollRan.current || accepted.current) return;
-                  autoScrollRan.current = true;
-                  const startY = window.scrollY;
-                  const targetY = startY + 160;
-                  stopAutoScroll.current = animate(TIMING.scroll, (p) => {
-                    if (userInteracted.current) {
-                      stopAutoScroll.current?.();
-                      stopAutoScroll.current = null;
-                      return;
-                    }
-                    const eased = 0.5 - 0.5 * Math.cos(p * Math.PI);
-                    window.scrollTo(0, startY + (targetY - startY) * eased);
-                  }, () => {
-                    stopAutoScroll.current = null;
-                  });
-                }, TIMING.hold)
-              );
-            }
-          }
-        }
-      });
+      return;
     }
     router.prefetch("/console");
 
-    const query = matchMedia("(prefers-reduced-motion: reduce)");
+    const queryMotion = matchMedia("(prefers-reduced-motion: reduce)");
+
+    queueMicrotask(() => {
+      if (!mounted) return;
+      setInitialized(true);
+      const isRed = queryMotion.matches;
+      setReduced(isRed);
+      if (isRed) {
+        changePhase("ready");
+        setStage("ready");
+        setFlowOpacity(0.32);
+        setVeilOpacity(0.65);
+        setFlowContrast(0.70);
+        setTunnelPrepared(true);
+      } else {
+        // 0–800ms: AEGIS rises through clipped mask; FlowField ~85% opacity, 15% veil
+        changePhase("title");
+        setStage("title");
+        setFlowOpacity(0.85);
+        setVeilOpacity(0.15);
+        setFlowContrast(1.0);
+        setTunnelPrepared(true);
+
+        // 700–1,400ms: Quote fades and rises, orange rule expands; FlowField ~55% opacity, 45% veil
+        timers.current.push(
+          setTimeout(() => {
+            if (!mounted || phaseRef.current === "exiting" || phaseRef.current === "entering") return;
+            changePhase("quote");
+            setStage("quote");
+            setFlowOpacity(0.55);
+            setVeilOpacity(0.45);
+            setFlowContrast(0.85);
+          }, TIMING.quoteStart)
+        );
+
+        // 1,300–2,100ms: Description fades upward as a complete block; FlowField ~32% opacity, 65% veil
+        timers.current.push(
+          setTimeout(() => {
+            if (!mounted || phaseRef.current === "exiting" || phaseRef.current === "entering") return;
+            changePhase("description");
+            setStage("description");
+            setFlowOpacity(0.32);
+            setVeilOpacity(0.65);
+            setFlowContrast(0.70);
+          }, TIMING.descStart)
+        );
+
+        // 2,050–2,550ms: SLIDE TO ENTER label and slider appear; slider becomes interactive
+        timers.current.push(
+          setTimeout(() => {
+            if (!mounted || phaseRef.current === "exiting" || phaseRef.current === "entering") return;
+            changePhase("ready");
+            setStage("ready");
+          }, TIMING.controlStart)
+        );
+      }
+    });
+
     const updateMotion = () => {
-      setReduced(query.matches);
-      if (query.matches) {
-        if (accepted.current) navigate();
-        else changePhase("ready");
+      const isRed = queryMotion.matches;
+      setReduced(isRed);
+      if (isRed) {
+        changePhase("ready");
+        setStage("ready");
+        setFlowOpacity(0.32);
+        setVeilOpacity(0.65);
+        setFlowContrast(0.70);
+        setTunnelPrepared(true);
       }
     };
-    updateMotion();
-    query.addEventListener("change", updateMotion);
-
-    // Track user manual scrolling / interaction to cancel automatic scroll reveal
-    window.addEventListener("wheel", onUserInteraction, { passive: true });
-    window.addEventListener("touchmove", onUserInteraction, { passive: true });
-    window.addEventListener("pointerdown", onUserInteraction, { passive: true });
-    window.addEventListener("keydown", onUserInteraction, { passive: true });
+    queryMotion.addEventListener("change", updateMotion);
 
     const pendingTimers = timers.current;
     return () => {
       mounted = false;
-      query.removeEventListener("change", updateMotion);
-      window.removeEventListener("wheel", onUserInteraction);
-      window.removeEventListener("touchmove", onUserInteraction);
-      window.removeEventListener("pointerdown", onUserInteraction);
-      window.removeEventListener("keydown", onUserInteraction);
+      queryMotion.removeEventListener("change", updateMotion);
       pendingTimers.forEach(clearTimeout);
-      stopAutoScroll.current?.();
     };
-  }, [changePhase, navigate, onUserInteraction, router]);
+  }, [changePhase, navigate, router]);
 
-  const onLoaded = useCallback((ok: boolean) => {
-    available.current = ok;
-    if (phaseRef.current === "loading") {
-      changePhase(ok ? "assembling" : "ready");
-    } else if (!ok && accepted.current) {
-      navigate();
-    } else if (!ok && phaseRef.current === "assembling") {
-      changePhase("ready");
-    }
-  }, [changePhase, navigate]);
-
-  const settled = useCallback(() => {
-    if (phaseRef.current === "assembling") {
-      changePhase("ready");
-      setTunnelPrepared(true);
-
-      // Start 2,000ms hold from the assembly-complete callback
-      if (!reduced) {
-        timers.current.push(
-          setTimeout(() => {
-            if (userInteracted.current || autoScrollRan.current || accepted.current) return;
-            autoScrollRan.current = true;
-            const startY = window.scrollY;
-            const targetY = startY + 160;
-            stopAutoScroll.current = animate(TIMING.scroll, (p) => {
-              if (userInteracted.current) {
-                stopAutoScroll.current?.();
-                stopAutoScroll.current = null;
-                return;
-              }
-              const eased = 0.5 - 0.5 * Math.cos(p * Math.PI);
-              window.scrollTo(0, startY + (targetY - startY) * eased);
-            }, () => {
-              stopAutoScroll.current = null;
-            });
-          }, TIMING.hold)
-        );
-      }
-    }
-  }, [changePhase, reduced]);
-
-  // Handle slide completion: trigger explosion, frame transition, and navigate
+  // Handle slide completion: fade hero, trigger 3D tunnel flight, and navigate
   const handleSliderCommit = useCallback(() => {
     if (accepted.current) return;
     accepted.current = true;
-    userInteracted.current = true;
-    stopAutoScroll.current?.();
-    stopAutoScroll.current = null;
 
-    // 5-second recovery timeout so it cannot cut off the animation
+    // 5-second recovery timeout
     timers.current.push(setTimeout(() => navigate(), TIMING.recovery));
 
-    if (reduced || !available.current) {
-      changePhase("exiting");
+    changePhase("exiting");
+    setTunnelPrepared(true);
+
+    if (reduced) {
       if (root.current) {
         const animation = root.current.animate([{ opacity: 1 }, { opacity: 0 }], {
           duration: 150,
@@ -198,20 +165,15 @@ export function LandingExperience() {
       return;
     }
 
-    changePhase("exiting");
-    setTunnelPrepared(true);
-
     // Shared exit timeline:
-    // 0ms: explosion begins, slider fades
-    // 400ms: square frames begin fading in behind remaining particles
-    // 400–850ms: crossfade particles & gray background into dark tunnel
-    // 650ms onward: particle layer finishes; frame flight continues
-    // 1800ms: complete tunnel and navigate to /console
+    // 0–400ms: hero and slider fade out
+    // 400ms: square frames begin fading in
+    // 400–850ms: crossfade into dark tunnel
+    // 400–1,800ms: frame flight continues through tunnel
+    // 1,800ms: complete tunnel and navigate to /console
     const stopExit = animate(TIMING.exitTotal, (p) => {
       const t = p * TIMING.exitTotal;
-      setExitElapsed(t);
 
-      // 400ms..850ms: crossfade particles & gray background into dark tunnel
       if (t >= TIMING.crossfadeStart) {
         const fade = Math.min(1, (t - TIMING.crossfadeStart) / (TIMING.crossfadeEnd - TIMING.crossfadeStart));
         setDarkOverlayOpacity(fade);
@@ -221,7 +183,6 @@ export function LandingExperience() {
         setTunnelOpacity(0);
       }
 
-      // 400ms..1800ms: frame flight
       if (t >= TIMING.crossfadeStart) {
         const flight = Math.min(1, (t - TIMING.crossfadeStart) / (TIMING.exitTotal - TIMING.crossfadeStart));
         setTunnelProgress(flight);
@@ -240,11 +201,32 @@ export function LandingExperience() {
       ref={root}
       className={styles.landing}
       data-phase={phase}
+      data-stage={stage}
       data-reduced={reduced}
       data-initialized={initialized}
     >
-      {/* ThreeUI FlowField background scene */}
-      <Scene />
+      {/* ThreeUI FlowField background scene with progressive dimming */}
+      <div
+        className={styles.sceneWrapper}
+        style={{
+          opacity: flowOpacity,
+          filter: `contrast(${flowContrast})`,
+          transition: reduced ? "none" : "opacity 600ms ease, filter 600ms ease",
+        }}
+        aria-hidden="true"
+      >
+        <Scene />
+      </div>
+
+      {/* Neutral veil for progressive dimming: #7C7D75 */}
+      <div
+        className={styles.veil}
+        style={{
+          opacity: veilOpacity,
+          transition: reduced ? "none" : "opacity 600ms ease",
+        }}
+        aria-hidden="true"
+      />
 
       {/* Dark background overlay for crossfading to dark tunnel */}
       <div
@@ -264,30 +246,35 @@ export function LandingExperience() {
         onContextLost={navigate}
       />
 
-      {/* Centered viewport-sized particle artwork (temporarily removed from display) */}
-      {SHOW_DITHERING_IMAGE && (
-        <AegisArtwork
-          phase={phase}
-          reduced={reduced}
-          exitElapsed={exitElapsed}
-          onLoaded={onLoaded}
-          onSettled={settled}
-          onInteraction={onUserInteraction}
-        />
-      )}
+      {/* Centered cinematic in-viewport hero composition */}
+      <div className={styles.hero} data-stage={stage}>
+        {/* 1. AEGIS as single h1 rising through clipped mask */}
+        <div className={styles.titleMask}>
+          <h1 className={styles.title}>AEGIS</h1>
+        </div>
 
-      {/* Scrollable container hosting the slider control just below initial fold */}
-      <div className={styles.scrollContent}>
-        <div className={styles.heroSection} />
-        <div className={styles.sliderSection}>
+        {/* 2. COMMIT BEFORE CODE quote and expanding orange rule */}
+        <div className={styles.quoteBlock}>
+          <p className={styles.quote}>COMMIT BEFORE CODE</p>
+          <div className={styles.orangeRule} aria-hidden="true" />
+        </div>
+
+        {/* 3. Cinematic description copy block */}
+        <p className={styles.description}>
+          “A runtime shield between autonomous agents and the live web—stopping deception before it becomes a commitment.”
+        </p>
+
+        {/* 4. Labeled slide-to-enter control */}
+        <div className={styles.controlBlock}>
+          <span className={styles.sliderLabel}>SLIDE TO ENTER</span>
           <SliderControl
-            disabled={phase === "loading" || phase === "assembling" || phase === "exiting" || phase === "entering"}
+            disabled={phase !== "ready"}
             onCommit={handleSliderCommit}
           />
         </div>
       </div>
 
-      {/* Fallback recovery control: icon-only to honor text-free design */}
+      {/* Fallback recovery control: icon-only */}
       {routeSlow && (
         <a className={styles.recovery} href="/console" aria-label="Open console">
           <ArrowRight size={22} />
@@ -296,10 +283,21 @@ export function LandingExperience() {
 
       {/* Noscript accessible fallback */}
       <noscript>
-        <style>{`.${styles.landing}[data-initialized="false"] .${styles.scrollContent}{opacity:1;visibility:visible}`}</style>
-        <a className={styles.recovery} href="/console" aria-label="Open console">
-          <ArrowRight size={22} />
-        </a>
+        <div className={styles.hero} data-stage="ready">
+          <div className={styles.titleMask}>
+            <h1 className={styles.title}>AEGIS</h1>
+          </div>
+          <div className={styles.quoteBlock}>
+            <p className={styles.quote}>COMMIT BEFORE CODE</p>
+            <div className={styles.orangeRule} />
+          </div>
+          <p className={styles.description}>
+            “A runtime shield between autonomous agents and the live web—stopping deception before it becomes a commitment.”
+          </p>
+          <a className={styles.noscriptLink} href="/console">
+            Open console
+          </a>
+        </div>
       </noscript>
     </main>
   );
