@@ -144,7 +144,7 @@ export function LandingExperience() {
     };
   }, [changePhase, navigate, router]);
 
-  // Handle slide completion: fade hero, trigger 3D tunnel flight, and navigate
+  // Handle slide completion: trigger right artwork explosion, frame transition, and navigate
   const handleSliderCommit = useCallback(() => {
     if (accepted.current) return;
     accepted.current = true;
@@ -169,7 +169,7 @@ export function LandingExperience() {
     }
 
     // Shared exit timeline:
-    // 0–400ms: hero and slider fade out
+    // 0–400ms: hero text fades out on the left; artwork on the right explodes outwards (0–650ms)
     // 400ms: square frames begin fading in
     // 400–850ms: crossfade into dark tunnel
     // 400–1,800ms: frame flight continues through tunnel
@@ -232,15 +232,6 @@ export function LandingExperience() {
         aria-hidden="true"
       />
 
-      {/* Centered viewport-sized particle artwork with custom palette */}
-      <AegisArtwork
-        phase={phase}
-        reduced={reduced}
-        exitElapsed={exitElapsed}
-        onLoaded={() => {}}
-        onSettled={() => {}}
-      />
-
       {/* Dark background overlay for crossfading to dark tunnel */}
       <div
         className={styles.darkOverlay}
@@ -259,55 +250,67 @@ export function LandingExperience() {
         onContextLost={navigate}
       />
 
-      {/* Centered cinematic in-viewport hero composition */}
-      <div className={styles.hero} data-stage={stage}>
-        {/* 1. AEGIS as single h1 rising through clipped mask */}
-        <div className={styles.titleMask}>
-          <h1 className={styles.title}>AEGIS</h1>
-        </div>
+      {/* Two-column composition: hero text on left, actual big dithered artwork on right */}
+      <div className={styles.composition} data-stage={stage}>
+        {/* Left column: Centered/left-aligned cinematic in-viewport hero composition */}
+        <div className={styles.hero} data-stage={stage}>
+          {/* 1. AEGIS as single h1 rising through clipped mask */}
+          <div className={styles.titleMask}>
+            <h1 className={styles.title}>AEGIS</h1>
+          </div>
 
-        {/* 2. COMMIT BEFORE CODE quote and expanding orange rule */}
-        <div className={styles.quoteBlock}>
-          <p className={styles.quote}>COMMIT BEFORE CODE</p>
-          <div className={styles.orangeRule} aria-hidden="true" />
-        </div>
+          {/* 2. COMMIT BEFORE CODE quote and expanding orange rule */}
+          <div className={styles.quoteBlock}>
+            <p className={styles.quote}>COMMIT BEFORE CODE</p>
+            <div className={styles.orangeRule} aria-hidden="true" />
+          </div>
 
-        {/* 3. Cinematic description copy block with MathScramble on top */}
-        <div className={styles.descriptionBlock}>
-          <p className={styles.description}>
-            “A runtime shield between autonomous agents and the live web—stopping deception before it becomes a commitment.”
-          </p>
-          <div className={styles.mathScrambleLayer} aria-hidden="true">
-            <MathScramble
-              lines={[
-                "“A runtime shield between autonomous agents",
-                "and the live web—stopping deception",
-                "before it becomes a commitment.”",
-              ]}
-              highlight={["autonomous agents", "runtime shield", "commitment"]}
-              color="transparent"
-              highlightColor="transparent"
-              background="transparent"
-              colors={["#DD700B", "#FCF8D8", "#E8C59E", "#A86442", "#5E2C1D", "#D9DADF"]}
-              font='var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-              highlightFont='var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-              fontSize={15}
-              autoplay={false}
-              cursor={false}
-              radius={0.8}
-              speed={1}
-              boxed={0.25}
-              style={{ width: "100%", height: "100%", minHeight: "unset" }}
+          {/* 3. Cinematic description copy block with MathScramble on hover */}
+          <div className={styles.descriptionBlock}>
+            <p className={styles.description}>
+              “A runtime shield between autonomous agents and the live web—stopping deception before it becomes a commitment.”
+            </p>
+            <div className={styles.mathScrambleLayer} aria-hidden="true">
+              <MathScramble
+                lines={[
+                  "“A runtime shield between autonomous agents",
+                  "and the live web—stopping deception",
+                  "before it becomes a commitment.”",
+                ]}
+                highlight={["autonomous agents", "runtime shield", "commitment"]}
+                color="transparent"
+                highlightColor="transparent"
+                background="transparent"
+                colors={["#DD700B", "#FCF8D8", "#E8C59E", "#A86442", "#5E2C1D", "#D9DADF"]}
+                font='var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                highlightFont='var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                fontSize={15}
+                autoplay={false}
+                cursor={false}
+                radius={0.8}
+                speed={1}
+                boxed={0.25}
+                style={{ width: "100%", height: "100%", minHeight: "unset" }}
+              />
+            </div>
+          </div>
+
+          {/* 4. Labeled slide-to-enter control */}
+          <div className={styles.controlBlock}>
+            <span className={styles.sliderLabel}>SLIDE TO ENTER</span>
+            <SliderControl
+              disabled={phase !== "ready"}
+              onCommit={handleSliderCommit}
             />
           </div>
         </div>
 
-        {/* 4. Labeled slide-to-enter control */}
-        <div className={styles.controlBlock}>
-          <span className={styles.sliderLabel}>SLIDE TO ENTER</span>
-          <SliderControl
-            disabled={phase !== "ready"}
-            onCommit={handleSliderCommit}
+        {/* Right column: The big dithered art that explodes on commit */}
+        <div className={styles.artworkWrapper}>
+          <AegisArtwork
+            phase={phase}
+            reduced={reduced}
+            exitElapsed={exitElapsed}
           />
         </div>
       </div>
@@ -321,20 +324,32 @@ export function LandingExperience() {
 
       {/* Noscript accessible fallback */}
       <noscript>
-        <div className={styles.hero} data-stage="ready">
-          <div className={styles.titleMask}>
-            <h1 className={styles.title}>AEGIS</h1>
+        <div className={styles.composition} data-stage="ready">
+          <div className={styles.hero} data-stage="ready">
+            <div className={styles.titleMask}>
+              <h1 className={styles.title}>AEGIS</h1>
+            </div>
+            <div className={styles.quoteBlock}>
+              <p className={styles.quote}>COMMIT BEFORE CODE</p>
+              <div className={styles.orangeRule} />
+            </div>
+            <p className={styles.description}>
+              “A runtime shield between autonomous agents and the live web—stopping deception before it becomes a commitment.”
+            </p>
+            <a className={styles.noscriptLink} href="/console">
+              Open console
+            </a>
           </div>
-          <div className={styles.quoteBlock}>
-            <p className={styles.quote}>COMMIT BEFORE CODE</p>
-            <div className={styles.orangeRule} />
+          <div className={styles.artworkWrapper}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/landing/aegis-dithered.png"
+              width="960"
+              height="960"
+              alt="Dithered Aegis shield"
+              className={styles.artworkImg}
+            />
           </div>
-          <p className={styles.description}>
-            “A runtime shield between autonomous agents and the live web—stopping deception before it becomes a commitment.”
-          </p>
-          <a className={styles.noscriptLink} href="/console">
-            Open console
-          </a>
         </div>
       </noscript>
     </main>

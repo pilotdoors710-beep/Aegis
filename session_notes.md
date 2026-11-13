@@ -29,12 +29,26 @@ Template:
 - Works now: 168 backend tests; web types, lint, build pass. Test URLs that light up: garden-advice.netlify.app (hidden AI instructions), theme-dawn-demo.myshopify.com/collections/all (crossed-out prices); wikipedia.org is clean.
 - Next: push, restart `aegis.service`. Note: local `next build` reused a stale Turbopack cache and dropped new CSS; moving `.next/cache` aside fixed it (Vercel builds clean). B5 is still a phrase list and misses some injections.
 
-### 2026-11-13 (late night) · Dev B · Antigravity · dithered logo palette update & particle disintegration on slide
-- Updated dithered logo palette: Transparent background `rgba(0, 0, 0, 0)`, Deep Burnt Copper `#5E2C1D` (`[94, 44, 29]`) for shadow/outer dither, Muted Warm Bronze `#A86442` (`[168, 100, 66]`) for midtones, and Soft Warm Champagne `#E8C59E` (`[232, 197, 158]`) for bright highlights.
-- Regenerated `public/landing/aegis-dithered.png` via `prepare-assets.mjs` with the updated color palette.
-- Re-integrated `AegisArtwork` onto the landing page alongside the hero text and slider button with subtle text shadows for crisp legibility over particles.
-- Connected slider commit (`handleSliderCommit`) to drive `exitElapsed` (0–1,800ms), triggering the outward particle disintegration explosion (0–650ms) as before before transitioning into the 3D square tunnel flight into `/console`.
-- Preserved hover expansion (6%), reduced motion immediate fallback, WebGL fallback poster, and direct `/console` navigation.
+### 2026-11-14 · Dev B · Antigravity · two-column landing layout with exploding right artwork
+- Reconfigured landing entrance into a balanced two-column composition with hero text and slider on the left and the large dithered shield artwork on the right.
+- Left hero column features left-aligned title (AEGIS), quote (COMMIT BEFORE CODE) with left-expanding orange rule, description with hover-only MathScramble, and standard draggable slider control.
+- Slider button no longer explodes or disappears; thumb stays solid and slides across track to commit.
+- On slider commit (>= 90%), the big dithered shield artwork on the right explodes into its outward particle explosion (0–650ms) with smooth fadeout (400–650ms), transitioning into the 3D square tunnel flight into `/console`.
+- Dithered shield retains custom palette: Deep Burnt Copper (#5E2C1D), Muted Warm Bronze (#A86442), Soft Warm Champagne (#E8C59E).
+- Verified with TypeScript typecheck, ESLint, 13 Node unit tests, and production Next.js build.
+
+### 2026-11-14 - Dev B - Codex - main app liquid glass redesign
+- Restyled Console, runs, replay, Trap Lab, Stats and Health in black, cream and orange glass. Added a shared header, readable panels, pill controls and accessibility fallbacks.
+- Kept landing, entrance animation, Arena and API behavior unchanged. Concurrent landing edits were left out of this change.
+- Passed web lint, type checking, production build and 13 existing Node tests. Chrome fixture checks covered six routes at four sizes, replay geometry, theme isolation and accessibility preferences. Fixed and rechecked 200% zoom and opaque fallback.
+- Final production-browser repeat was interrupted by shared .next output changing during concurrent work. Approval integration, Safari, Firefox and real-backend smoke verification still need a clean repeat; no live-run result is claimed.
+- Details and repeat commands are in web/README.md.
+
+### 2026-11-13 (late night) · Dev B · Antigravity · dithered art as slider arrow button with commit explosion
+- Configured the dithered Medusa shield artwork (`aegis-dithered.png` with custom palette: `#5E2C1D`, `#A86442`, `#E8C59E`) directly as the sliding arrow button thumb.
+- Removed all artwork layers from behind the hero text: the hero copy now rests cleanly over the FlowField and veil with zero background clutter.
+- Wired commit explosion so that upon completing the slide ($\ge 90\%$), the button thumb seamlessly bursts into a WebGL particle explosion emanating outward in all directions from the button's exact position across the screen.
+- Maintained 0–650ms outward explosion and 400–650ms particle crossfade into the 3D square tunnel flight into `/console`.
 - All web checks (typecheck, lint, 12 unit tests, production build) pass cleanly.
 
 ### 2026-11-13 (late night) · Dev A · Claude Code · two-view check for cloaked checkouts (T11) + approval binding

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AppShell } from "@/components/app-shell";
 import { API_URL } from "@/lib/api";
 
 type BrowserHealth = {
@@ -23,24 +24,24 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="mx-auto max-w-3xl p-8 font-sans">
-      <h1 className="text-2xl font-semibold text-[#FCF8D8]">Aegis: infrastructure check</h1>
-      <p className="mt-2 text-sm text-[#ADACA7]">Server: {API_URL}</p>
-      {error && <p className="mt-6 text-[#ff9d94]">Server unreachable: {error}</p>}
-      {!data && !error && <p className="mt-6 text-[#ADACA7]">Contacting server…</p>}
+    <AppShell><div className="console-intro"><div><p className="eyebrow">Service status</p>
+      <h1>Infrastructure check</h1>
+      <p>Server: {API_URL}</p></div></div>
+      {error && <p role="alert" className="error-message">Server unreachable: {error}</p>}
+      {!data && !error && <p role="status" className="console-card">Contacting server…</p>}
       {data && (
-        <section className="mt-6 space-y-3">
-          <p className="text-[#DD700B]">
+        <section className="console-card health-card">
+          <p className="health-success">
             Chromium {data.version} responded in {data.elapsed_ms} ms; page title “{data.title}”
           </p>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             alt="Screenshot taken by the remote browser"
-            className="aspect-video w-full rounded border border-[#7C7D75]"
+            className="health-screenshot"
             src={`data:image/jpeg;base64,${data.screenshot_b64}`}
           />
         </section>
       )}
-    </main>
+    </AppShell>
   );
 }
