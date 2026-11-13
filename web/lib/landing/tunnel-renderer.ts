@@ -4,7 +4,9 @@ import { randomSource } from "./pixels";
 /** Four continuous bars, including front/back and inner/outer walls. */
 function mesh(mobile: boolean) {
   const data: number[] = [], random = randomSource(1908);
-  const count = mobile ? 9 : 14, half = mobile ? 90 : 120, inner = half - 3;
+  const count = mobile ? 9 : 14;
+  const half = (mobile ? 90 : 120) * 1.6;
+  const inner = half - 12;
   for (let frame = 0; frame < count; frame++) {
     const angles = [(random() - .5) * 1.05, (random() - .5) * 1.05, (random() - .5) * 1.92];
     const center = [(random() - .5) * 65, (random() - .5) * 65, -900 - frame * (4300 / (count - 1))];

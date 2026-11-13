@@ -36,8 +36,10 @@ export function particles(rgba: Uint8ClampedArray, width: number, height: number
     if (!rgba[i + 3]) continue;
     const tx = (x + .5) / width - .5, ty = .5 - (y + .5) / height;
     const angle = Math.atan2(ty, tx) + (random() - .5) * .9;
-    const radius = .35 + random() * .85;
-    data.push(tx, ty, tx + Math.cos(angle) * radius, ty + Math.sin(angle) * radius,
+    const radius = 1.3 + random() * 1.7;
+    const sx = Math.cos(angle) * radius;
+    const sy = Math.sin(angle) * radius;
+    data.push(tx, ty, sx, sy,
       rgba[i] / 255, rgba[i + 1] / 255, rgba[i + 2] / 255, random() * .22);
   }
   return { data: new Float32Array(data), count: data.length / 8, cell: 1 / width };

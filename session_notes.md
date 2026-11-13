@@ -22,6 +22,14 @@ Template:
 
 ## Log
 
+### 2026-11-13 · Dev B · Antigravity · text-free landing refresh & slider entrance
+- Replaced two-column landing layout with a centered, text-free composition on a warm gray gradient.
+- Rendered Medusa shield on a transparent, viewport-sized canvas with smooth 6% outward hover particle expansion.
+- Added 2-second hold after assembly, followed by an automatic 160px scroll reveal of a centered pill slider with yellow thumb.
+- Replaced full-page click with slider control: requires >= 90% drag travel or keyboard Right Arrow/End to commit; incomplete drags snap back.
+- Implemented shared 1,800ms exit timeline blending 650ms particle explosion into thicker 1.6× glowing square frames before navigating to `/console`.
+- Preserved reduced motion, WebGL fallback with accessible icon-only recovery link, and refresh-to-replay. All 17 browser checks and 12 unit tests pass.
+
 ### 2026-11-13 · Dev B · Antigravity · landing page refresh & entrance update
 - Removed "Skip intro" and "Enter console" links from the landing page header and footer.
 - Updated landing page routing so the entrance animation and landing page always appear on direct visit and whenever refreshed, without auto-redirecting to `/console`.

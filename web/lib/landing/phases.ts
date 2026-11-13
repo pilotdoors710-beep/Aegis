@@ -1,5 +1,16 @@
-export type Phase = "loading" | "assembling" | "ready" | "disassembling" | "tunnel" | "entering";
-export const TIMING = { assembly: 1200, disassembly: 650, tunnel: 1100, recovery: 3000 };
+export type Phase = "loading" | "assembling" | "ready" | "exiting" | "disassembling" | "tunnel" | "entering";
+export const TIMING = {
+  assembly: 1200,
+  hold: 2000,
+  scroll: 700,
+  explosion: 650,
+  disassembly: 650,
+  crossfadeStart: 400,
+  crossfadeEnd: 850,
+  exitTotal: 1800,
+  tunnel: 1400,
+  recovery: 5000,
+};
 export const SEEN_KEY = "aegis:intro-seen:v1";
 let focusOnEntry = false;
 export function signalConsoleEntry() { focusOnEntry = true; }
