@@ -22,6 +22,13 @@ Template:
 
 ## Log
 
+### 2026-11-13 (midday) · Dev A · Claude Code · demo rehearsal on the deployed backend
+- Did: outcome card shows recurring charges as a big banner ("+ ₹199/mo, auto-renewing"; red when only one side has it). Added demo-only r1b presets (T03b care plan, ₹1,398 stays under budget). Old r1-forbidden on variant a shows nothing: both agents untick the plan because it breaks the budget.
+- Fixed: audit didn't match "Aurora Care plan" to "2-year Aurora Care", so the authorized plan got rerouted. Fixed. Empty Groq JSON failures are now resent (one unprotected agent died on this). Router logs every model fall-through.
+- PC backend: now runs as systemd `aegis.service`, managed over ssh. Added Groq keys 2/3 to its .env; GROQ_RPM 5 → 20 (at 5 the demo silently ran on qwen/gemini).
+- Rehearsal (20b, deployed): main-demo diverged 5/5 (₹1,498 + ₹199/mo vs ₹1,299, 33–81 s). r1b-authorized permitted 4/4 after the fix. r1b-forbidden diverged 1/3 (`d7d905ca0717`; the other two had the unprotected agent drop the plan itself), so present it as a labelled replay.
+- Next: user records backup video; then tag `eval-freeze` and run block 1. Leave ~1 min between stage runs (per-minute 429s on all keys).
+
 ### 2026-11-13 · Dev B · Antigravity · text-free landing refresh & slider entrance
 - Replaced two-column landing layout with a centered, text-free composition on a warm gray gradient.
 - Rendered Medusa shield on a transparent, viewport-sized canvas with smooth 6% outward hover particle expansion.
