@@ -81,3 +81,14 @@ Human-only release checks (these require the deployed services, provider quota o
 5. Open the public web URL over phone mobile data. Run `pnpm verify:day1 --web https://YOUR-WEB-HOST --server https://YOUR-SERVER-HOST`, then complete one preset from the phone/hotspot path.
 6. Capture screenshots of `SAMPLE DATA`, `REPLAY`, `Replayed decision`, and `Simulated demo approval — not human consent`. File any missing or misleading label as P0.
 7. Run the complete two-minute script with Dev A, record segment times, then make the labelled backup recording after the final deployment.
+
+
+Main application glass theme (13 Nov):
+
+- Console, live runs, replays, Trap Lab, Stats and Health share `components/app-shell.tsx` and the scoped `app/app-theme.css`. The palette is black #111111, cream #F3EEE3 and orange #D9541E; red remains reserved for flagged screenshot elements and safety errors. The landing route, root fonts, intro routing and static Arena are unchanged by this redesign.
+- Floating navigation uses 24px blur; panel glass uses 16px; dense approval glass uses 12px. Nested content uses opaque fills so blur layers do not accumulate. Screenshots retain their original pixels and coordinate space. Buttons use black text on orange for accessible contrast.
+- The app uses system font fallbacks, 44px controls, a skip link, current-route navigation, and horizontal navigation on narrow screens. Reduced motion disables animation; increased contrast and reduced transparency use opaque surfaces. An unsupported-backdrop-filter fallback is included, with native outlines in forced-colors mode.
+- Browser checks: start the web server on port 3100, then run `python web/lib/verify-glass.py` from the repository root using the existing Python environment with Playwright and Chrome. `LANDING_WEB_URL` overrides the local target. Tests use schema-built mocked API responses, never real purchases or LLM calls. Screenshots are written to ignored `web/.next/glass-verification/` and cleared by the next build.
+- Chrome checks cover all six main routes at 1280x720, 1440x900, 768x1024 and 390x844; replay geometry, the permission ledger, zoom, opaque materials, reduced motion/high contrast, forced-colors focus, and landing/Arena theme isolation. The existing `verify-landing.py` console integration scenario separately covers launch, approval closure, read-only sample approval and replay stepping. These are fixture checks, not deployed live-run evidence. Safari, Firefox, physical-device performance and a real-backend smoke run remain release checks.
+
+Verification note (14 Nov): lint, type checking, production build and 13 Node tests passed. The Chrome glass checks passed on the development server (the zoom/fallback test passed after its fix). A final production-browser repeat and approval integration repeat could not finish because concurrent work replaced shared `.next` artifacts; repeat these against an uncontended build. No live backend run was started.

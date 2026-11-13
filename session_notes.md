@@ -22,6 +22,13 @@ Template:
 
 ## Log
 
+### 2026-11-14 - Dev B - Codex - main app liquid glass redesign
+- Restyled Console, runs, replay, Trap Lab, Stats and Health in black, cream and orange glass. Added a shared header, readable panels, pill controls and accessibility fallbacks.
+- Kept landing, entrance animation, Arena and API behavior unchanged. Concurrent landing edits were left out of this change.
+- Passed web lint, type checking, production build and 13 existing Node tests. Chrome fixture checks covered six routes at four sizes, replay geometry, theme isolation and accessibility preferences. Fixed and rechecked 200% zoom and opaque fallback.
+- Final production-browser repeat was interrupted by shared .next output changing during concurrent work. Approval integration, Safari, Firefox and real-backend smoke verification still need a clean repeat; no live-run result is claimed.
+- Details and repeat commands are in web/README.md.
+
 ### 2026-11-13 (late night) · Dev B · Antigravity · dithered art as slider arrow button with commit explosion
 - Configured the dithered Medusa shield artwork (`aegis-dithered.png` with custom palette: `#5E2C1D`, `#A86442`, `#E8C59E`) directly as the sliding arrow button thumb.
 - Removed all artwork layers from behind the hero text: the hero copy now rests cleanly over the FlowField and veil with zero background clutter.
