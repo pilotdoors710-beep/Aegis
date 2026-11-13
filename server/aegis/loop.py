@@ -57,12 +57,14 @@ from aegis.schemas import (
     SideOutcomes,
     SnapshotEvent,
     SnapshotPayload,
+    TrialReport,
     Verdict,
     VerdictEvent,
     VerdictPayload,
 )
 from aegis.security import install_guard, origin
 from aegis.snapshot import screenshot_b64, take_snapshot
+from aegis.trials import ReplayStep, apply_trial, run_trials
 from aegis.verdict import (
     GUARD,
     MAX_RETRIES,
@@ -79,16 +81,22 @@ VIEWPORT = {"width": 1280, "height": 720}
 # Fixed clock so countdowns and dates render identically on every run (brief §3).
 FROZEN_TIME = datetime(2026, 11, 18, 10, 0, tzinfo=UTC)
 PageHook = Callable[[Page], Awaitable[None]]
-ShieldConfig = Literal["F", "I", "I_MINUS_AUDIT"]  # U is mode="unshielded"
+# U is mode="unshielded". I_R2 = I plus R2 disposable consent trials (experimental; kept out of the
+# core U/F/I comparison, brief §12).
+ShieldConfig = Literal["F", "I", "I_MINUS_AUDIT", "I_R2"]
 
 _TOTAL_RE = re.compile(r"Order total[^\d₹]*₹?\s*([\d,]+(?:\.\d+)?)", re.I)
 
 
-def start_url(traps: list[str], variant: str = "a", base: str | None = None) -> str:
+def start_url(
+    traps: list[str], variant: str = "a", base: str | None = None, consent: str = ""
+) -> str:
     base = (base or settings.arena_base_url).rstrip("/")
     q = {"traps": ",".join(traps) or "none"}
     if variant != "a":
         q["variant"] = variant
+    if consent:
+        q["consent"] = consent
     return f"{base}/index.html?{urlencode(q, safe=',')}"
 
 
@@ -159,8 +167,10 @@ async def run_side(
     without the ledger comparison (eval ablation). Aegis only ever executes actions the agent
     proposed (executed_log records them for tests)."""
     shielded = mode == "shielded"
-    audits = shielded and shield == "I"
-    gated = shielded and shield in ("I", "I_MINUS_AUDIT")
+    audits = shielded and shield in ("I", "I_R2")
+    gated = shielded and shield in ("I", "I_MINUS_AUDIT", "I_R2")
+    trials = shielded and shield == "I_R2"
+    replay: list[ReplayStep] = []  # R2: what a disposable copy must redo to reach this state
     host = urlsplit(allowed_origin or url).hostname or ""
     # F (and a missing parse) checks against a ledger that holds only the task and the domain.
     ledger = (
@@ -241,6 +251,7 @@ async def run_side(
             feedback: list[str] = []
             action: Action | None = None
             attempt = 0
+            neutralized: str | None = None
             for attempt in range(1, MAX_RETRIES + 2):
                 try:
                     action, res = await agent.decide(view, task, history + feedback)
@@ -272,6 +283,7 @@ async def run_side(
                 fix = plan_neutralization(snap, action)
                 verdict = combine(findings, action, ms, fix)
                 report: AuditReport | None = None
+                trial: TrialReport | None = None
                 ask_reason: AskReason | None = None
                 if any(f.detector == GUARD for f in blocking_findings(findings, action)):
                     ask_reason = "guard_unavailable"  # retrying cannot fix a broken check
@@ -285,6 +297,16 @@ async def run_side(
                         report, guard = await _audit(snap, ledger, action, last_audit)
                         if guard:
                             findings.append(guard)
+                        if trials and report is not None and (ctl := _ambiguous(report)):
+                            trial = await run_trials(
+                                browser, original_page=page, original=snap, control_id=ctl,
+                                commit_action=action, ledger=ledger, start_url=url,
+                                allowed_origin=allowed_origin or origin(url), replay=replay,
+                                viewport=VIEWPORT, frozen_time=FROZEN_TIME,
+                                outcome_reader=outcome_from_page,
+                                timeout_s=settings.trial_timeout_s,
+                            )  # fmt: skip
+                            report = apply_trial(report, trial)
                     verdict, ask_reason, last_audit = _commit_decision(
                         verdict, report, step, last_audit, findings
                     )
@@ -294,12 +316,14 @@ async def run_side(
                     and not await neutralize(page, fix.element_id)
                 ):
                     fix = None  # cover vanished during the LLM call; the hit-test re-check decides
+                neutralized = fix.element_id if fix and verdict.decision == "ALLOW" else None
                 yield VerdictEvent(
                     **env(step),
                     payload=VerdictPayload(
                         verdict=verdict, action=action, audit=report,
                         highlights=highlights(findings, snap),
                         neutralized=[fix] if fix and verdict.decision == "ALLOW" else [],
+                        trial=trial,
                     ),
                 )  # fmt: skip
                 if verdict.decision == "ALLOW":
@@ -307,7 +331,7 @@ async def run_side(
                 if ask_reason:
                     pending = AskPayload(
                         ask_id=_ask_id(), reason=ask_reason, action=action,
-                        findings=verdict.findings, audit=report, status="pending",
+                        findings=verdict.findings, audit=report, trial=trial, status="pending",
                     )  # fmt: skip
                     async for ev in ask(step, pending):
                         yield ev
@@ -317,6 +341,8 @@ async def run_side(
                     if audits and report is not None:  # the page may have changed while waiting
                         snap = await take_snapshot(page)
                         again, guard = await _audit(snap, ledger, action, (step, set()))
+                        if trial is not None and again is not None:  # same control, same evidence
+                            again = apply_trial(again, trial)
                         if guard or _keys(again) - _keys(report) or _new_uncertain(again, report):
                             yield VerdictEvent(**env(step), payload=VerdictPayload(
                                 verdict=Verdict(decision="REROUTE", findings=findings,
@@ -349,6 +375,8 @@ async def run_side(
             if executed_log is not None:
                 executed_log.append(action)
             result = await execute(page, action, hit_test_veto(page) if shielded else None)
+            if result.ok:
+                replay.append((action, neutralized))
             history.append(_describe(action, result.ok, result.error))
             yield ExecutedEvent(
                 **env(step),
@@ -376,6 +404,13 @@ def _ask_id() -> str:
 
 def _el(snap: PageSnapshot, element_id: str | None) -> Element | None:
     return next((e for e in snap.elements if e.id == element_id), None)
+
+
+def _ambiguous(report: AuditReport) -> str | None:
+    """R2 scope: one consent box whose wording leaves its effect uncertain."""
+    return next((c.element_id for c in report.checks
+                 if c.constraint == "data_allowed" and c.status == "uncertain" and c.element_id),
+                None)  # fmt: skip
 
 
 def _keys(report: AuditReport | None) -> set[str]:

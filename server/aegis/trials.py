@@ -20,6 +20,8 @@ from aegis.audit import extract_checkout_state, same_thing
 from aegis.executor import execute, neutralize
 from aegis.schemas import (
     Action,
+    AuditCheck,
+    AuditReport,
     CheckoutState,
     Commitment,
     Element,
@@ -260,3 +262,31 @@ def describe(report: TrialReport) -> str:
         return (f"Disposable trial of {report.control_label!r}: {report.reason}. The box must be "
                 f"{want}: {action}.")  # fmt: skip
     return f"Disposable trial of {report.control_label!r}: {report.status} ({report.reason})."
+
+
+def apply_trial(report: AuditReport, trial: TrialReport) -> AuditReport:
+    """Replace the uncertain consent check with the trial's evidence. Resolved: ok if the box is
+    already right, otherwise a violation the agent fixes itself. both_ok: ok. Anything else stays
+    uncertain, so the human decides (never a silent allow)."""
+    opts = report.observed.ticked_options
+    box = next((o for o in opts if o.element_id == trial.control_id), None)
+    current = box.checked if box else trial.current_checked  # this audit's view, not the trial's
+    checks: list[AuditCheck] = []
+    for c in report.checks:
+        if c.constraint != "data_allowed" or c.element_id != trial.control_id:
+            checks.append(c)
+            continue
+        if trial.status == "resolved":
+            right = trial.recommended_checked == current
+            status = "ok" if right else "violation"
+        else:
+            status = "ok" if trial.status == "both_ok" else "uncertain"
+        want = {True: "box must be ticked", False: "box must be unticked", None: c.ledger_value}
+        checks.append(c.model_copy(update={
+            "constraint": "consent_trial",
+            "ledger_value": want[trial.recommended_checked],
+            "observed_value": f"box {'ticked' if current else 'unticked'}",
+            "evidence": describe(trial),
+            "status": status,
+        }))  # fmt: skip
+    return report.model_copy(update={"checks": checks})

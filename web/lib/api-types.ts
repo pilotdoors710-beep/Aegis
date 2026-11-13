@@ -757,6 +757,18 @@ export interface components {
             auto_approve: boolean;
             /** Pair Of */
             pair_of?: string | null;
+            /**
+             * Consent
+             * @default
+             * @enum {string}
+             */
+            consent: "" | "r" | "o";
+            /**
+             * Shield
+             * @default I
+             * @enum {string}
+             */
+            shield: "I" | "I_R2";
         };
         /** RecurringTerm */
         RecurringTerm: {

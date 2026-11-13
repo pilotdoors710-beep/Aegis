@@ -360,6 +360,8 @@ class Preset(BaseModel):
     variant: str = "a"
     auto_approve: bool = False  # labelled demo approval, never fresh human consent
     pair_of: str | None = None  # links an R1 authorized/forbidden pair
+    consent: Literal["", "r", "o"] = ""  # R2 arena fixture: reversed-meaning consent wording
+    shield: Literal["I", "I_R2"] = "I"  # I_R2 = experimental disposable consent trials
 
 
 class RunCreate(BaseModel):

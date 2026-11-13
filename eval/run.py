@@ -43,6 +43,7 @@ CONFIGS = {
     "F": ("shielded", "F"),
     "I": ("shielded", "I"),
     "I-minus-audit": ("shielded", "I_MINUS_AUDIT"),
+    "I+R2": ("shielded", "I_R2"),  # separate R2 study (I vs I+R2), never pooled with U/F/I
 }
 
 
@@ -207,7 +208,7 @@ async def run_one(browser, case: dict, manifest: dict, config: str, rep: int, mo
     ledger, unresolved = None, None
     started = time.perf_counter()
     try:
-        if shield in ("I", "I_MINUS_AUDIT"):  # B1 once, before browsing, same pinned model
+        if shield in ("I", "I_MINUS_AUDIT", "I_R2"):  # B1 once, before browsing, same pinned model
             host = urlsplit(arena).hostname or ""
             ledger, unresolved = await parse_ledger(
                 task, router, allowed_domains=[host], use_cache=False
@@ -215,7 +216,8 @@ async def run_one(browser, case: dict, manifest: dict, config: str, rep: int, mo
             calls += 1
         async for ev in run_side(
             browser, run_id=run_id, mode=mode, task=task,  # type: ignore[arg-type]
-            url=start_url(case["traps"], case.get("variant", "a"), arena), agent=agent,
+            url=start_url(case["traps"], case.get("variant", "a"), arena,
+                          consent=case.get("consent", "")), agent=agent,
             on_start=on_start, on_finish=on_finish, shield=shield,  # type: ignore[arg-type]
             ledger=ledger, unresolved=unresolved, gate=gate,
         ):  # fmt: skip

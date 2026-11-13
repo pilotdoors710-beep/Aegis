@@ -149,3 +149,75 @@ async def test_replays_the_agents_path_from_the_start_url(page: Page, arena_url:
     assert report.status == "resolved" and report.recommended_checked is False, report.reason
     assert all(b.state_matched and b.disposable_actions >= 4 for b in report.branches)
     assert report.original_unchanged is True and report.elapsed_ms < 10_000
+
+
+# --- Integration: R2 inside the shielded loop (configuration I_R2) ------------------------
+
+
+async def _loop(arena_url: str, consent: str, script: list, shield: str) -> list:
+    from playwright.async_api import async_playwright
+
+    from aegis.events import AskGate
+    from aegis.loop import run_side, start_url
+    from tests.scripted_agent import ScriptedAgent
+
+    async with async_playwright() as pw:
+        browser = await pw.chromium.launch()
+        events = [
+            ev
+            async for ev in run_side(
+                browser, run_id="r2", mode="shielded", task="Buy one Aurora desk lamp",
+                agent=ScriptedAgent(script), ledger=NO_DATA, gate=AskGate(auto_approve=True),
+                url=start_url(["T08"], base=arena_url, consent=consent), shield=shield,  # type: ignore[arg-type]
+            )
+        ]  # fmt: skip
+        await browser.close()
+    return events
+
+
+def _box(label: str):  # noqa: ANN202
+    from tests.scripted_agent import click_text
+
+    return click_text(label, "follow the Aegis hint")
+
+
+async def test_loop_r2_reroutes_then_verifies_untick(arena_url: str) -> None:
+    from tests.scripted_agent import click_text
+    from tests.test_recovery import TO_CHECKOUT
+
+    label = "Uncheck to not stop receiving partner offers"
+    script = [*TO_CHECKOUT, click_text("Place order"), _box(label), click_text("Place order")]
+    events = await _loop(arena_url, "", script, "I_R2")
+    verdicts = [e.payload for e in events if e.kind == "verdict" and e.payload.trial]
+    assert [v.verdict.decision for v in verdicts] == ["REROUTE", "ASK"]
+    assert "untick the consent box" in (verdicts[0].verdict.reroute_hint or "")
+    assert verdicts[1].trial.status == "resolved" and verdicts[1].trial.recommended_checked is False
+    assert [e.payload.reason for e in events if e.kind == "ask"][0] == "final_payment"
+    done = events[-1].payload
+    assert done.reason == "completed"
+    assert not [c for c in done.outcome.commitments if c.kind == "data_sharing"]
+
+
+async def test_loop_r2_reversed_meaning_asks_to_tick(arena_url: str) -> None:
+    from tests.scripted_agent import click_text
+    from tests.test_recovery import TO_CHECKOUT
+
+    label = "Uncheck to receive partner offers"
+    script = [*TO_CHECKOUT, click_text("Place order"), _box(label), click_text("Place order")]
+    events = await _loop(arena_url, "r", script, "I_R2")
+    first = next(e.payload for e in events if e.kind == "verdict" and e.payload.trial)
+    assert first.verdict.decision == "REROUTE"
+    assert "tick the consent box" in (first.verdict.reroute_hint or "")
+    assert "untick" not in (first.verdict.reroute_hint or "")
+    done = events[-1].payload
+    assert done.reason == "completed"
+    assert not [c for c in done.outcome.commitments if c.kind == "data_sharing"]
+
+
+async def test_plain_i_never_runs_trials(arena_url: str) -> None:
+    from tests.scripted_agent import click_text
+    from tests.test_recovery import TO_CHECKOUT
+
+    events = await _loop(arena_url, "", [*TO_CHECKOUT, click_text("Place order")], "I")
+    assert not [e for e in events if e.kind == "verdict" and e.payload.trial]
+    assert [e.payload.reason for e in events if e.kind == "ask"][0] == "uncertain"

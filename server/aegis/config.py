@@ -42,6 +42,8 @@ class Settings(BaseSettings):
     max_steps: int = 15
     # How long an ASK waits for a human before it times out (treated as deny).
     ask_timeout_s: int = 120
+    # R2: total budget for both disposable copies of one consent trial (brief §3).
+    trial_timeout_s: float = 10.0
     # Decision cache: off | fallback (only when every provider fails) | on. Eval forces off.
     # Default fallback: live runs make fresh decisions; replays only rescue a provider outage.
     llm_cache_mode: Literal["off", "fallback", "on"] = "fallback"

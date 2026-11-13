@@ -200,8 +200,10 @@ async def _run(run_id: str, preset: Preset) -> None:
         await _bus.update(run_id, ledger=ledger)
         await run_pair(
             _browser, _bus, run_id, task=preset.task, make_agent=agent_factory,
-            url=validate_url(start_url(preset.traps, preset.variant), arena_origin()),
+            url=validate_url(start_url(preset.traps, preset.variant, consent=preset.consent),
+                             arena_origin()),
             allowed_origin=arena_origin(), ledger=ledger, unresolved=unresolved,
+            shield=preset.shield,
         )  # fmt: skip
 
 

@@ -265,6 +265,9 @@ def correction_hint(report: AuditReport) -> str | None:
             hints.append(f"remove {c.observed_value!r} from the order")
         elif c.constraint == "data_allowed" and c.element_id:
             hints.append(f"switch off data sharing{where}")
+        elif c.constraint == "consent_trial" and c.element_id:  # R2: the trial knows the meaning
+            verb = "untick" if c.ledger_value.endswith("unticked") else "tick"
+            hints.append(f"{verb} the consent box{where}")
     hints = list(dict.fromkeys(hints))
     return ("; ".join(hints) + ", then place the order again.") if hints else None
 
