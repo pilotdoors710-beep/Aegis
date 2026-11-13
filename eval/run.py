@@ -300,6 +300,17 @@ async def main() -> None:
     ap.add_argument("--model", required=True, help="one pinned provider:model (no fall-through)")
     ap.add_argument("--out", required=True)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument(
+        "--ablation-cases",
+        default="",
+        help="cases that also run I-minus-audit, interleaved in the same block",
+    )
+    ap.add_argument(
+        "--first-rep",
+        type=int,
+        default=1,
+        help="repetition number of the first block (later blocks on later quota days)",
+    )
     ap.add_argument("--arena", default=None, help="arena base URL (default: serve web/public)")
     ap.add_argument("--rescore", nargs="+", type=Path, help="runs.jsonl files to re-score")
     a = ap.parse_args()
@@ -317,7 +328,10 @@ async def main() -> None:
         if c not in CONFIGS:
             sys.exit(f"config {c} is not implemented yet")
 
-    plan = [(case, cfg, rep) for rep in range(1, a.n + 1) for case in cases for cfg in configs]
+    reps = range(a.first_rep, a.first_rep + a.n)
+    plan = [(case, cfg, rep) for rep in reps for case in cases for cfg in configs]
+    ablation = [by_id[c] for c in filter(None, a.ablation_cases.split(","))]
+    plan += [(case, "I-minus-audit", rep) for rep in reps for case in ablation]
     random.Random(a.seed).shuffle(plan)  # interleave to spread provider/time effects
 
     srv, arena = (None, a.arena) if a.arena else _serve_arena()
@@ -342,6 +356,7 @@ async def main() -> None:
 
     write_summary(out, [asdict(r) for r in rows])
     meta = {"model": a.model, "prompt_version": PROMPT_VERSION, "seed": a.seed, "n": a.n,
+            "first_rep": a.first_rep, "ablation_cases": a.ablation_cases,
             "cache": "off", "arena": arena, "max_steps": settings.max_steps,
             "finished": datetime.now(UTC).isoformat()}  # fmt: skip
     (out / "meta.json").write_text(json.dumps(meta, indent=2))
