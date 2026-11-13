@@ -27,6 +27,7 @@ export function LandingExperience() {
   const [tunnelProgress, setTunnelProgress] = useState(0);
   const [tunnelPrepared, setTunnelPrepared] = useState(false);
   const [exitElapsed, setExitElapsed] = useState(-1);
+  const [buttonOrigin, setButtonOrigin] = useState<{ x: number; y: number; size: number } | null>(null);
 
   // Progressive background dimming states
   const [flowOpacity, setFlowOpacity] = useState(0.85);
@@ -144,10 +145,11 @@ export function LandingExperience() {
     };
   }, [changePhase, navigate, router]);
 
-  // Handle slide completion: fade hero, trigger 3D tunnel flight, and navigate
-  const handleSliderCommit = useCallback(() => {
+  // Handle slide completion: trigger button explosion, frame transition, and navigate
+  const handleSliderCommit = useCallback((origin?: { x: number; y: number; size: number } | null) => {
     if (accepted.current) return;
     accepted.current = true;
+    if (origin) setButtonOrigin(origin);
 
     // 5-second recovery timeout
     timers.current.push(setTimeout(() => navigate(), TIMING.recovery));
@@ -232,13 +234,12 @@ export function LandingExperience() {
         aria-hidden="true"
       />
 
-      {/* Centered viewport-sized particle artwork with custom palette */}
+      {/* Button particle explosion layer (hidden until button commits) */}
       <AegisArtwork
         phase={phase}
         reduced={reduced}
         exitElapsed={exitElapsed}
-        onLoaded={() => {}}
-        onSettled={() => {}}
+        origin={buttonOrigin}
       />
 
       {/* Dark background overlay for crossfading to dark tunnel */}

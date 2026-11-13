@@ -5,11 +5,12 @@ import styles from "./landing.module.css";
 
 interface SliderControlProps {
   disabled?: boolean;
-  onCommit: () => void;
+  onCommit: (origin?: { x: number; y: number; size: number } | null) => void;
 }
 
 export function SliderControl({ disabled = false, onCommit }: SliderControlProps) {
   const trackRef = useRef<HTMLDivElement>(null);
+  const thumbRef = useRef<HTMLDivElement>(null);
   const [maxTravel, setMaxTravel] = useState(256);
   const [offset, setOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -40,7 +41,24 @@ export function SliderControl({ disabled = false, onCommit }: SliderControlProps
     setCommitted(true);
     setIsDragging(false);
     setOffset(maxTravel);
-    onCommitRef.current();
+
+    const track = trackRef.current?.getBoundingClientRect();
+    const thumb = thumbRef.current?.getBoundingClientRect();
+    const origin = track
+      ? {
+          x: track.right - (thumb?.width ? thumb.width / 2 + 6 : 30),
+          y: track.top + track.height / 2,
+          size: thumb?.width || 48,
+        }
+      : thumb
+      ? {
+          x: thumb.left + thumb.width / 2,
+          y: thumb.top + thumb.height / 2,
+          size: thumb.width,
+        }
+      : null;
+
+    onCommitRef.current(origin);
   }, [committed, maxTravel]);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -125,29 +143,43 @@ export function SliderControl({ disabled = false, onCommit }: SliderControlProps
       data-disabled={disabled}
     >
       <div
+        ref={thumbRef}
         className={styles.sliderThumb}
         style={{
           transform: `translateX(${offset}px)`,
           transition: isDragging ? "none" : "transform 250ms cubic-bezier(0.2, 0.9, 0.3, 1)",
+          opacity: committed ? 0 : 1,
         }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
       >
-        <svg
-          viewBox="0 0 24 24"
-          width="20"
-          height="20"
-          stroke="#000"
-          strokeWidth="2.5"
-          fill="none"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M5 12h14M12 5l7 7-7 7" />
-        </svg>
+        {/* Dithered Medusa shield artwork as the arrow button */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/landing/aegis-dithered.png"
+          alt=""
+          width="48"
+          height="48"
+          className={styles.sliderThumbArt}
+          draggable={false}
+        />
+        {/* Arrow overlay indicating slide direction */}
+        <div className={styles.sliderThumbArrow} aria-hidden="true">
+          <svg
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            stroke="#DD700B"
+            strokeWidth="3"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
+        </div>
       </div>
     </div>
   );

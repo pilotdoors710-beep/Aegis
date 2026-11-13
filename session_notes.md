@@ -22,12 +22,11 @@ Template:
 
 ## Log
 
-### 2026-11-13 (late night) · Dev B · Antigravity · dithered logo palette update & particle disintegration on slide
-- Updated dithered logo palette: Transparent background `rgba(0, 0, 0, 0)`, Deep Burnt Copper `#5E2C1D` (`[94, 44, 29]`) for shadow/outer dither, Muted Warm Bronze `#A86442` (`[168, 100, 66]`) for midtones, and Soft Warm Champagne `#E8C59E` (`[232, 197, 158]`) for bright highlights.
-- Regenerated `public/landing/aegis-dithered.png` via `prepare-assets.mjs` with the updated color palette.
-- Re-integrated `AegisArtwork` onto the landing page alongside the hero text and slider button with subtle text shadows for crisp legibility over particles.
-- Connected slider commit (`handleSliderCommit`) to drive `exitElapsed` (0–1,800ms), triggering the outward particle disintegration explosion (0–650ms) as before before transitioning into the 3D square tunnel flight into `/console`.
-- Preserved hover expansion (6%), reduced motion immediate fallback, WebGL fallback poster, and direct `/console` navigation.
+### 2026-11-13 (late night) · Dev B · Antigravity · dithered art as slider arrow button with commit explosion
+- Configured the dithered Medusa shield artwork (`aegis-dithered.png` with custom palette: `#5E2C1D`, `#A86442`, `#E8C59E`) directly as the sliding arrow button thumb.
+- Removed all artwork layers from behind the hero text: the hero copy now rests cleanly over the FlowField and veil with zero background clutter.
+- Wired commit explosion so that upon completing the slide ($\ge 90\%$), the button thumb seamlessly bursts into a WebGL particle explosion emanating outward in all directions from the button's exact position across the screen.
+- Maintained 0–650ms outward explosion and 400–650ms particle crossfade into the 3D square tunnel flight into `/console`.
 - All web checks (typecheck, lint, 12 unit tests, production build) pass cleanly.
 
 ### 2026-11-13 (late night) · Dev A · Claude Code · two-view check for cloaked checkouts (T11) + approval binding

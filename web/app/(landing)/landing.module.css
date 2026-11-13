@@ -37,22 +37,17 @@
   will-change: opacity;
 }
 
-/* Centered particle artwork container */
+/* Centered particle artwork container for button explosion */
 .artworkContainer {
   position: fixed;
   inset: 0;
-  z-index: 3;
+  z-index: 7;
   width: 100vw;
   height: 100svh;
   pointer-events: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 350ms cubic-bezier(0.2, 0.9, 0.3, 1);
-}
-
-.landing[data-initialized="false"] .artworkContainer {
-  opacity: 0;
 }
 
 .artworkCanvas {
@@ -61,38 +56,6 @@
   width: 100%;
   height: 100%;
   pointer-events: none;
-}
-
-.poster {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: min(72vw, 76svh, 900px);
-  height: min(72vw, 76svh, 900px);
-  object-fit: contain;
-  image-rendering: pixelated;
-  pointer-events: none;
-}
-
-.logoHitArea {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: min(72vw, 76svh, 900px);
-  height: min(72vw, 76svh, 900px);
-  border-radius: 50%;
-  pointer-events: auto;
-  cursor: default;
-}
-
-@media (max-width: 767px) {
-  .poster,
-  .logoHitArea {
-    width: min(90vw, 65svh);
-    height: min(90vw, 65svh);
-  }
 }
 
 /* Dark background overlay for crossfading into the 3D tunnel */
@@ -339,27 +302,65 @@
   outline-offset: 4px;
 }
 
-/* 48px draggable thumb with #DD700B accent */
+/* 48px draggable thumb featuring the dithered art as the button */
 .sliderThumb {
   position: absolute;
   top: 6px;
   left: 6px;
   width: 48px;
   height: 48px;
-  border-radius: 24px;
-  background: #DD700B;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  border-radius: 50%;
+  background: #0D0A09;
+  border: 1.5px solid #DD700B;
+  box-shadow: 0 0 10px rgba(221, 112, 11, 0.35), 0 2px 8px rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: grab;
   touch-action: pan-y;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: opacity 150ms ease, box-shadow 200ms ease, border-color 200ms ease;
+}
+
+.sliderThumbArt {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.sliderThumbArrow {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(13, 10, 9, 0.65);
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  transition: transform 150ms ease;
+}
+
+.sliderThumb:hover .sliderThumbArrow {
+  transform: translateX(1px);
 }
 
 .sliderThumb:active,
 .sliderTrack[data-dragging="true"] .sliderThumb {
   cursor: grabbing;
-  box-shadow: 0 4px 16px rgba(221, 112, 11, 0.5);
+  border-color: #FCF8D8;
+  box-shadow: 0 0 18px rgba(221, 112, 11, 0.75), 0 4px 12px rgba(0, 0, 0, 0.8);
 }
 
 /* Emergency recovery link */
@@ -433,7 +434,14 @@
     left: 4px;
     width: 42px;
     height: 42px;
-    border-radius: 21px;
+  }
+  .sliderThumbArrow {
+    width: 22px;
+    height: 22px;
+  }
+  .sliderThumbArrow svg {
+    width: 14px;
+    height: 14px;
   }
 }
 
