@@ -19,6 +19,7 @@ function harness() {
   class EventSource {
     listeners = new Map();
     closed = false;
+    readyState = 1;
     constructor(url) { this.url = url; connections.push(this); }
     addEventListener(name, callback) { this.listeners.set(name, callback); }
     close() { this.closed = true; }
@@ -65,6 +66,22 @@ test("application error events remain distinct from transport failures", () => {
   h.connection.emit("error", { run_id: "sample", kind: "error", mode: "shielded", payload: { message: "Example error" } });
   assert.equal(h.state.events.length, 1);
   assert.equal(h.connection.closed, false);
+  h.connection.readyState = 2; // the browser gave up (e.g. an HTTP error response)
+  h.connection.onerror({ type: "error" });
+  assert.equal(h.state.status, "error");
+  assert.equal(h.connection.closed, true);
+});
+
+test("a dropped connection is retried, resumes on the next frame, and fails after repeated drops", () => {
+  const h = harness();
+  h.connection.readyState = 0; // the browser is reconnecting with Last-Event-ID
+  h.connection.onerror({ type: "error" });
+  assert.equal(h.state.status, "reconnecting");
+  assert.equal(h.connection.closed, false);
+  h.connection.emit("done", { run_id: "sample", kind: "done", mode: "unshielded", payload: {} }, "7");
+  assert.equal(h.state.status, "streaming");
+  for (let i = 0; i < 5; i += 1) h.connection.onerror({ type: "error" });
+  assert.equal(h.state.status, "reconnecting");
   h.connection.onerror({ type: "error" });
   assert.equal(h.state.status, "error");
   assert.equal(h.connection.closed, true);

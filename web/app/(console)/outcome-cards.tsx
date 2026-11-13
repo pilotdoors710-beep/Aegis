@@ -28,12 +28,15 @@ export function OutcomeCards({ events, summary }: { events: RunEvent[]; summary:
     const otherKeys = new Set(other?.payload.outcome.commitments?.map(commitmentKey));
     const recurring = recurringOf(commitments);
     // The server ends a run "denied" when an approval request times out; say which it was.
-    const timedOut = done.payload.reason === "denied" && events.findLast((event): event is AskEvent => event.kind === "ask" && event.mode === mode)?.payload.status === "timed_out";
+    const lastAsk = events.findLast((event): event is AskEvent => event.kind === "ask" && event.mode === mode)?.payload;
+    const timedOut = done.payload.reason === "denied" && lastAsk?.status === "timed_out";
+    const cloakedDenied = done.payload.reason === "denied" && lastAsk?.reason === "cloaked_checkout" && lastAsk.status === "denied";
+    const placed = done.payload.outcome.task_completed === true;
     return <article className="outcome-card" key={mode}><h3>{mode === "shielded" ? "With Aegis" : "Unprotected agent"}</h3>{done ? <>
-      <strong className="outcome-total">{done.payload.outcome.total == null ? (timedOut ? "No order" : "Total unknown") : `₹${done.payload.outcome.total.toLocaleString("en-IN")}`}</strong>
+      <strong className="outcome-total">{done.payload.outcome.total != null ? `₹${done.payload.outcome.total.toLocaleString("en-IN")}` : placed ? "Total unknown" : "Nothing paid"}</strong>
       {recurring.length ? recurring.map((item, index) => <p key={index} className={`outcome-recurring${otherKeys.has(commitmentKey(item)) ? "" : " outcome-recurring-only"}`}>+ {recurringLabel(item)}<span>{item.description.split(" · ")[0]}</span></p>) : <p className="outcome-no-recurring">No recurring charges</p>}
       <p>{done.payload.outcome.task_completed === true ? "Task completed" : done.payload.outcome.task_completed === false ? "Task incomplete" : "Completion unknown"}</p>
-      {done.payload.reason !== "completed" && <p className="outcome-reason">{timedOut ? "Stopped: approval timed out. Nobody approved in time, so no order was placed." : `Stopped: ${done.payload.reason.replaceAll("_", " ")}`}</p>}
+      {done.payload.reason !== "completed" && <p className="outcome-reason">{timedOut ? "Stopped: approval timed out. Nobody approved in time, so no order was placed." : cloakedDenied ? "Stopped before payment: this site showed the agent a different checkout than an ordinary browser, and you denied it." : `Stopped: ${done.payload.reason.replaceAll("_", " ")}`}</p>}
       {(["proposed", "approved", "executed"] as const).map((state) => {
         const group = commitments.filter((item) => item.state === state);
         return group.length ? <div className="commitment-group" key={state}><h4>{state}</h4><ul>{group.map((item, index) => <li key={index} className={other && !otherKeys.has(commitmentKey(item)) ? "different-commitment" : undefined}>{item.description}{item.amount != null && ` · ₹${item.amount.toLocaleString("en-IN")}${item.period ? `/${item.period}` : ""}`}{other && !otherKeys.has(commitmentKey(item)) && <span className="difference-label">Only on this side</span>}</li>)}</ul></div> : null;
