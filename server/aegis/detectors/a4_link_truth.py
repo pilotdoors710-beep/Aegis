@@ -9,10 +9,11 @@ from aegis.schemas import Action, Element, Finding, Ledger, PageSnapshot
 
 NAME = "A4_link_truth"
 BENIGN_LABEL = re.compile(
-    r"^\s*(?:[×✕✖]|(?:x|close|cancel|dismiss|no,? thanks?|not now|maybe later|skip|continue"
+    r"^\s*(?:[×✕✖]|x\s*$|(?:close|cancel|dismiss|no,? thanks?|not now|maybe later|skip|continue"
     r"|back)\b)",
     re.I,
 )
+X_NETWORK = {"x.com", "twitter.com"}  # a link labelled "X" to the X network is its brand name
 COMMIT_PATH = re.compile(r"(?:checkout|subscribe|premium|upgrade|pay|purchase|order)", re.I)
 
 
@@ -47,7 +48,14 @@ def _dist(a: Element, b: Element) -> float:
 
 def detect(snap: PageSnapshot, action: Action | None, ledger: Ledger | None) -> list[Finding]:
     allowed = [d.lower() for d in (ledger.allowed_domains if ledger else [])] or [_host(snap.url)]
-    benign = [e for e in snap.elements if BENIGN_LABEL.match(e.text)]
+    benign = [
+        e for e in snap.elements
+        if BENIGN_LABEL.match(e.text)
+        and not (
+            e.text.strip().lower() == "x"
+            and _host(e.href or "").removeprefix("www.") in X_NETWORK
+        )
+    ]  # fmt: skip
     liars = {e.id: lie for e in benign if e.href and (lie := _lie(e, allowed, snap.url))}
     honest = [
         e for e in benign if e.visible and e.id not in liars and (e.tag == "button" or e.href)

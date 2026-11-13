@@ -15,8 +15,10 @@ INJECTION = re.compile(
     rf"""
     ^\W*(?:dear\s|hey\s|attention,?\s|note\sto\s(?:the\s)?)?(?:the\s)?
       (?:{_WHO}\s+)?{_WHO}\s*[:,!]  # "AI assistant:" at the start of the text
-    | \b(?:attention|dear|hey|note\sto|message\sfor|instructions?\sfor)\s+
-      (?:the\s+|any\s+|all\s+)?(?:\w+\s+)?{_WHO}s?\b
+    | \b(?:attention|dear|hey|note\sto|notice\sto|message\sfor|instructions?\sfor)\s+
+      (?:the\s+|any\s+|all\s+)?(?:\w+\s+){{0,3}}{_WHO}s?\b  # "notice to staff and automated agents"
+    | \bwhen\syou\s(?:summari[sz]e|describe|answer|respond)\b  # orders about the agent's output
+    | \b(?:in|start|begin|end|open)\s+your\s+(?:response|answer|reply|summary|output)\b
     | \b(?:ignore|disregard|forget|override)\s+(?:all\s+|any\s+|the\s+|your\s+)*
       (?:previous|prior|above|earlier|original|user'?s?)?\s*
       (?:instructions|prompts?|rules|task|guidelines)

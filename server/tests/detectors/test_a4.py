@@ -31,3 +31,15 @@ async def test_clean_twin_silent(page: Page, arena_url: str) -> None:
         sep = "&" if "?" in path else "?"
         snap = await snap_at(page, f"{arena_url}/{path}{sep}traps=none")
         assert a4_link_truth.detect(snap, None, None) == [], path
+
+
+async def test_x_social_link_is_not_a_close_button(page: Page, fixture_url: str) -> None:
+    """Found scanning real sites (E5): footers link to the X network with the label "X"."""
+    await page.goto(f"{fixture_url}/mini_shop.html")
+    await page.set_content(
+        '<a href="https://x.com/aurora">X</a><a href="https://twitter.com/aurora">X (Twitter)</a>'
+        '<a href="https://evil.example/">X</a>'
+    )
+    snap = await take_snapshot(page)
+    found = a4_link_truth.detect(snap, None, Ledger(goal="g", allowed_domains=["127.0.0.1"]))
+    assert [f.evidence.split(" but ")[1] for f in found] == ["navigates off-site to evil.example."]
