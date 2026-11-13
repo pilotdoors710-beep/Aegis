@@ -13,7 +13,7 @@ from api.main import app
 
 C5_IDS = {
     "clean", *(f"t0{i}" for i in range(1, 9)), "main-demo",
-    "r1-forbidden", "r1-authorized", "r1-budget", "r1-benign",
+    "r1-forbidden", "r1-authorized", "r1b-forbidden", "r1b-authorized", "r1-budget", "r1-benign",
 }  # fmt: skip
 KINDS = {"snapshot", "decision", "verdict", "executed", "ask", "error", "done"}
 
