@@ -22,6 +22,20 @@ Template:
 
 ## Log
 
+### 2026-11-13 · Dev B · Antigravity · console color scheme update
+- Updated the Shield Console and main webpage color scheme to use the requested shades #7C7D75, #ADACA7, #FCF8D8, #D9DADF, and accent color #DD700B.
+- Mapped warm cream #FCF8D8 to primary titles and headings; light silver #D9DADF to body copy and table cells; warm gray #ADACA7 to eyebrows and metadata; slate #7C7D75 to surfaces, cards and borders.
+- Styled brand icon, primary buttons, interactive hovers, active focus indicators, badges, and verdict/ask status labels with the vibrant amber-orange accent #DD700B.
+- Preserved the landing page background gradient, particle animation, and flow field shaders unchanged.
+- All web typechecks, ESLint, 12 unit tests, and Next.js production build pass cleanly.
+
+### 2026-11-13 · Dev B · Codex · remaining web release work
+- Added variant c wording and checkout layout for T03, T04, T06 and T08, with browser contract checks for totals and outcomes.
+- Added the fresh permission-pair action, stored-pair replay link and side-by-side ledger/outcome summary.
+- Expanded Stats to every contracted count and latency field and tightened sample, pilot, final and simulated-approval labels.
+- Improved the 1280×720 console layout, press feedback, reduced motion and high-contrast handling. Types, lint, build and 12 node tests pass.
+- Blocked / next: the deployed R1 pair, three demo timings, phone-data smoke, final stats comparison, screenshots and rehearsals still require the humans and live services.
+
 ### 2026-11-13 · Dev B · Antigravity · ThreeUI PortalFieldCollection flow-field integration
 - Extracted and verified ThreeUI registered source bundle (`src/shaders/neuform-isolated/NeuformBatchEffects.tsx`, `sources/flow-field.html`, `threeui.css`) with exact SHA-256 hashes matching `f90e34f83d51`.
 - Implemented configured `Scene` component with `PortalFieldCollection` (`variant="flow-field"`, `speed={1.00}`, `size={1.00}`, `length={1.00}`, `density={1.00}`, `opacity={1.00}`, `hue={0}`, `saturation={1.00}`, `brightness={1.00}`).
