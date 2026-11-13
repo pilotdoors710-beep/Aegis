@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowRight, Play, ShieldCheck } from "lucide-react";
 import { api, type Schema } from "@/lib/api";
-import { RunView } from "./run-view";
+import { RunView } from "../run-view";
+import { consumeConsoleEntry, SEEN_KEY } from "@/lib/landing/phases";
 
 export default function ConsolePage() {
   const router = useRouter();
@@ -20,6 +21,12 @@ export default function ConsolePage() {
   const [error, setError] = useState<string | null>(null);
   const [session, setSession] = useState(0);
   useEffect(() => {
+    if (consumeConsoleEntry()) {
+      document.getElementById("console-heading")?.focus({ preventScroll: true });
+      try { sessionStorage.setItem(SEEN_KEY, "1"); } catch {}
+    }
+  }, []);
+  useEffect(() => {
     const controller = new AbortController();
     api.presets(controller.signal).then(setPresets).catch((error: Error) => {
       if (!controller.signal.aborted) setError(error.message);
@@ -27,7 +34,7 @@ export default function ConsolePage() {
     return () => controller.abort();
   }, []);
   return <>
-    <div className="console-intro"><div><p className="eyebrow">RUNTIME SECURITY / BROWSER AGENTS</p><h1>Check before committing.</h1><p>Compare the same browser agent with and without Aegis.</p></div><ShieldCheck className="intro-shield" size={48} /></div>
+    <div className="console-intro"><div><p className="eyebrow">RUNTIME SECURITY / BROWSER AGENTS</p><h1 id="console-heading" tabIndex={-1}>Check before committing.</h1><p>Compare the same browser agent with and without Aegis.</p></div><ShieldCheck className="intro-shield" size={48} /></div>
     <section className="sample-banner"><div><strong className="badge">SAMPLE DATA</strong><span>Prepared comparison for exploring the console. Use a preset below to request a live run.</span></div><button className="primary-button" onClick={() => setSession((value) => value + 1)}><Play size={14} />{session ? "Restart sample" : "Play sample run"}</button></section>
     {session > 0 && <RunView key={session} runId="sample" />}
     <section className="preset-section"><div className="section-heading"><h2>Demo presets</h2><span>Tasks fixed before each run</span></div>

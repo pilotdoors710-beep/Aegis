@@ -2,7 +2,9 @@ Aegis Shield Console and static Aurora Home arena. Scope and contracts are defin
 
 Set `NEXT_PUBLIC_API_URL` using `.env.example`, then run `pnpm dev`. The browser connects directly to FastAPI; its CORS configuration must allow the web origin.
 
-- `/`: server-provided demo presets, live launch requests, and a separately labelled sample stream.
+- `/`: first-visit animated entrance. Repeat visits in the same tab go directly to `/console`.
+- `/console`: server-provided demo presets, live launch requests, and a separately labelled sample stream. Use this direct URL for stage demos.
+- `/?intro=play`: replay the entrance; `/?intro=skip`: bypass it.
 - `/runs`: stored run list, with an unavailable state while persistence returns HTTP 501.
 - `/runs/<id>`: live comparison, queue position at launch, screenshots, step counters, verdict evidence, and the permission ledger.
 - `/runs/<id>?replay=1`: stored-event replay with previous/next steps and a slider; always marked REPLAY.
@@ -29,6 +31,16 @@ Day 3 console and arena:
 - Gift wrap is available on checkout in all configurations via the existing `gift-wrap` hook. It starts unchecked, costs ₹49 once, persists across pages, appears in the receipt and `arena-outcome.addons`, and never creates a recurring term. Clean lamp plus gift wrap totals ₹1,348. Its label matches Dev A's R1 fixture, “Gift wrap · ₹49”.
 
 Checks: `pnpm typecheck`, `pnpm lint`, `pnpm build`, and `node --test lib/events.test.mjs lib/run-evidence.test.mjs lib/verify-day1.test.mjs`. Generated `lib/api-types.ts` must come from the server OpenAPI; never edit it manually.
+
+Landing entrance (13 Nov):
+
+- Original Medusa shield artwork assembles from deterministic square pixels, then follows the same paths backward on entry. The next scene flies through equal-size solid square frames with independent rotations, physical walls and two-pass WebGL bloom. No animation dependency was added.
+- Skip intro and Enter console are real `/console` links. Reduced motion uses the static poster and a 150ms fade. Missing images, WebGL failure, storage restrictions and context loss preserve entry. A stalled route exposes an Open console link. The full-screen button supports Enter/Space; text stays selectable. The console heading receives focus once after entry.
+- Artwork, generation prompt, actual source resolution and font license: [public/landing/ARTWORK.md](public/landing/ARTWORK.md). The master is 1,449,102 bytes, the poster 33,035 bytes. Landing CSS and Roboto Slab stay scoped to this route; the Tailwind loader excludes plain CSS modules so Next.js retains their class exports.
+- Production Chrome 157 checks passed at 360×640, 390×844, 768×1024, 1280×720 and 1920×1080, plus 200% zoom. Sixteen browser scenarios cover navigation, early/repeated input, keyboard/touch, selection, resizing, hidden-tab pause/resume, reduced-motion changes, no JavaScript, failed images/WebGL/storage, context loss, focus and stalled-route recovery. Console launch/approval/sample/replay checks use mocked responses from the server's schema-built fixtures; they do not prove a deployed live run.
+- The final recorded exit on this laptop's Intel UHD / ANGLE D3D11 graphics had 204 sampled frame intervals: median 7ms, maximum 48.7ms, one above 33ms. The Chrome trace also contains initial-load/layout work above 33ms; this is a desktop measurement with recording overhead, not a universal 60fps guarantee. Real phone, Safari and Firefox checks remain outstanding.
+
+To repeat the entrance browser checks, start a production build on port 3100, then run `python ../web/lib/verify-landing.py` from `server/` with the existing Playwright Python environment and installed Chrome. `LANDING_WEB_URL` overrides the target. Video recording requires Playwright's FFmpeg helper (`python -m playwright install ffmpeg`). Tests use a fresh browser per scenario to isolate history/GPU state. Screenshots, video, frame samples and the Chrome trace are saved under ignored `web/.next/landing-verification/`; the next build clears them.
 
 B-D2-TR arena handoff (`variant=b`; variant `a` keeps the original behavior):
 

@@ -331,7 +331,8 @@ The shop needs a real simulated flow: product → cart → checkout → confirma
 
 ## 8. Shield Console UX requirements
 
-- Landing view = **demo presets** grid (one click launches a paired run). No typing required on stage.
+- Console landing view at `/console` = **demo presets** grid (one click launches a paired run). No typing required on stage.
+- **User-approved entrance exception (13 Nov):** `/` may show a first-visit animated Aegis entrance with a visible Skip intro link. `/console` and all deep links open directly. Repeat visits in the same tab skip the entrance; `/?intro=play` replays it. Stage demos start at `/console` so decorative motion does not consume the run budget.
 - Split screen: left "Unprotected agent", right "With Aegis". Both show live screenshot + step counter.
 - Flagged elements get a red box + label on the screenshot; clicking a verdict in the feed highlights its element.
 - Ledger panel always visible on the shielded side.

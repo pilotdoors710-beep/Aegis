@@ -74,7 +74,7 @@ async function main() {
     if (cors) assert.equal(response.headers.get("access-control-allow-origin"), web, `${path}: backend CORS must allow the exact web origin`);
     return response;
   };
-  for (const path of ["/", "/health", "/runs", "/stats", "/arena"]) {
+  for (const path of ["/", "/console", "/health", "/runs", "/stats", "/arena"]) {
     const response = await get(web, path);
     assert.match(response.headers.get("content-type") ?? "", /text\/html/);
     const html = await response.text();
