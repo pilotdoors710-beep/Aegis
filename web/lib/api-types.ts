@@ -98,6 +98,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/lab/trial": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Lab Trial
+         * @description Opens the judge's checkout as the "original" page, then runs the R2 trial on its box. The
+         *     secret effect only configures the arena; run_trials sees the URL and the rendered copies.
+         */
+        post: operations["lab_trial_lab_trial_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/stats": {
         parameters: {
             query?: never;
@@ -652,6 +673,40 @@ export interface components {
             severity: "low" | "medium" | "high";
         };
         /**
+         * LabRequest
+         * @description Trap Lab: a judge writes a checkbox label and secretly picks its real effect. The effect
+         *     only configures the arena page; the trial reads nothing but the rendered copies.
+         */
+        LabRequest: {
+            /** Label */
+            label: string;
+            /**
+             * Effect
+             * @enum {string}
+             */
+            effect: "plan" | "share" | "none";
+            /**
+             * Ticked Means On
+             * @default true
+             */
+            ticked_means_on: boolean;
+            /**
+             * Starts Ticked
+             * @default false
+             */
+            starts_ticked: boolean;
+            /**
+             * Permit Plan
+             * @default false
+             */
+            permit_plan: boolean;
+            /**
+             * Permit Sharing
+             * @default false
+             */
+            permit_sharing: boolean;
+        };
+        /**
          * Ledger
          * @description What the user asked for. Written once before browsing and frozen: page content never
          *     edits it.
@@ -1164,6 +1219,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Preset"][];
+                };
+            };
+        };
+    };
+    lab_trial_lab_trial_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LabRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrialReport"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

@@ -23,6 +23,9 @@ export const api = {
   createRun: (body: Schema["RunCreate"]) => request<Schema["RunCreated"]>("/runs", {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
   }),
+  labTrial: (body: Schema["LabRequest"]) => request<Schema["TrialReport"]>("/lab/trial", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  }),
   resolveAsk: (id: string, askId: string, body: Schema["AskDecision"]) => request<Schema["AskPayload"]>(
     `/runs/${encodeURIComponent(id)}/ask/${encodeURIComponent(askId)}`,
     { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },

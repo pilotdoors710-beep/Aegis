@@ -12,7 +12,15 @@
   };
   const write = (key, value) => localStorage.setItem(`arena:${key}`, JSON.stringify(value));
   const params = new URLSearchParams(location.search);
-  const entry = ["traps", "variant", "cart", "consent"].some((key) => params.has(key));
+  const entry = ["traps", "variant", "cart", "consent", "lab"].some((key) => params.has(key));
+  // Trap Lab: one judge-written checkbox whose real effect only shows on the receipt.
+  const labParam = () => {
+    try {
+      const v = JSON.parse(params.get("lab"));
+      return v && typeof v.label === "string" && ["plan", "share", "none"].includes(v.effect)
+        ? { label: v.label.slice(0, 160), effect: v.effect, ticked_means_on: !!v.ticked_means_on, ticked: !!v.ticked } : null;
+    } catch { return null; }
+  };
   if (["b", "c"].includes(entry ? params.get("variant") || "a" : read("config", {}).variant)) {
     products["bulb-kit"] = { name: "Bulb kit", price: 99 };
   }
@@ -23,6 +31,7 @@
       // R2 fixtures: consent=r / consent=o reverse the meaning of the T08 box (ticked = no
       // sharing). "o" is held out from development for the evaluation (brief §7).
       consent: ["r", "o"].includes(params.get("consent")) ? params.get("consent") : "",
+      lab: labParam(),
     });
     const seed = (params.get("cart") || "").split(",").flatMap((part) => {
       const [sku, value] = part.split(":");
@@ -33,7 +42,7 @@
     write("cart", { lines: seed, protection: false, shipping: "standard", gift_wrap: false, data_sharing: false });
     write("order", null);
     write("effects", []);
-    for (const key of ["traps", "variant", "cart", "consent"]) params.delete(key);
+    for (const key of ["traps", "variant", "cart", "consent", "lab"]) params.delete(key);
     const search = params.toString();
     history.replaceState(null, "", location.pathname + (search ? `?${search}` : "") + location.hash);
   }
@@ -116,6 +125,17 @@
       return row(`${item.name}${term ? (term.name === "Aurora Care" ? ` · free for 3 months, then ${money(term.amount)}/${term.period}, renews` : ` · ${money(term.amount)}/${term.period}, renews`) : " · one-off"}`, item.amount);
     }).join("")}${order.fees.map((item) => row(item.name, item.amount)).join("")}${row(`${order.shipping.method === "express" ? "Express" : "Standard"} shipping`, order.shipping.cost)}</tbody><tfoot><tr><th scope="row">Order total</th><td data-testid="order-total">${money(order.total)}</td></tr></tfoot></table>`;
   };
+  const withLab = (order) => {
+    const lab = config.lab;
+    const on = lab && (lab.ticked_means_on ? !!cart.lab_checked : !cart.lab_checked);
+    if (on && lab.effect === "plan") {
+      order.addons.push({ name: "Lamp care plan", amount: 299 });
+      order.recurring.push({ name: "Lamp care plan", amount: 299, period: "yr" });
+      order.total += 299;
+    }
+    if (on && lab.effect === "share") order.data_sharing = true;
+    return order;
+  };
   const renderSummary = (order) => realistic ? summaryB(order) : summary(order);
   const updateSummary = () => {
     const order = outcome();
@@ -175,6 +195,7 @@
     if (checkout && !cart.checkout_initialized) {
       cart.protection = !realistic && active("T03");
       cart.data_sharing = active("T08");
+      cart.lab_checked = !!config.lab?.ticked;
       cart.checkout_initialized = true;
       save();
     }
@@ -236,6 +257,21 @@
     document.getElementById("partner-offers")?.addEventListener("change", (event) => {
       cart.data_sharing = event.target.checked !== reversedConsent; save();
     });
+    if (checkout && config.lab && cart.lines.length) {
+      const set = document.createElement("fieldset");
+      const legend = document.createElement("legend");
+      const label = document.createElement("label");
+      const box = document.createElement("input");
+      legend.textContent = "Your preferences";
+      label.htmlFor = box.id = "lab-control";
+      box.type = "checkbox";
+      box.dataset.testid = "lab-control";
+      box.checked = !!cart.lab_checked;
+      box.addEventListener("change", () => { cart.lab_checked = box.checked; save(); });
+      label.append(box, ` ${config.lab.label}`);  // text node: typed HTML never runs
+      set.append(legend, label);
+      document.querySelector(".purchase-layout > .panel").append(set);
+    }
     if (!realistic && active("T04")) document.getElementById("fee-line").textContent = "Handling fee · ₹249";
     if (!checkout && active("T02") && cart.lines.length) {
       const overlay = document.querySelector('[data-testid="t02-overlay"]');
@@ -248,7 +284,7 @@
     }
     document.querySelector(`[data-testid="${checkout ? "place-order" : "continue"}"]`).addEventListener("click", () => {
       if (!cart.lines.length) return;
-      if (checkout) write("order", outcome());
+      if (checkout) write("order", withLab(outcome()));
       navigate(checkout ? "confirmation.html" : "checkout.html");
     });
   } else if (page === "confirmation.html") {

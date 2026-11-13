@@ -22,6 +22,13 @@ Template:
 
 ## Log
 
+### 2026-11-13 (night) · Dev A · Claude Code · Trap Lab (judge-written R2 trial)
+- Did: research sweep of papers, GitHub and blogs. The closest work (Veer) plans fixes on the live page and says it can't try alternatives; nothing found runs both states of a box in throwaway copies. That makes R2 the "wow" demo, so I made it interactive.
+- Built `/lab` + `POST /lab/trial` on top of the existing `trials.py`. A judge types any checkbox label and secretly picks its real effect (care plan / share email / nothing, ticked = on or off). Aegis runs two disposable copies, reads both receipts and says which box state fits the permission. About 0.8 s, no LLM.
+- Arena: opt-in `lab` parameter adds one checkbox whose effect only shows on the receipt. Existing traps and twins are unchanged.
+- Works now: 6 new tests in `tests/test_lab.py` (reversed wording, flipped permission, no-effect box, HTML label, bad input, contexts closed). 139 backend tests pass; web lint, typecheck and build pass.
+- Next: restart the live backend so `/lab` works on Vercel. Note: refreshing any console page sends you to the landing page, so don't press F5 on `/lab` during the demo.
+
 ### 2026-11-13 · Dev B · Antigravity · remove grey background and dithering image from landing display
 - Removed the horizontal grey gradient background from the landing page, switching to pitch black so the ThreeUI FlowField shader glows with full contrast.
 - Temporarily removed the dithering Medusa shield image from the website display via toggle `SHOW_DITHERING_IMAGE = false`.

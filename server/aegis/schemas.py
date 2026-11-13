@@ -216,6 +216,18 @@ class TrialReport(BaseModel):
     blocked_requests: int = 0
 
 
+class LabRequest(BaseModel):
+    """Trap Lab: a judge writes a checkbox label and secretly picks its real effect. The effect
+    only configures the arena page; the trial reads nothing but the rendered copies."""
+
+    label: str = Field(min_length=1, max_length=160)
+    effect: Literal["plan", "share", "none"]
+    ticked_means_on: bool = True
+    starts_ticked: bool = False
+    permit_plan: bool = False  # the user allows a care-plan subscription
+    permit_sharing: bool = False  # the user allows sharing their email with partners
+
+
 # --- Event payloads (typed per kind, behind the brief's envelope) ---------------------------
 
 

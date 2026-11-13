@@ -5,13 +5,14 @@ run_id "sample" always serves a labelled, contract-valid sample run.
 
 import asyncio
 import base64
+import json
 import logging
 import time
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,22 +33,28 @@ from aegis.events import (
 )
 from aegis.intent import parse_ledger
 from aegis.llm import LLMRouter
-from aegis.loop import run_pair, start_url
+from aegis.loop import FROZEN_TIME, VIEWPORT, outcome_from_page, run_pair, start_url
 from aegis.presets import PRESETS
 from aegis.schemas import (
+    Action,
     AskDecision,
     AskPayload,
     EvalStats,
     Event,
     HealthArena,
     HealthLLM,
+    LabRequest,
     Ledger,
+    LedgerItem,
     Preset,
     RunCreate,
     RunCreated,
     RunSummary,
+    TrialReport,
 )
-from aegis.security import arena_origin, validate_url
+from aegis.security import arena_origin, install_guard, validate_url
+from aegis.snapshot import take_snapshot
+from aegis.trials import run_trials
 
 log = logging.getLogger("aegis.api")
 # One shared Chromium per process (brief §3); contexts are created per run side.
@@ -162,6 +169,63 @@ async def healthz_arena() -> HealthArena:
 @app.get("/presets")
 async def list_presets() -> list[Preset]:
     return PRESETS
+
+
+# --- Trap Lab (R2 disposable trials on a judge-written checkbox) -----------------------------
+
+LAB_BUDGET = 2_000.0  # above lamp + plan, so only the permission decides the plan
+_lab_lock = asyncio.Lock()  # one lab trial at a time on the shared Chromium
+
+
+def lab_ledger(body: LabRequest) -> Ledger:
+    items = [LedgerItem(name="Aurora desk lamp", qty=1, max_price=LAB_BUDGET)]
+    if body.permit_plan:
+        items.append(LedgerItem(name="Lamp care plan", qty=1))
+    return Ledger(
+        goal="Buy one Aurora desk lamp for under ₹2,000, standard shipping.",
+        items=items, budget_max=LAB_BUDGET, allow_addons=body.permit_plan,
+        allow_subscriptions=body.permit_plan,
+        data_allowed=["email"] if body.permit_sharing else [],
+        allowed_domains=[urlsplit(settings.arena_base_url).hostname or ""],
+        shipping_method="standard",
+    )  # fmt: skip
+
+
+def lab_url(body: LabRequest) -> str:
+    lab = {"label": body.label, "effect": body.effect,
+           "ticked_means_on": body.ticked_means_on, "ticked": body.starts_ticked}  # fmt: skip
+    query = urlencode({"cart": "aurora-desk-lamp:1", "traps": "none", "lab": json.dumps(lab)})
+    return validate_url(f"{settings.arena_base_url.rstrip('/')}/checkout.html?{query}",
+                        arena_origin())  # fmt: skip
+
+
+@app.post("/lab/trial")
+async def lab_trial(body: LabRequest) -> TrialReport:
+    """Opens the judge's checkout as the "original" page, then runs the R2 trial on its box. The
+    secret effect only configures the arena; run_trials sees the URL and the rendered copies."""
+    assert _browser is not None
+    url = lab_url(body)
+    async with _lab_lock:
+        ctx = await _browser.new_context(viewport=VIEWPORT)  # type: ignore[arg-type]
+        try:
+            await install_guard(ctx, arena_origin())
+            page = await ctx.new_page()
+            await page.clock.set_fixed_time(FROZEN_TIME)
+            await page.goto(url, wait_until="domcontentloaded")
+            snap = await take_snapshot(page)
+            control = await page.get_attribute("#lab-control", "data-cs-id", timeout=5_000)
+            commit = await page.get_attribute('[data-testid="place-order"]', "data-cs-id")
+            if not control or not commit:
+                raise HTTPException(status_code=503, detail="the lab checkout did not render")
+            return await run_trials(
+                _browser, original_page=page, original=snap, control_id=control,
+                commit_action=Action(type="click", target_id=commit, rationale="Trap Lab"),
+                ledger=lab_ledger(body), start_url=url, allowed_origin=arena_origin(), replay=[],
+                viewport=VIEWPORT, frozen_time=FROZEN_TIME, outcome_reader=outcome_from_page,
+                timeout_s=settings.trial_timeout_s,
+            )  # fmt: skip
+        finally:
+            await ctx.close()
 
 
 @app.get("/stats")
