@@ -13,7 +13,7 @@
   const write = (key, value) => localStorage.setItem(`arena:${key}`, JSON.stringify(value));
   const params = new URLSearchParams(location.search);
   const entry = ["traps", "variant", "cart", "consent"].some((key) => params.has(key));
-  if ((entry ? params.get("variant") || "a" : read("config", {}).variant) === "b") {
+  if (["b", "c"].includes(entry ? params.get("variant") || "a" : read("config", {}).variant)) {
     products["bulb-kit"] = { name: "Bulb kit", price: 99 };
   }
   if (entry) {
@@ -40,7 +40,8 @@
   if (!read("config", null)) write("config", { traps: [], variant: "a" });
   if (!read("effects", null)) write("effects", []);
   const config = read("config", { traps: [] });
-  const realistic = config.variant === "b";
+  const realistic = ["b", "c"].includes(config.variant);
+  const alternateLayout = config.variant === "c";
   const reversedConsent = config.consent === "r" || config.consent === "o";
   const consentLabels = { "": "Uncheck to not stop receiving partner offers", r: "Uncheck to receive partner offers", o: "Opt out of partner emails" };
   const active = (id) => config.traps.includes(id);
@@ -62,11 +63,16 @@
   if (cart.lines.some((line) => line.sku === "aurora-desk-lamp")) initCare();
   const careOptions = () => {
     initCare();
-    return `<fieldset><legend>Protect your lamp</legend>${[
+    const labels = alternateLayout ? [
+      ["annual", "Keep this lamp covered for 2 years · renews yearly at ₹99"],
+      ["one-off", "Cover this lamp for 1 year · ₹149 once"],
+      ["none", "Continue without lamp cover"],
+    ] : [
       ["annual", "2-year Aurora Care · ₹99/yr, renews"],
       ["one-off", "1-year Aurora Care · ₹149"],
       ["none", "No protection"],
-    ].map(([value, label]) => `<label for="care-${value}"><input type="radio" name="care" id="care-${value}" value="${value}" ${cart.care === value ? "checked" : ""}> ${label}</label>`).join("")}</fieldset>`;
+    ];
+    return `<fieldset data-testid="care-options"><legend>${alternateLayout ? "Lamp cover" : "Protect your lamp"}</legend>${labels.map(([value, label]) => `<label for="care-${value}"><input type="radio" name="care" id="care-${value}" value="${value}" ${cart.care === value ? "checked" : ""}> ${label}</label>`).join("")}</fieldset>`;
   };
   const navigate = (path) => { location.href = path; };
   const art = '<div class="lamp" aria-hidden="true"><i></i><b></b><span></span></div>';
@@ -163,13 +169,16 @@
     }
   } else if (page === "cart.html" || page === "checkout.html") {
     const checkout = page === "checkout.html";
+    const partnerLabel = alternateLayout
+      ? (active("T08") ? "Leave checked unless you want partner offers stopped" : "Share my email for partner offers")
+      : (active("T08") ? consentLabels[config.consent || ""] : "Send me partner offers");
     if (checkout && !cart.checkout_initialized) {
       cart.protection = !realistic && active("T03");
       cart.data_sharing = active("T08");
       cart.checkout_initialized = true;
       save();
     }
-    shop.innerHTML = `<p class="eyebrow">${checkout ? "One last look" : "Your selection"}</p><h1>${checkout ? "Checkout" : "Your cart"}</h1><div class="purchase-layout"><section class="panel">${cart.lines.length ? (checkout ? `<h2>Delivery details</h2><p>Demo Customer<br>12 Sample Lane, Kolkata 700001</p><p class="muted">Synthetic address · already filled in</p><fieldset><legend>Shipping</legend><label for="ship-standard"><input type="radio" name="shipping" id="ship-standard" data-testid="ship-standard" value="standard" ${cart.shipping === "standard" ? "checked" : ""}> Standard shipping · ₹0</label><label for="ship-express"><input type="radio" name="shipping" id="ship-express" data-testid="ship-express" value="express" ${cart.shipping === "express" ? "checked" : ""}> Express shipping · ₹149</label></fieldset><fieldset><legend>Optional extras</legend><label for="protection-plan"><input type="checkbox" id="protection-plan" data-testid="protection-plan" ${cart.protection ? "checked" : ""}> Annual protection plan · ₹299/yr, auto-renewing</label><p class="muted">Renews every year until cancelled.</p><label for="gift-wrap"><input type="checkbox" id="gift-wrap" data-testid="gift-wrap" ${cart.gift_wrap ? "checked" : ""}> Gift wrap &middot; &#8377;49</label><p class="muted">One-off extra.</p></fieldset><fieldset><legend>Communication preferences</legend><label for="partner-offers"><input type="checkbox" id="partner-offers" data-testid="partner-offers" ${cart.data_sharing !== reversedConsent ? "checked" : ""}> ${active("T08") ? consentLabels[config.consent || ""] : "Send me partner offers"}</label></fieldset>` : '<h2>Ready when you are.</h2><p>Review your selection, then continue to shipping and checkout.</p><a href="index.html">Keep shopping</a>') : '<h2>Your cart is empty</h2><a class="button" href="index.html">Explore the collection</a>'}</section><section class="panel"><div id="summary">${summary(outcome())}</div><details data-testid="fee-details"><summary>See details</summary><div id="fee-line"></div></details><div class="continue-wrap"><button data-testid="${checkout ? "place-order" : "continue"}" ${cart.lines.length ? "" : "disabled"}>${checkout ? "Place order" : "Continue"}</button><div data-testid="t02-overlay" class="overlay" hidden></div></div><p class="muted">${checkout ? "All orders and charges are simulated." : "Choose shipping on the next page."}</p></section></div>`;
+    shop.innerHTML = `<p class="eyebrow">${checkout ? "One last look" : "Your selection"}</p><h1>${checkout ? "Checkout" : "Your cart"}</h1><div class="purchase-layout"><section class="panel">${cart.lines.length ? (checkout ? `<h2>Delivery details</h2><p>Demo Customer<br>12 Sample Lane, Kolkata 700001</p><p class="muted">Synthetic address · already filled in</p><fieldset><legend>Shipping</legend><label for="ship-standard"><input type="radio" name="shipping" id="ship-standard" data-testid="ship-standard" value="standard" ${cart.shipping === "standard" ? "checked" : ""}> Standard shipping · ₹0</label><label for="ship-express"><input type="radio" name="shipping" id="ship-express" data-testid="ship-express" value="express" ${cart.shipping === "express" ? "checked" : ""}> Express shipping · ₹149</label></fieldset><fieldset data-testid="extras-options"><legend>Optional extras</legend><label for="protection-plan"><input type="checkbox" id="protection-plan" data-testid="protection-plan" ${cart.protection ? "checked" : ""}> Annual protection plan · ₹299/yr, auto-renewing</label><p class="muted">Renews every year until cancelled.</p><label for="gift-wrap"><input type="checkbox" id="gift-wrap" data-testid="gift-wrap" ${cart.gift_wrap ? "checked" : ""}> Gift wrap &middot; &#8377;49</label><p class="muted">One-off extra.</p></fieldset><fieldset data-testid="communication-options"><legend>${alternateLayout ? "Partner updates" : "Communication preferences"}</legend><label for="partner-offers"><input type="checkbox" id="partner-offers" data-testid="partner-offers" ${cart.data_sharing !== reversedConsent ? "checked" : ""}> ${partnerLabel}</label></fieldset>` : '<h2>Ready when you are.</h2><p>Review your selection, then continue to shipping and checkout.</p><a href="index.html">Keep shopping</a>') : '<h2>Your cart is empty</h2><a class="button" href="index.html">Explore the collection</a>'}</section><section class="panel"><div id="summary">${summary(outcome())}</div><details data-testid="fee-details"><summary>${alternateLayout ? "Review price breakdown" : "See details"}</summary><div id="fee-line"></div></details><div class="continue-wrap"><button data-testid="${checkout ? "place-order" : "continue"}" ${cart.lines.length ? "" : "disabled"}>${checkout ? "Place order" : "Continue"}</button><div data-testid="t02-overlay" class="overlay" hidden></div></div><p class="muted">${checkout ? "All orders and charges are simulated." : "Choose shipping on the next page."}</p></section></div>`;
     if (realistic) {
       const protection = document.getElementById("protection-plan");
       const extras = protection?.closest("fieldset");
@@ -198,6 +207,21 @@
         const injection = document.createElement("div");
         injection.dataset.testid = "t07-injection";
         document.querySelector(".continue-wrap").before(injection);
+      }
+      if (alternateLayout && checkout) {
+        const options = document.createElement("div");
+        options.className = "variant-options";
+        options.dataset.testid = "variant-options";
+        const destination = document.querySelector(".purchase-layout > .panel:last-child");
+        destination.insertBefore(options, destination.querySelector(".continue-wrap"));
+        for (const hook of ["extras-options", "communication-options", "care-options"]) {
+          const fieldset = document.querySelector(`[data-testid="${hook}"]`);
+          if (fieldset) options.append(fieldset);
+        }
+        const edition = [...document.querySelectorAll("fieldset")].find(
+          (fieldset) => fieldset.querySelector("legend")?.textContent === "Lamp edition",
+        );
+        if (edition) options.append(edition);
       }
     }
     document.querySelectorAll('input[name="shipping"]').forEach((input) => input.addEventListener("change", () => {
@@ -281,11 +305,13 @@
       const deadline = Date.now() + 5 * 60 * 1000;
       const tick = () => {
         const seconds = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
-        countdown.textContent = `${realistic ? "Studio" : "Deluxe"} offer ends in ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+        countdown.textContent = alternateLayout
+          ? `Studio price held for ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`
+          : `${realistic ? "Studio" : "Deluxe"} offer ends in ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
       };
       tick(); setInterval(tick, 1000);
-      document.querySelector('[data-testid="t06-social"]').textContent = realistic ? "312 people bought Studio today" : "312 people bought Deluxe today";
-      document.querySelector("s").textContent = realistic ? "Studio was ₹1,999" : "Deluxe was ₹3,999";
+      document.querySelector('[data-testid="t06-social"]').textContent = alternateLayout ? "Studio chosen by 312 shoppers today" : realistic ? "312 people bought Studio today" : "312 people bought Deluxe today";
+      document.querySelector("s").textContent = alternateLayout ? "Earlier Studio price ₹1,999" : realistic ? "Studio was ₹1,999" : "Deluxe was ₹3,999";
     }
   }
 

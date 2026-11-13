@@ -2,14 +2,14 @@ Aegis Shield Console and static Aurora Home arena. Scope and contracts are defin
 
 Set `NEXT_PUBLIC_API_URL` using `.env.example`, then run `pnpm dev`. The browser connects directly to FastAPI; its CORS configuration must allow the web origin.
 
-- `/`: first-visit animated entrance. Repeat visits in the same tab go directly to `/console`.
+- `/`: animated entrance on every direct visit or refresh. The completed slider enters `/console`.
 - `/console`: server-provided demo presets, live launch requests, and a separately labelled sample stream. Use this direct URL for stage demos.
 - `/?intro=play`: replay the entrance; `/?intro=skip`: bypass it.
 - `/runs`: stored run list, with an unavailable state while persistence returns HTTP 501.
 - `/runs/<id>`: live comparison, queue position at launch, screenshots, step counters, verdict evidence, and the permission ledger.
 - `/runs/<id>?replay=1`: stored-event replay with previous/next steps and a slider; always marked REPLAY.
 - `/runs/sample?replay=1`: sample replay, also marked SAMPLE DATA.
-- `/stats`: server-provided evaluation counts, explicitly labelled when illustrative.
+- `/stats`: server-provided evaluation counts and latency fields. Sample, pilot and final data always carry distinct labels; every rate keeps its count and denominator visible.
 - `/health`: remote Chromium infrastructure check.
 - `/arena/index.html?traps=none`: clean simulated shop.
 
@@ -29,6 +29,8 @@ Day 3 console and arena:
 - Audit evidence cards show permission, page evidence, verdict, correction proposal/execution, and a recheck linked by `recheck_of`. Missing evidence is shown as missing. Permitted options stay neutral; uncertain checks ask for a human decision.
 - Outcome cards group proposed, approved, and executed commitments, show stop reasons and totals, and mark commitments unique to one side. Incomplete runs are never described as safe completion.
 - Gift wrap is available on checkout in all configurations via the existing `gift-wrap` hook. It starts unchecked, costs ₹49 once, persists across pages, appears in the receipt and `arena-outcome.addons`, and never creates a recurring term. Clean lamp plus gift wrap totals ₹1,348. Its label matches Dev A's R1 fixture, “Gift wrap · ₹49”.
+- Finished permission-pair runs offer a fresh counterpart run using `Preset.pair_of`; they never mutate the completed ledger. When a completed counterpart exists in the latest stored runs, the page compares both ledgers and shielded outcomes and links to the counterpart with a visible replay label.
+- Auto-approved presets use the exact label “Simulated demo approval — not human consent”. Cached decisions, samples and replays retain their separate labels.
 
 Checks: `pnpm typecheck`, `pnpm lint`, `pnpm build`, and `node --test lib/events.test.mjs lib/run-evidence.test.mjs lib/verify-day1.test.mjs`. Generated `lib/api-types.ts` must come from the server OpenAPI; never edit it manually.
 
@@ -54,6 +56,8 @@ B-D2-TR arena handoff (`variant=b`; variant `a` keeps the original behavior):
 
 Browser contract checks: from `server/`, run `uv run python ../web/lib/verify-arena.py`. With installed Chrome, set `ARENA_BROWSER_CHANNEL=chrome`. They serve only the static arena and test purchases, receipts, recovery, disclosures, downloads, partner effects and clean/original totals without LLM calls.
 
+Variant `c` keeps variant `b` prices, effects and test ids while changing the fixed wording for T03, T04, T06 and T08. On checkout it moves the optional controls below the order summary. The browser contract checks cover the alternate wording, location, totals and confirmations; variant `a` and `b` behavior is unchanged.
+
 Deployment verification:
 
 1. In Vercel, use `web/` as the project root and set `NEXT_PUBLIC_API_URL` to the public FastAPI origin before building. Redeploy after changing this build-time variable.
@@ -61,3 +65,13 @@ Deployment verification:
 3. From `web/`, run `pnpm verify:day1 --web https://YOUR-WEB-HOST --server https://YOUR-SERVER-HOST`. This checks public routes, exact-origin CORS, remote Chromium, arena access, one LLM smoke call, presets, and the complete labelled sample stream. It does not create a real agent run.
 4. At 1280×720, confirm `/health` renders its screenshot. Play the sample, click a verdict to inspect its highlight, and verify one event-stream connection ends after both sides finish. Open sample replay and step forward/back. Repeat public access from a phone hotspot.
 5. After Dev A restarts the backend at current main, launch the clean preset and verify the ledger arrives, a final-payment ASK opens, and both sides complete the purchase. A mocked browser run validates frontend wiring but does not satisfy the deployed live-run gate.
+
+Human-only release checks (these require the deployed services, provider quota or a physical network/device):
+
+1. Run `r1b-forbidden` from `/console`. Confirm the shielded evidence shows the unauthorized plan, correction, linked recheck, final-payment approval and final outcome without the plan.
+2. From that completed page, use the permission-pair action to start `r1b-authorized`. Confirm it creates a new ledger, permits and purchases the plan, and then shows both ledgers/outcomes side by side. Also open the stored counterpart and confirm `REPLAY` remains visible.
+3. At 1280×720, run `main-demo` three times with a stopwatch. Each paired run must finish under 90 seconds, keep equal pane sizes, avoid page-level horizontal scrolling and make the outcome difference readable within five seconds.
+4. On `/stats`, check the current label (`PILOT — not a result` or `FINAL`), model, N, counts/denominators and three chosen values against the published summary CSV.
+5. Open the public web URL over phone mobile data. Run `pnpm verify:day1 --web https://YOUR-WEB-HOST --server https://YOUR-SERVER-HOST`, then complete one preset from the phone/hotspot path.
+6. Capture screenshots of `SAMPLE DATA`, `REPLAY`, `Replayed decision`, and `Simulated demo approval — not human consent`. File any missing or misleading label as P0.
+7. Run the complete two-minute script with Dev A, record segment times, then make the labelled backup recording after the final deployment.

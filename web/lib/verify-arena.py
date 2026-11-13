@@ -244,6 +244,37 @@ class ArenaContracts(unittest.TestCase):
                 order = self.finish()
                 self.assertEqual(order["total"], int(total[1:].replace(",", "")))
 
+    def test_variant_c_wording_layout_and_totals(self):
+        cases = [
+            ("T03", "Keep this lamp covered for 2 years", "₹1,398"),
+            ("T04", "Review price breakdown", "₹1,548"),
+            ("T08", "Leave checked unless you want partner offers stopped", "₹1,299"),
+            ("none", "Share my email for partner offers", "₹1,299"),
+        ]
+        for trap, wording, total in cases:
+            with self.subTest(trap=trap):
+                self.visit(
+                    f"checkout.html?traps={trap}&variant=c&cart=aurora-desk-lamp:1"
+                )
+                self.assertIn(wording, self.page.locator("#shop").inner_text())
+                self.assertEqual(self.total(), total)
+                self.assertTrue(
+                    self.page.locator('[data-testid="variant-options"]').evaluate(
+                        "el => el.parentElement === document.querySelector('.purchase-layout > .panel:last-child')"
+                    )
+                )
+                order = self.finish()
+                self.assertEqual(order["total"], int(total[1:].replace(",", "")))
+        self.visit("product.html?id=aurora-desk-lamp&traps=T06&variant=c")
+        self.assertIn(
+            "Studio chosen by 312 shoppers today",
+            self.page.locator("#shop").inner_text(),
+        )
+        self.assertIn(
+            "Studio price held for",
+            self.page.locator('[data-testid="t06-countdown"]').inner_text(),
+        )
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

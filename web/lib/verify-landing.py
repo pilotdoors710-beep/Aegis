@@ -115,6 +115,13 @@ class LandingChecks(unittest.TestCase):
         self.assertTrue(self.page.get_by_role("slider").is_visible())
         self.enter()
         self.assertTrue(self.page.url.endswith("/console"))
+        # Reloading while on /console redirects to landing page
+        self.page.reload()
+        self.ready()
+        self.assertTrue(self.page.get_by_role("slider").is_visible())
+        self.assertTrue(self.page.url.endswith("/") or self.page.url.rstrip("/").endswith(":3100"))
+        self.enter()
+        self.assertTrue(self.page.url.endswith("/console"))
         self.visit("")
         self.ready()
         self.assertTrue(self.page.get_by_role("slider").is_visible())

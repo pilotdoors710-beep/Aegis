@@ -39,7 +39,7 @@ export default function ConsolePage() {
     <section className="preset-section"><div className="section-heading"><h2>Demo presets</h2><span>Tasks fixed before each run</span></div>
       {error && <p role="alert" className="error-message">{error}</p>}
       {!presets.length && !error && <p role="status">Loading presets…</p>}
-      <div className="preset-grid">{presets.map((preset) => <article className="console-card" key={preset.id}><div className="section-heading"><span className="eyebrow">{preset.traps.join(" / ")}</span><ArrowRight size={16} /></div><h3>{preset.title}</h3><p>{preset.description}</p><details><summary>View task</summary><p>{preset.task}</p>{preset.auto_approve && <p>Simulated demo approval preset</p>}</details><button className="primary-button" disabled={launching !== null} onClick={() => launch(preset.id)}>{launching === preset.id ? "Starting..." : "Launch live run"}</button></article>)}</div>
+      <div className="preset-grid">{presets.map((preset) => <article className="console-card" key={preset.id}><div className="section-heading"><span className="eyebrow">{preset.traps.join(" / ")}</span><ArrowRight size={16} /></div><h3>{preset.title}</h3><p>{preset.description}</p><details><summary>View task</summary><p>{preset.task}</p>{preset.auto_approve && <p><strong className="badge">Simulated demo approval — not human consent</strong></p>}</details><button className="primary-button" disabled={launching !== null} onClick={() => launch(preset.id)}>{launching === preset.id ? "Starting..." : "Launch live run"}</button></article>)}</div>
     </section>
   </>;
 }

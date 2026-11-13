@@ -22,6 +22,13 @@ Template:
 
 ## Log
 
+### 2026-11-13 · Dev B · Antigravity · refresh on console redirects to landing page
+- Configured reload detection in the Shield Console layout via synchronous inline script and client redirect effect.
+- Hitting browser refresh (F5, Ctrl+R, reload button) on the main page (/console) now seamlessly redirects to the landing page (/) without flashing console UI.
+- Direct navigation (stage demo, deep link, external link) and internal client-side navigation inside the console remain fully functional.
+- Updated landing test suite to verify that reloading while on /console brings back the landing page and slider.
+- All web typechecks, ESLint, 12 unit tests, and Next.js production build pass cleanly.
+
 ### 2026-11-13 · Dev B · Antigravity · console color scheme update
 - Updated the Shield Console and main webpage color scheme to use the requested shades #7C7D75, #ADACA7, #FCF8D8, #D9DADF, and accent color #DD700B.
 - Mapped warm cream #FCF8D8 to primary titles and headings; light silver #D9DADF to body copy and table cells; warm gray #ADACA7 to eyebrows and metadata; slate #7C7D75 to surfaces, cards and borders.

@@ -7,6 +7,7 @@ import { approvalLabels, latestAsks, pendingAsk } from "@/lib/run-evidence";
 import { ApprovalDialog } from "./approval-dialog";
 import { EvidenceCards } from "./evidence-cards";
 import { OutcomeCards } from "./outcome-cards";
+import { PermissionPair } from "./permission-pair";
 
 type VerdictEvent = Extract<RunEvent, { kind: "verdict" }>;
 
@@ -74,11 +75,13 @@ function AgentPane({ mode, events, summary }: { mode: RunEvent["mode"]; events: 
 }
 
 export function RunComparison({ summary, events, status, error, replay = false }: { summary: Schema["RunSummary"] | null; events: RunEvent[]; status: string; error?: string | null; replay?: boolean }) {
+  const finished = (["unshielded", "shielded"] as const).every((mode) => events.some((event) => event.kind === "done" && event.mode === mode));
   return <section className="run-section" aria-label="Run comparison">
     <div className="section-heading"><h2>Run comparison</h2><div>{replay && <strong className="badge">REPLAY</strong>} {summary?.is_sample && <strong className="badge">SAMPLE DATA</strong>} <span role="status">{status}</span></div></div>
     {error && <p className="error-message" role="alert">{error}</p>}
     {summary && <p className="run-task">{summary.task}</p>}
     <OutcomeCards events={events} summary={summary} />
+    {summary && <PermissionPair summary={summary} finished={finished} />}
     <div className="comparison-grid">{(["unshielded", "shielded"] as const).map((mode) => <AgentPane key={mode} mode={mode} events={events} summary={summary} />)}</div>
     {latestAsks(events).length > 0 && <section className="approval-history" aria-label="Approval history"><h2>Approval history</h2>{latestAsks(events).map((ask) => <p key={ask.payload.ask_id}>{summary?.is_sample ? "Recorded sample · " : replay ? "Recorded response · " : ""}{approvalLabels[ask.payload.status]} · {ask.payload.reason.replaceAll("_", " ")}</p>)}</section>}
     <EvidenceCards events={events} />

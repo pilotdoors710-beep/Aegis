@@ -22,6 +22,7 @@ p { margin: 10px 0; }
 .product-card .lamp { float: right; transform: scale(.75); transform-origin: top right; margin-left: 20px; height: 170px; }
 .product-card p:not(.price):not(.eyebrow) { max-width: 290px; color: #516054; font-size: 14px; }
 .price { font-size: 25px; font-variant-numeric: tabular-nums; }
+.variant-options { display: grid; gap: 12px; margin: 16px 0; }
 button, .button { display: inline-block; border: 0; border-radius: 3px; padding: 13px 22px; background: var(--accent); color: white; text-decoration: none; font: inherit; cursor: pointer; }
 button:hover, .button:hover { background: #294334; }
 button:disabled { opacity: .5; cursor: default; }
