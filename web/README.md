@@ -39,7 +39,7 @@ Landing entrance (13 Nov — Hero Redesign):
 - Centered, cinematic hero composed entirely in-viewport (100svh, non-scrolling) over the animated ThreeUI FlowField background:
   1. `AEGIS` title: single `h1` in Roboto Slab (#FCF8D8), rising through a clipped mask and sharpening from blur (0–800ms).
   2. `COMMIT BEFORE CODE` quote: restrained uppercase sans-serif (#D9DADF) accompanied by an expanding orange rule (#DD700B, 700–1,400ms).
-  3. Description: verbatim mission statement (#ADACA7) rendered with interactive MathScramble canvas waves, flipping words into mathematical symbols in the Aegis palette on pointer hover and ambient autoplay drift (1,300–2,100ms).
+  3. Description: verbatim mission statement (#ADACA7) fading upward as a unified block (1,300–2,100ms).
   4. Slider control: visible "SLIDE TO ENTER" monospace label (#ADACA7) and centered pill slider (#1c1d1a track, #7C7D75 border, #DD700B thumb, 2,050–2,550ms), disabled until revealed.
 - Progressive FlowField dimming: background opacity and contrast soften across beats (~85% -> 55% -> 32%) using a neutral #7C7D75 veil overlay (`mix-blend-mode: multiply`) without altering shader speed.
 - Slider interaction: drag right with pointer capture or keyboard (Right Arrow / End); completing 90% travel commits entrance, fading hero copy and slider into the existing 3D square-frame tunnel flight, completing at 1,800ms with navigation to `/console`.

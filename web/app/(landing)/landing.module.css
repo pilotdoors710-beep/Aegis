@@ -167,56 +167,28 @@
   transform: scaleX(1);
 }
 
-/* Description copy block with interactive MathScramble */
-.descriptionWrapper {
-  position: relative;
-  width: 100%;
+/* Description copy block */
+.description {
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: clamp(14px, 1.7vw, 17px);
+  font-weight: 400;
+  line-height: 1.65;
+  color: #ADACA7;
   max-width: 600px;
-  min-height: 125px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  margin: 0;
+  padding-inline: 12px;
+  text-align: center;
+  text-wrap: balance;
   opacity: 0;
   transform: translateY(16px);
   transition: opacity 800ms ease, transform 800ms cubic-bezier(0.16, 1, 0.3, 1);
   will-change: opacity, transform;
 }
 
-.hero[data-stage="description"] .descriptionWrapper,
-.hero[data-stage="ready"] .descriptionWrapper {
+.hero[data-stage="description"] .description,
+.hero[data-stage="ready"] .description {
   opacity: 1;
   transform: translateY(0);
-}
-
-.description {
-  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: clamp(14px, 1.7vw, 17px);
-  font-weight: 400;
-  line-height: 1.65;
-  color: transparent;
-  max-width: 600px;
-  margin: 0;
-  padding-inline: 12px;
-  user-select: none;
-  pointer-events: none;
-}
-
-.mathScrambleLayer {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.landing[data-reduced="true"] .description {
-  color: #ADACA7;
-  user-select: auto;
-  pointer-events: auto;
-}
-
-.landing[data-reduced="true"] .mathScrambleLayer {
-  display: none;
 }
 
 /* Slider and visible label */
@@ -354,9 +326,6 @@
   .quote {
     font-size: 11px;
   }
-  .descriptionWrapper {
-    min-height: 95px;
-  }
   .description {
     font-size: 12px;
     line-height: 1.45;
@@ -412,14 +381,9 @@
   .orangeRule {
     transform: none !important;
   }
-  .descriptionWrapper {
-    opacity: 1 !important;
-    transform: none !important;
-  }
   .description {
     opacity: 1 !important;
     transform: none !important;
-    color: #ADACA7 !important;
   }
   .controlBlock {
     opacity: 1 !important;
