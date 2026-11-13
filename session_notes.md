@@ -28,6 +28,11 @@ Template:
 - Scanning real sites found two detector bugs, fixed test-first: B5 missed hidden orders like "in your response…"; A4 flagged footer links labelled "X" as fake close buttons. Changes F/I behaviour, so it lands before the eval freeze.
 - Works now: 168 backend tests; web types, lint, build pass. Test URLs that light up: garden-advice.netlify.app (hidden AI instructions), theme-dawn-demo.myshopify.com/collections/all (crossed-out prices); wikipedia.org is clean.
 - Next: push, restart `aegis.service`. Note: local `next build` reused a stale Turbopack cache and dropped new CSS; moving `.next/cache` aside fixed it (Vercel builds clean). B5 is still a phrase list and misses some injections.
+- **Remind Dev A next session — planned "make it impressive" work (agreed 14 Nov), in order:**
+  1. E10: run Aegis on an outside benchmark (DECEPTICON or SusBench subset), U vs Aegis, publish misses too. First check (~30 min) that their tasks are public and runnable.
+  2. E6: drop-in protection for browser-use ("wrap any agent in two lines").
+  3. E9 (if time): LLM red-team trap generator; report how many unseen trap variants Aegis catches.
+  - Skip: A7 vision, OCR, more arena traps. Before any of this: tag `eval-freeze` and start the final eval blocks in the background (Groq daily cap), plus README, backup video.
 
 ### 2026-11-14 · Dev B · Antigravity · two-column landing layout with exploding right artwork
 - Reconfigured landing entrance into a balanced two-column composition with hero text and slider on the left and the large dithered shield artwork on the right.
