@@ -10,7 +10,10 @@ export class ApiError extends Error {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, init);
-  if (!response.ok) throw new ApiError(response.status, response.status === 501 ? "This server feature is not available yet." : `Server request failed (HTTP ${response.status}).`);
+  if (!response.ok) {
+    const detail = await response.json().then((b) => b?.detail, () => null);  // FastAPI's reason, when it is plain text
+    throw new ApiError(response.status, response.status === 501 ? "This server feature is not available yet." : typeof detail === "string" ? detail : `Server request failed (HTTP ${response.status}).`);
+  }
   return response.json() as Promise<T>;
 }
 
@@ -24,6 +27,9 @@ export const api = {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
   }),
   labTrial: (body: Schema["LabRequest"]) => request<Schema["TrialReport"]>("/lab/trial", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  }),
+  scan: (body: Schema["ScanRequest"]) => request<Schema["ScanReport"]>("/scan", {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
   }),
   resolveAsk: (id: string, askId: string, body: Schema["AskDecision"]) => request<Schema["AskPayload"]>(

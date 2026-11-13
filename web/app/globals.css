@@ -110,6 +110,12 @@
 .lab-form legend { float: left; width: 100%; margin-bottom: 18px; }
 .lab-form legend + * { clear: both; }
 .lab-form input[type="text"], .lab-form select { width: 100%; background: #0f100e; border: 1px solid #7C7D75; border-radius: 5px; padding: 10px; color: #FCF8D8; font-size: 13px; margin-bottom: 12px; }
+.scan-form { margin-bottom: 18px; }
+.scan-form label { display: block; font-size: 11px; color: #ADACA7; margin-bottom: 6px; }
+.scan-form input { width: 100%; background: #0f100e; border: 1px solid #7C7D75; border-radius: 5px; padding: 10px; color: #FCF8D8; font-size: 13px; margin-bottom: 12px; }
+.scan-form .primary-button { margin-top: 12px; }
+.scan-result { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; margin-bottom: 16px; }
+.scan-result .event-feed { height: auto; max-height: 460px; }
 .lab-form .check { display: flex; gap: 8px; align-items: center; font-size: 12px; color: #D9DADF; margin-bottom: 10px; }
 .lab-examples { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .lab-verdict { margin-bottom: 18px; }
@@ -127,7 +133,7 @@
   .sample-banner { align-items: flex-start; flex-direction: column; }
 }
 @media (max-width: 540px) {
-  .comparison-grid, .preset-grid, .lab-form { grid-template-columns: minmax(0, 1fr); }
+  .comparison-grid, .preset-grid, .lab-form, .scan-result { grid-template-columns: minmax(0, 1fr); }
   .console-header nav { gap: 20px; }
   .intro-shield { display: none; }
 }
