@@ -11,16 +11,15 @@ export function artworkRenderer(canvas: HTMLCanvasElement, pixels: ReturnType<ty
       layout(location=2) in vec2 scatter;
       layout(location=3) in vec3 color;
       layout(location=4) in float delay;
-      uniform float progress; uniform float hover; uniform vec2 logoScale; uniform vec2 logoCenter; uniform float aspect; uniform float cell;
+      uniform float progress; uniform float hover; uniform float cell;
       out vec3 tone; out float alpha;
       void main() {
         float p=clamp((progress-delay)/.78,0.,1.);
         float eased=1.-pow(1.-p,3.);
-        vec2 targetPos=target*(1.+0.06*hover*p)*logoScale + logoCenter;
-        vec2 pixelQuad=quad*cell*logoScale;
-        vec2 scatterPos=vec2(scatter.x * aspect, scatter.y) * 2.4 + logoCenter;
-        vec2 pos=mix(scatterPos,targetPos,eased)+pixelQuad;
-        gl_Position=vec4(pos,0.,1.);
+        vec2 targetPos=target*(1.+0.06*hover*p);
+        vec2 pixelQuad=quad*cell;
+        vec2 pos=mix(scatter,targetPos,eased)+pixelQuad;
+        gl_Position=vec4(pos*1.84,0.,1.);
         tone=color; alpha=1.;
       }`, `#version 300 es
       precision highp float; in vec3 tone; in float alpha; uniform float layerAlpha; out vec4 result;
@@ -37,42 +36,16 @@ export function artworkRenderer(canvas: HTMLCanvasElement, pixels: ReturnType<ty
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     const progressLoc = gl.getUniformLocation(program, "progress");
     const hoverLoc = gl.getUniformLocation(program, "hover");
-    const logoScaleLoc = gl.getUniformLocation(program, "logoScale");
-    const logoCenterLoc = gl.getUniformLocation(program, "logoCenter");
-    const aspectLoc = gl.getUniformLocation(program, "aspect");
     const layerAlphaLoc = gl.getUniformLocation(program, "layerAlpha");
     gl.uniform1f(gl.getUniformLocation(program, "cell"), pixels.cell);
     return {
-      draw(value: number, hoverValue = 0, layerAlphaValue = 1, origin?: { x: number; y: number; size: number } | null) {
+      draw(value: number, hoverValue = 0, layerAlphaValue = 1) {
         resize(canvas); gl.viewport(0, 0, canvas.width, canvas.height);
         gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
-        const box = canvas.getBoundingClientRect();
-        const w = box.width || canvas.width, h = box.height || canvas.height;
-        gl.uniform1f(aspectLoc, h / (w || 1));
-        if (origin) {
-          const btnSize = origin.size || 48;
-          gl.uniform2f(logoScaleLoc, (2 * btnSize) / w, (2 * btnSize) / h);
-          gl.uniform2f(logoCenterLoc, (2 * origin.x) / w - 1, 1 - (2 * origin.y) / h);
-        } else {
-          const mobile = w < 768;
-          const size = mobile ? Math.min(w * 0.90, h * 0.65) : Math.min(w * 0.72, h * 0.76, 900);
-          gl.uniform2f(logoScaleLoc, (2 * size) / w, (2 * size) / h);
-          gl.uniform2f(logoCenterLoc, 0, 0);
-        }
         gl.uniform1f(progressLoc, value);
         gl.uniform1f(hoverLoc, hoverValue);
         gl.uniform1f(layerAlphaLoc, layerAlphaValue);
         gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, pixels.count);
-      },
-      getSize() {
-        const box = canvas.getBoundingClientRect();
-        const w = box.width || canvas.width, h = box.height || canvas.height;
-        const mobile = w < 768;
-        return {
-          size: mobile ? Math.min(w * 0.90, h * 0.65) : Math.min(w * 0.72, h * 0.76, 900),
-          width: w,
-          height: h,
-        };
       },
       dispose: gpu.dispose,
     };

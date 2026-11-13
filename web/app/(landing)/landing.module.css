@@ -37,27 +37,6 @@
   will-change: opacity;
 }
 
-/* Centered particle artwork container for button explosion */
-.artworkContainer {
-  position: fixed;
-  inset: 0;
-  z-index: 7;
-  width: 100vw;
-  height: 100svh;
-  pointer-events: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.artworkCanvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-
 /* Dark background overlay for crossfading into the 3D tunnel */
 .darkOverlay {
   position: fixed;
@@ -80,20 +59,32 @@
   pointer-events: none;
 }
 
-/* Centered in-viewport hero composition */
-.hero {
+/* Two-column side-by-side composition: text on left, artwork on right */
+.composition {
   position: relative;
   z-index: 6;
-  pointer-events: none;
+  width: 100%;
+  max-width: 1400px;
+  margin: auto;
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  align-items: center;
+  justify-items: center;
+  gap: clamp(24px, 4vw, 56px);
+  padding: max(20px, env(safe-area-inset-top)) max(32px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(32px, env(safe-area-inset-left));
+}
+
+/* Left column hero text and slider */
+.hero {
+  position: relative;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
+  align-items: flex-start;
+  text-align: left;
   width: 100%;
-  max-width: 820px;
-  margin: auto;
-  padding: max(20px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
-  gap: clamp(12px, 2.3vh, 22px);
+  max-width: 580px;
+  gap: clamp(12px, 2.2vh, 22px);
+  pointer-events: none;
   transition: opacity 350ms cubic-bezier(0.2, 0.9, 0.3, 1), transform 350ms cubic-bezier(0.2, 0.9, 0.3, 1);
 }
 
@@ -113,13 +104,13 @@
   overflow: hidden;
   padding-block: 4px;
   display: inline-flex;
-  justify-content: center;
+  justify-content: flex-start;
   width: 100%;
 }
 
 .title {
   font-family: var(--font-landing-slab), serif;
-  font-size: clamp(44px, 8.5vw, 96px);
+  font-size: clamp(40px, 6.8vw, 84px);
   font-weight: 800;
   color: #FCF8D8;
   margin: 0;
@@ -151,7 +142,7 @@
 .quoteBlock {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   margin: 0;
   opacity: 0;
@@ -177,7 +168,7 @@
   background: #DD700B;
   border-radius: 1px;
   transform: scaleX(0);
-  transform-origin: center;
+  transform-origin: left;
   transition: transform 700ms cubic-bezier(0.16, 1, 0.3, 1);
   will-change: transform;
 }
@@ -195,14 +186,14 @@
   transform: scaleX(1);
 }
 
-/* Description copy block with MathScramble on top */
+/* Description copy block with MathScramble on hover */
 .descriptionBlock {
   position: relative;
   width: 100%;
-  max-width: 600px;
+  max-width: 540px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   opacity: 0;
   transform: translateY(16px);
   transition: opacity 800ms ease, transform 800ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -217,14 +208,14 @@
 
 .description {
   font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: clamp(14px, 1.7vw, 17px);
+  font-size: clamp(14px, 1.4vw, 16px);
   font-weight: 400;
   line-height: 1.65;
   color: #ADACA7;
-  max-width: 600px;
+  max-width: 540px;
   margin: 0;
-  padding-inline: 12px;
-  text-align: center;
+  padding-inline: 0;
+  text-align: left;
   text-wrap: balance;
   text-shadow: 0 2px 14px rgba(0, 0, 0, 0.95);
 }
@@ -234,7 +225,7 @@
   inset: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   pointer-events: auto;
 }
 
@@ -246,7 +237,7 @@
 .controlBlock {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   width: 100%;
   margin-top: clamp(4px, 1.4vh, 12px);
@@ -302,7 +293,7 @@
   outline-offset: 4px;
 }
 
-/* 48px draggable thumb featuring the dithered art as the button */
+/* 48px standard draggable thumb */
 .sliderThumb {
   position: absolute;
   top: 6px;
@@ -310,57 +301,59 @@
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: #0D0A09;
-  border: 1.5px solid #DD700B;
-  box-shadow: 0 0 10px rgba(221, 112, 11, 0.35), 0 2px 8px rgba(0, 0, 0, 0.6);
+  background: #DD700B;
+  border: 2px solid #FCF8D8;
+  box-shadow: 0 0 14px rgba(221, 112, 11, 0.6), 0 2px 8px rgba(0, 0, 0, 0.8);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: grab;
   touch-action: pan-y;
-  overflow: hidden;
   user-select: none;
   -webkit-user-select: none;
-  transition: opacity 150ms ease, box-shadow 200ms ease, border-color 200ms ease;
-}
-
-.sliderThumbArt {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  image-rendering: pixelated;
-  pointer-events: none;
-  user-select: none;
-  -webkit-user-drag: none;
-}
-
-.sliderThumbArrow {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: rgba(13, 10, 9, 0.65);
-  backdrop-filter: blur(2px);
-  pointer-events: none;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
-  transition: transform 150ms ease;
-}
-
-.sliderThumb:hover .sliderThumbArrow {
-  transform: translateX(1px);
+  transition: box-shadow 200ms ease, border-color 200ms ease;
 }
 
 .sliderThumb:active,
 .sliderTrack[data-dragging="true"] .sliderThumb {
   cursor: grabbing;
   border-color: #FCF8D8;
-  box-shadow: 0 0 18px rgba(221, 112, 11, 0.75), 0 4px 12px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 0 22px rgba(221, 112, 11, 0.9), 0 4px 12px rgba(0, 0, 0, 0.9);
+}
+
+/* Right column artwork wrapper */
+.artworkWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: min(520px, 44vw, 68svh);
+  aspect-ratio: 1;
+  position: relative;
+  pointer-events: auto;
+}
+
+.artwork {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  cursor: default;
+}
+
+.artworkImg,
+.artworkCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  pointer-events: none;
 }
 
 /* Emergency recovery link */
@@ -403,14 +396,56 @@
   letter-spacing: 0.04em;
 }
 
+/* Responsive constraints for screens <= 900px */
+@media (max-width: 900px) {
+  .composition {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding-block: 16px;
+  }
+  .hero {
+    align-items: center;
+    text-align: center;
+    max-width: 520px;
+  }
+  .titleMask {
+    justify-content: center;
+  }
+  .quoteBlock {
+    align-items: center;
+  }
+  .orangeRule {
+    transform-origin: center;
+  }
+  .descriptionBlock {
+    justify-content: center;
+  }
+  .description {
+    text-align: center;
+  }
+  .mathScrambleLayer {
+    justify-content: center;
+  }
+  .controlBlock {
+    align-items: center;
+  }
+  .sliderLabel {
+    text-align: center;
+  }
+  .artworkWrapper {
+    max-width: min(320px, 55vw, 34svh);
+    order: -1;
+  }
+}
+
 /* Responsive constraints for short laptop or phone heights */
 @media (max-height: 680px) {
   .hero {
     gap: 8px;
-    padding-block: 12px;
+    padding-block: 8px;
   }
   .title {
-    font-size: clamp(34px, 6.8vh, 50px);
+    font-size: clamp(32px, 6.2vh, 48px);
   }
   .quote {
     font-size: 11px;
@@ -418,7 +453,7 @@
   .description {
     font-size: 12px;
     line-height: 1.45;
-    max-width: 520px;
+    max-width: 480px;
   }
   .controlBlock {
     margin-top: 4px;
@@ -435,13 +470,8 @@
     width: 42px;
     height: 42px;
   }
-  .sliderThumbArrow {
-    width: 22px;
-    height: 22px;
-  }
-  .sliderThumbArrow svg {
-    width: 14px;
-    height: 14px;
+  .artworkWrapper {
+    max-width: min(340px, 40vw, 55svh);
   }
 }
 
@@ -459,6 +489,7 @@
   .hero *,
   .hero *::after,
   .hero *::before,
+  .composition *,
   .sceneWrapper,
   .veil {
     animation: none !important;
@@ -492,7 +523,8 @@
   }
 }
 
-.landing[data-reduced="true"] .hero * {
+.landing[data-reduced="true"] .hero *,
+.landing[data-reduced="true"] .composition * {
   animation: none !important;
   transition: none !important;
 }

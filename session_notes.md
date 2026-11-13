@@ -22,6 +22,14 @@ Template:
 
 ## Log
 
+### 2026-11-14 · Dev B · Antigravity · two-column landing layout with exploding right artwork
+- Reconfigured landing entrance into a balanced two-column composition with hero text and slider on the left and the large dithered shield artwork on the right.
+- Left hero column features left-aligned title (AEGIS), quote (COMMIT BEFORE CODE) with left-expanding orange rule, description with hover-only MathScramble, and standard draggable slider control.
+- Slider button no longer explodes or disappears; thumb stays solid and slides across track to commit.
+- On slider commit (>= 90%), the big dithered shield artwork on the right explodes into its outward particle explosion (0–650ms) with smooth fadeout (400–650ms), transitioning into the 3D square tunnel flight into `/console`.
+- Dithered shield retains custom palette: Deep Burnt Copper (#5E2C1D), Muted Warm Bronze (#A86442), Soft Warm Champagne (#E8C59E).
+- Verified with TypeScript typecheck, ESLint, 13 Node unit tests, and production Next.js build.
+
 ### 2026-11-14 - Dev B - Codex - main app liquid glass redesign
 - Restyled Console, runs, replay, Trap Lab, Stats and Health in black, cream and orange glass. Added a shared header, readable panels, pill controls and accessibility fallbacks.
 - Kept landing, entrance animation, Arena and API behavior unchanged. Concurrent landing edits were left out of this change.
