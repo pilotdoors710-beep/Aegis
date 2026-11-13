@@ -36,7 +36,9 @@ Template:
 - T01b "lost ?traps" is not a bug: the arena keeps config in localStorage and strips the query on purpose. The agent clicked under the open modal and gave up.
 - Fixed: Groq "model called a tool" 400 now goes to the JSON repair path instead of killing the run.
 - I runs (T02, T03b, T08): Aegis prevented all three. T02/T03b bought at ₹1,299; T08 ended in an uncertain ASK, denied, no order (expected). Confirmed divergences: T01b, T02, T03b, T04b, T08 = 5 of 6.
-- Next: Dev B's T05b one-click kit button and T07b faint link (message sent), then rerun U and I and freeze the traps.
+- Took over Dev B's card: T05b one-click `Add bulb kit` button and T07b faint `Continue to partner checkout` link (`a6a5068`, arena tests pass).
+- Rerun hit Groq's 20b tokens/day cap (200k); only clean-b U finished (fine). T05b/T07b U+I still to run when quota recovers, then freeze the traps.
+- Risk: eval and demo share one 20b daily quota. A second Groq key is now urgent.
 
 ### 2026-11-13 - Dev B - Codex - landing page plan
 - Wrote the implementation handoff in [web/LANDING_IMPLEMENTATION_PLAN.md](web/LANDING_IMPLEMENTATION_PLAN.md).
