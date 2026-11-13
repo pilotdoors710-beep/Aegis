@@ -17,21 +17,19 @@ export function LandingExperience({ children }: { children: ReactNode }) {
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const changePhase = useCallback((value: Phase) => { phaseRef.current = value; setPhase(value); }, []);
 
-  const navigate = useCallback((skip = false) => {
+  const navigate = useCallback(() => {
     if (navigated.current) return;
     navigated.current = true; accepted.current = true;
     changePhase("entering"); signalConsoleEntry();
-    if (skip) { try { sessionStorage.setItem(SEEN_KEY, "1"); } catch {} }
     router.replace("/console");
     timers.current.push(setTimeout(() => setRouteSlow(true), 2000));
   }, [changePhase, router]);
 
   useEffect(() => {
     let mounted = true;
+    try { sessionStorage.removeItem(SEEN_KEY); } catch {}
     const params = new URLSearchParams(location.search);
-    let seen = false;
-    try { seen = sessionStorage.getItem(SEEN_KEY) === "1"; } catch {}
-    if (params.get("intro") === "skip" || (seen && params.get("intro") !== "play")) navigate(true);
+    if (params.get("intro") === "skip") navigate();
     else queueMicrotask(() => { if (mounted) setInitialized(true); });
     router.prefetch("/console");
     const query = matchMedia("(prefers-reduced-motion: reduce)");
@@ -76,19 +74,17 @@ export function LandingExperience({ children }: { children: ReactNode }) {
     onClick={(event) => { if (!(event.target as HTMLElement).closest("a,button")) enter(); }}>
     <button className={styles.continue} aria-label="Enter Aegis console" disabled={["disassembling", "tunnel", "entering"].includes(phase)}
       onClick={enter} onKeyDown={(event) => { if (event.repeat) event.preventDefault(); }} />
-    <header className={styles.header}><span className={styles.brand}>AEGIS<span className={styles.brandSquare} /></span>
-      <a href="/console" onClick={(event) => { event.preventDefault(); navigate(true); }}>Skip intro <span aria-hidden="true">↗</span></a>
-    </header>
+    <header className={styles.header}><span className={styles.brand}>AEGIS<span className={styles.brandSquare} /></span></header>
     <div className={styles.composition}>
       <div className={styles.copy}>{children}</div>
       <AegisArtwork phase={phase} reduced={reduced} onLoaded={onLoaded} onSettled={settled} onExit={disassembled} />
     </div>
     <footer className={styles.footer}><span className={styles.index}>01 / BEFORE THE ACTION</span>
       <p className={styles.prompt}>Click anywhere to continue <span aria-hidden="true">▪</span></p>
-      <a href="/console" className={styles.direct} onClick={(event) => { event.preventDefault(); navigate(true); }}>Enter console <span aria-hidden="true">↗</span></a>
+      <span aria-hidden="true" />
     </footer>
     <SquareTunnel prepared={!reduced && (phase === "disassembling" || phase === "tunnel")} active={phase === "tunnel"} onComplete={navigate} />
     {routeSlow && <a className={styles.recovery} href="/console">Open console ↗</a>}
-    <noscript><style>{`.${styles.continue}{display:none} .${styles.landing}[data-initialized="false"] .${styles.composition}{opacity:1;visibility:visible}`}</style></noscript>
+    <noscript><style>{`.${styles.continue}{display:none} .${styles.landing}[data-initialized="false"] .${styles.composition}{opacity:1;visibility:visible}`}</style><a className={styles.recovery} href="/console">Open console ↗</a></noscript>
   </main>;
 }

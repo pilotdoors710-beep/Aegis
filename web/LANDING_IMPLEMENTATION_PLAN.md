@@ -58,7 +58,7 @@ Use separate route groups so the landing page does not inherit the console navig
 
 | URL | Behavior |
 | --- | --- |
-| / | Landing on first visit in this tab; subsequent visits go to /console |
+| / | Landing entrance on direct visits and whenever refreshed |
 | /console | Existing home screen and demo presets, immediately accessible |
 | /?intro=play | Explicitly replay the entrance, even after it was seen |
 | /?intro=skip | Immediately replace with /console |

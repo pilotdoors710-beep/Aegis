@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight, Play, ShieldCheck } from "lucide-react";
 import { api, type Schema } from "@/lib/api";
 import { RunView } from "../run-view";
-import { consumeConsoleEntry, SEEN_KEY } from "@/lib/landing/phases";
+import { consumeConsoleEntry } from "@/lib/landing/phases";
 
 export default function ConsolePage() {
   const router = useRouter();
@@ -23,7 +23,6 @@ export default function ConsolePage() {
   useEffect(() => {
     if (consumeConsoleEntry()) {
       document.getElementById("console-heading")?.focus({ preventScroll: true });
-      try { sessionStorage.setItem(SEEN_KEY, "1"); } catch {}
     }
   }, []);
   useEffect(() => {
