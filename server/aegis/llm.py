@@ -38,6 +38,10 @@ RETRYABLE = (
 MAX_BUCKET_WAIT_S = 8.0
 # The last provider has nothing to fall through to, so it waits out a 429 (TPM windows are 60 s).
 LAST_PROVIDER_429_RETRIES = 3
+# gpt-oss on Groq sometimes emits a tool call nobody offered (400). A plain resend usually returns
+# JSON, while the repair prompt tends to repeat the tool call. Same for every arm (shared router).
+TOOL_CALL_RESENDS = 2
+TOOL_CALL_OUTPUT = "(output was a tool call, not JSON)"
 MAX_RETRY_AFTER_S = 65.0
 
 
@@ -48,7 +52,7 @@ def _failed_generation(err: openai.BadRequestError) -> str | None:
     if isinstance(body.get("error"), dict):
         body = body["error"]
     if "called a tool" in str(body.get("message", "")) or "called a tool" in str(err):
-        return "(output was a tool call, not JSON)"
+        return TOOL_CALL_OUTPUT
     if body.get("code") != "json_validate_failed":
         return None
     text = body.get("failed_generation")
@@ -199,7 +203,8 @@ class LLMRouter:
                 continue
             started = time.perf_counter()
             resp = None
-            for attempt in range(LAST_PROVIDER_429_RETRIES + 1):
+            rate_limits = tool_calls = 0
+            while True:
                 try:
                     resp = await client.chat.completions.create(
                         model=model,
@@ -210,9 +215,10 @@ class LLMRouter:
                     )
                     break
                 except openai.RateLimitError as e:
-                    if not last or attempt == LAST_PROVIDER_429_RETRIES:
+                    if not last or rate_limits == LAST_PROVIDER_429_RETRIES:
                         errors.append(f"{slot}: RateLimitError")
                         break
+                    rate_limits += 1
                     await asyncio.sleep(_retry_after(e))
                 except RETRYABLE as e:
                     errors.append(f"{slot}: {type(e).__name__}")
@@ -223,6 +229,9 @@ class LLMRouter:
                     failed = _failed_generation(e) if json_mode else None
                     if failed is None:
                         raise
+                    if failed == TOOL_CALL_OUTPUT and tool_calls < TOOL_CALL_RESENDS:
+                        tool_calls += 1
+                        continue
                     ms = int((time.perf_counter() - started) * 1000)
                     return LLMResult(failed, provider, model, False, ms)
             if resp is None:

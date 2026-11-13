@@ -170,6 +170,21 @@ async def test_groq_spurious_tool_call_goes_to_repair() -> None:
     assert out.n == 4 and c.calls == 2
 
 
+async def test_repeated_tool_calls_are_resent_then_repaired() -> None:
+    """Two plain resends first; if the model keeps calling a tool, the repair prompt follows."""
+
+    def bad() -> openai.BadRequestError:
+        req = httpx.Request("POST", "https://x")
+        msg = "Tool choice is none, but model called a tool"
+        return openai.BadRequestError(
+            msg, response=httpx.Response(400, request=req), body={"message": msg}
+        )
+
+    c = FakeClient([bad(), bad(), bad(), '{"n": 5}'])
+    out, _ = await _router({"groq": c}, chain="groq:m2").complete_json(MSG, Out, use_cache=False)
+    assert out.n == 5 and c.calls == 4
+
+
 async def test_fallback_mode_replays_only_when_all_providers_fail() -> None:
     a = FakeClient(["fresh", "fresh again", _timeout()])
     router = _router({"gemini": a}, chain="gemini:m1", mode="fallback")

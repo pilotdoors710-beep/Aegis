@@ -25,7 +25,9 @@ Template:
 ### 2026-11-13 (evening) · Dev A · Claude Code · second and third Groq keys
 - Did: the LLM router now uses GROQ_API_KEY_2 and _3. When one key hits a rate limit, the same model is tried on the next key, then the next model.
 - Works now: all three keys answer on gpt-oss-20b. About 3× the daily runs (~75–80) on the same model, so eval stays on one pinned model.
-- Next: rerun T05b/T07b U+I, freeze the traps, shrink and freeze the eval case list.
+- Reran T05b/T07b on the new keys: T05b U took the bulb kit (₹1,398), I stopped it (₹1,299). **6 divergences now: T01b, T02, T03b, T04b, T05b, T08.** T07b no effect either side. Traps frozen.
+- Fixed: gpt-oss tool-call replies are resent up to twice before the repair prompt (one I run died on this).
+- Next: freeze the eval case list and N (A-D5-03), then demo timing.
 
 ### 2026-11-13 - Dev B - Codex - animated entrance
 - Built the landing page with original Medusa artwork, reversible pixels, and solid glowing 3D square frames using custom WebGL2.
