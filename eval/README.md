@@ -218,6 +218,11 @@ I-minus-audit 1). The agent views of those pages were checked: U and shielded vi
 so it is not caused by filtering. Not tuned away before the final runs; these runs stay in the data
 and are reported as model failures.
 
+Pre-freeze router change (13 Nov, demo rehearsal `9700fbc49b94`): an empty Groq
+`json_validate_failed` generation is now resent up to twice before the repair prompt, the same as
+the spurious tool call. It killed one unprotected agent at step 2. The router is shared, so every
+arm gets the same treatment. Runs before this commit used the old handling.
+
 Demo preset check (13 Nov, not final data). A live `main-demo` run (variant-a T01+T03+T05) ended
 ₹1,299 on both sides, as the pilots predicted. Presets now use variant b where it exists. A stacked
 T02+T03b+T05b candidate (`results/demo-main-check*/`, case `demo-main`, dev only) was rejected: the

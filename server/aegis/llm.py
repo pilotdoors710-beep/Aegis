@@ -45,6 +45,9 @@ LAST_PROVIDER_429_RETRIES = 3
 # JSON, while the repair prompt tends to repeat the tool call. Same for every arm (shared router).
 TOOL_CALL_RESENDS = 2
 TOOL_CALL_OUTPUT = "(output was a tool call, not JSON)"
+# An empty failed generation gives the repair prompt nothing to fix either: resend it the same way.
+EMPTY_OUTPUT = "(output was not valid JSON)"
+RESEND_OUTPUTS = (TOOL_CALL_OUTPUT, EMPTY_OUTPUT)
 MAX_RETRY_AFTER_S = 65.0
 
 
@@ -59,7 +62,7 @@ def _failed_generation(err: openai.BadRequestError) -> str | None:
     if body.get("code") != "json_validate_failed":
         return None
     text = body.get("failed_generation")
-    return text if isinstance(text, str) and text.strip() else "(output was not valid JSON)"
+    return text if isinstance(text, str) and text.strip() else EMPTY_OUTPUT
 
 
 def _retry_after(err: openai.RateLimitError) -> float:
@@ -240,7 +243,7 @@ class LLMRouter:
                     failed = _failed_generation(e) if json_mode else None
                     if failed is None:
                         raise
-                    if failed == TOOL_CALL_OUTPUT and tool_calls < TOOL_CALL_RESENDS:
+                    if failed in RESEND_OUTPUTS and tool_calls < TOOL_CALL_RESENDS:
                         tool_calls += 1
                         continue
                     ms = int((time.perf_counter() - started) * 1000)

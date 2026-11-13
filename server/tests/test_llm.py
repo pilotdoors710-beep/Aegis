@@ -216,3 +216,17 @@ async def test_second_key_takes_over_same_model_on_429() -> None:
     res = await router.complete(MSG, use_cache=False)
     assert (res.provider, res.model, res.text) == ("groq", "m2", "ok")
     assert (k1.calls, k2.calls, other.calls) == (1, 1, 0)
+
+
+async def test_empty_failed_generation_is_resent_like_a_tool_call() -> None:
+    """Live 9700fbc49b94: two empty json_validate_failed 400s killed an agent. An empty generation
+    gives the repair prompt nothing to fix, so it is resent first (same budget as tool calls)."""
+
+    def empty() -> openai.BadRequestError:
+        req = httpx.Request("POST", "https://x")
+        body = {"error": {"code": "json_validate_failed", "failed_generation": ""}}
+        return openai.BadRequestError("400", response=httpx.Response(400, request=req), body=body)
+
+    c = FakeClient([empty(), empty(), '{"n": 6}'])
+    out, _ = await _router({"groq": c}, chain="groq:m2").complete_json(MSG, Out, use_cache=False)
+    assert out.n == 6 and c.calls == 3
