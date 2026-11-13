@@ -12,9 +12,10 @@ interface Props {
   exitElapsed: number;
   onLoaded: (ok: boolean) => void;
   onSettled: () => void;
+  onInteraction?: () => void;
 }
 
-export function AegisArtwork({ phase, reduced, exitElapsed, onLoaded, onSettled }: Props) {
+export function AegisArtwork({ phase, reduced, exitElapsed, onLoaded, onSettled, onInteraction }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const renderer = useRef<ReturnType<typeof artworkRenderer> | null>(null);
   const progressRef = useRef(0);
@@ -156,10 +157,11 @@ export function AegisArtwork({ phase, reduced, exitElapsed, onLoaded, onSettled 
   }, [phase, reduced]);
 
   const onPointerEnterLogo = useCallback(() => {
+    onInteraction?.();
     if (phase === "ready" && matchMedia("(hover: hover) and (pointer: fine)").matches) {
       startHoverTransition(1);
     }
-  }, [phase, startHoverTransition]);
+  }, [onInteraction, phase, startHoverTransition]);
 
   const onPointerLeaveLogo = useCallback(() => {
     if (phase === "ready" && matchMedia("(hover: hover) and (pointer: fine)").matches) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { SEEN_KEY, signalConsoleEntry, TIMING, animate, type Phase } from "@/lib/landing/phases";
@@ -8,6 +9,8 @@ import { AegisArtwork } from "./aegis-artwork";
 import { SquareTunnel } from "./square-tunnel";
 import { SliderControl } from "./slider-control";
 import styles from "./landing.module.css";
+
+const Scene = dynamic(() => import("./scene").then((m) => m.Scene), { ssr: false });
 
 export function LandingExperience() {
   const router = useRouter();
@@ -34,6 +37,14 @@ export function LandingExperience() {
   const changePhase = useCallback((value: Phase) => {
     phaseRef.current = value;
     setPhase(value);
+  }, []);
+
+  const onUserInteraction = useCallback(() => {
+    userInteracted.current = true;
+    if (stopAutoScroll.current) {
+      stopAutoScroll.current();
+      stopAutoScroll.current = null;
+    }
   }, []);
 
   const navigate = useCallback(() => {
@@ -69,31 +80,23 @@ export function LandingExperience() {
     query.addEventListener("change", updateMotion);
 
     // Track user manual scrolling / interaction to cancel automatic scroll reveal
-    const onUserScrollOrTouch = () => {
-      userInteracted.current = true;
-      if (stopAutoScroll.current) {
-        stopAutoScroll.current();
-        stopAutoScroll.current = null;
-      }
-    };
-
-    window.addEventListener("wheel", onUserScrollOrTouch, { passive: true });
-    window.addEventListener("touchmove", onUserScrollOrTouch, { passive: true });
-    window.addEventListener("pointerdown", onUserScrollOrTouch, { passive: true });
-    window.addEventListener("keydown", onUserScrollOrTouch, { passive: true });
+    window.addEventListener("wheel", onUserInteraction, { passive: true });
+    window.addEventListener("touchmove", onUserInteraction, { passive: true });
+    window.addEventListener("pointerdown", onUserInteraction, { passive: true });
+    window.addEventListener("keydown", onUserInteraction, { passive: true });
 
     const pendingTimers = timers.current;
     return () => {
       mounted = false;
       query.removeEventListener("change", updateMotion);
-      window.removeEventListener("wheel", onUserScrollOrTouch);
-      window.removeEventListener("touchmove", onUserScrollOrTouch);
-      window.removeEventListener("pointerdown", onUserScrollOrTouch);
-      window.removeEventListener("keydown", onUserScrollOrTouch);
+      window.removeEventListener("wheel", onUserInteraction);
+      window.removeEventListener("touchmove", onUserInteraction);
+      window.removeEventListener("pointerdown", onUserInteraction);
+      window.removeEventListener("keydown", onUserInteraction);
       pendingTimers.forEach(clearTimeout);
       stopAutoScroll.current?.();
     };
-  }, [changePhase, navigate, router]);
+  }, [changePhase, navigate, onUserInteraction, router]);
 
   const onLoaded = useCallback((ok: boolean) => {
     available.current = ok;
@@ -206,6 +209,9 @@ export function LandingExperience() {
       data-reduced={reduced}
       data-initialized={initialized}
     >
+      {/* ThreeUI FlowField background scene */}
+      <Scene />
+
       {/* Dark background overlay for crossfading to dark tunnel */}
       <div
         className={styles.darkOverlay}
@@ -231,6 +237,7 @@ export function LandingExperience() {
         exitElapsed={exitElapsed}
         onLoaded={onLoaded}
         onSettled={settled}
+        onInteraction={onUserInteraction}
       />
 
       {/* Scrollable container hosting the slider control just below initial fold */}

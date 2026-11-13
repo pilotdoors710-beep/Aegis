@@ -63,8 +63,11 @@
 .sample-banner { display: flex; align-items: center; justify-content: space-between; gap: 16px; border: 1px solid #3c4131; background: #191d18; border-radius: 8px; padding: 16px 20px; margin-bottom: 25px; font-size: 12px; color: #c2c9b6; }
 .sample-banner > div { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; }
 .badge { display: inline-block; border: 1px solid #6b6541; color: #e6d493; padding: 3px 7px; border-radius: 4px; font-size: 9px; letter-spacing: .1em; white-space: nowrap; }
-.primary-button { display: inline-flex; justify-content: center; align-items: center; gap: 8px; border-radius: 5px; background: #a4e8c6; color: #10221a; font-size: 12px; padding: 10px 15px; font-weight: 650; white-space: nowrap; cursor: pointer; }
+.primary-button { display: inline-flex; justify-content: center; align-items: center; gap: 8px; border-radius: 5px; background: #a4e8c6; color: #10221a; font-size: 12px; padding: 10px 15px; font-weight: 650; white-space: nowrap; cursor: pointer; transition: background-color 120ms ease, transform 100ms ease-out; }
 .primary-button:hover { background: #c1f5da; }
+.primary-button:active, .secondary-button:active { transform: scale(.97); }
+.secondary-button { display: inline-flex; justify-content: center; align-items: center; gap: 8px; border: 1px solid #43545f; border-radius: 5px; color: #d7e0e6; padding: 9px 14px; font-size: 12px; font-weight: 600; transition: border-color 120ms ease, background-color 120ms ease, transform 100ms ease-out; }
+.secondary-button:hover { border-color: #83dcb4; background: #16231e; }
 .console-shell :focus-visible { outline: 2px solid #a4e8c6; outline-offset: 4px; }
 .section-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 15px; }
 .section-heading h2 { font-size: 16px; font-weight: 600; }
@@ -99,6 +102,8 @@
 .table-scroll { overflow-x: auto; border: 1px solid #29343d; border-radius: 8px; }
 .table-scroll table { width: 100%; text-align: left; font-size: 12px; border-collapse: collapse; }
 .table-scroll th, .table-scroll td { padding: 16px; border-bottom: 1px solid #29343d; white-space: nowrap; }
+.table-scroll thead th { position: sticky; top: 0; z-index: 1; background: #172028; color: #dce6ec; }
+.table-scroll tbody th { position: sticky; left: 0; background: #12191f; color: #a4e8c6; }
 .table-scroll caption { text-align: left; padding: 14px; color: #aebbc5; caption-side: bottom; }
 @media (max-width: 800px) {
   .console-header { align-items: flex-start; flex-direction: column; padding: 20px; gap: 16px; }
@@ -112,6 +117,17 @@
   .console-header nav { gap: 20px; }
   .intro-shield { display: none; }
 }
+.permission-pair-section { margin: 18px 0; padding: 18px; border: 1px solid #385247; border-radius: 10px; background: #101a16; }
+.permission-pair-section .section-heading { align-items: end; }
+.permission-pair-section h2 { margin-top: 4px; }
+.permission-pair-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.permission-pair-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.permission-pair-card { min-width: 0; padding: 14px; border: 1px solid #30443b; border-radius: 8px; background: #121d18; }
+.permission-pair-card h3 { margin: 5px 0 7px; font-size: 14px; }
+.permission-pair-card > p { color: #aebbc5; font-size: 11px; line-height: 1.5; }
+.permission-pair-card dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.permission-pair-card dt { color: #8fa2af; font-size: 9px; text-transform: uppercase; letter-spacing: .08em; }
+.permission-pair-card dd { margin-top: 3px; color: #dce6ec; font-size: 11px; line-height: 1.45; overflow-wrap: anywhere; }
 
 :root {
   --background: oklch(1 0 0);
@@ -226,6 +242,9 @@
 .sample-outcome { height: 110px; overflow-y: auto; }
 @media (min-width: 801px) and (max-height: 800px) {
   .browser-frame { max-width: 400px; margin-inline: auto; }
+  .console-header { min-height: 58px; padding-block: 10px; }
+  .console-content { padding-bottom: 22px; }
+  .outcomes-section, .evidence-section { margin-block: 12px; }
 }
 .approval-dialog { width: min(640px, calc(100vw - 32px)); max-height: 86vh; margin: auto; padding: 24px; border: 1px solid #708f7e; border-radius: 10px; background: #12191f; color: #e4e9ed; overflow-y: auto; }
 .approval-dialog::backdrop { background: #02070ce0; }
@@ -267,3 +286,33 @@
 .different-commitment { background: #483f273f; border-left: 2px solid #d7ba71; }
 .difference-label { display: inline-block; margin-left: 8px; color: #e4c17f; font-size: 10px; }
 @media (max-width: 800px) { .evidence-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 800px) {
+  .permission-pair-grid { grid-template-columns: minmax(0, 1fr); }
+  .permission-pair-section .section-heading { align-items: flex-start; flex-direction: column; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .primary-button, .secondary-button { transition: none; }
+  .primary-button:active, .secondary-button:active { transform: none; }
+}
+@media (prefers-contrast: more) {
+  .console-card, .agent-pane, .permission-pair-section, .permission-pair-card { border-color: #8497a3; }
+  .badge { border-color: currentColor; }
+}
+
+/* ThreeUI FlowField shader frame */
+.shader-frame {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  width: 100vw;
+  height: 100svh;
+  pointer-events: none;
+  overflow: hidden;
+  mix-blend-mode: screen;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shader-frame {
+    display: none;
+  }
+}

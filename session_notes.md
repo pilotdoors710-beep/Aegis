@@ -22,6 +22,13 @@ Template:
 
 ## Log
 
+### 2026-11-13 · Dev B · Antigravity · ThreeUI PortalFieldCollection flow-field integration
+- Extracted and verified ThreeUI registered source bundle (`src/shaders/neuform-isolated/NeuformBatchEffects.tsx`, `sources/flow-field.html`, `threeui.css`) with exact SHA-256 hashes matching `f90e34f83d51`.
+- Implemented configured `Scene` component with `PortalFieldCollection` (`variant="flow-field"`, `speed={1.00}`, `size={1.00}`, `length={1.00}`, `density={1.00}`, `opacity={1.00}`, `hue={0}`, `saturation={1.00}`, `brightness={1.00}`).
+- Added `.shader-frame` full-viewport background with screen blend mode and reduced-motion fallback.
+- Configured Next.js modularizeImports and TS build integration for `@designcodeio/threeui`.
+- All 17 Playwright landing verification checks, 12 unit tests, TypeScript, ESLint, and Next.js production build pass cleanly.
+
 ### 2026-11-13 (midday) · Dev A · Claude Code · demo rehearsal on the deployed backend
 - Did: outcome card shows recurring charges as a big banner ("+ ₹199/mo, auto-renewing"; red when only one side has it). Added demo-only r1b presets (T03b care plan, ₹1,398 stays under budget). Old r1-forbidden on variant a shows nothing: both agents untick the plan because it breaks the budget.
 - Fixed: audit didn't match "Aurora Care plan" to "2-year Aurora Care", so the authorized plan got rerouted. Fixed. Empty Groq JSON failures are now resent (one unprotected agent died on this). Router logs every model fall-through.
