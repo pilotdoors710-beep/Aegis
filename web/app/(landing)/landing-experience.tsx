@@ -280,7 +280,7 @@ export function LandingExperience() {
               font='var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
               highlightFont='var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
               fontSize={15}
-              autoplay={true}
+              autoplay={false}
               cursor={false}
               radius={0.8}
               speed={1}

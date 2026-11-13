@@ -22,10 +22,10 @@ Template:
 
 ## Log
 
-### 2026-11-13 (late night) · Dev B · Antigravity · MathScramble overlay on description
-- Preserved the landing page mission description text formatting and centered alignment exactly as before.
-- Added `MathScramble` directly on top of the description as an interactive overlay layer (`web/app/(landing)/landing-experience.tsx`, `web/app/(landing)/landing.module.css`).
-- Scrambles letters into mathematical symbols in the Aegis palette (#DD700B, #FCF8D8, #D9DADF) upon pointer hover and gentle autoplay drift, smoothly revealing the underlying text.
+### 2026-11-13 (late night) · Dev B · Antigravity · MathScramble hover-only interaction
+- Configured `MathScramble` on the landing page description to trigger strictly on hover (`autoplay={false}`).
+- At rest, the clean, perfectly formatted and aligned description text is fully displayed with zero animation loop overhead.
+- When the user hovers over words with a pointer, mathematical scramble waves ripple across the text and smoothly settle back.
 - All web checks (typecheck, lint, 12 unit tests, production build) pass cleanly.
 
 ### 2026-11-13 (late night) · Dev B · Antigravity · Aegis landing hero redesign
