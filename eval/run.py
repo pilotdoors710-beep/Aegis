@@ -1,7 +1,7 @@
 """In-process eval harness (brief §12, DEV_PLAN A-D1-07). Cache is always OFF.
 
 Run from server/:  uv run python ../eval/run.py --configs U --cases clean,T01 --n 1 \
-                       --model groq:openai/gpt-oss-120b --out ../eval/results/pilot-d1
+                       --model groq:openai/gpt-oss-20b --out ../eval/results/pilot-d1
 
 Scoring reads arena ground truth (the confirmation page's outcome JSON, the arena's effects log,
 Playwright download events, visited URLs). That evidence is evaluator-only: it lives here in

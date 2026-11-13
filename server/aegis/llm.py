@@ -42,10 +42,13 @@ MAX_RETRY_AFTER_S = 65.0
 
 
 def _failed_generation(err: openai.BadRequestError) -> str | None:
-    """Groq JSON mode: 400 json_validate_failed. Returns the bad output (or a placeholder)."""
+    """Groq JSON mode: 400 json_validate_failed, or gpt-oss emitting a tool call nobody offered
+    ("Tool choice is none, but model called a tool"). Returns the bad output (or a placeholder)."""
     body = err.body if isinstance(err.body, dict) else {}
     if isinstance(body.get("error"), dict):
         body = body["error"]
+    if "called a tool" in str(body.get("message", "")) or "called a tool" in str(err):
+        return "(output was a tool call, not JSON)"
     if body.get("code") != "json_validate_failed":
         return None
     text = body.get("failed_generation")
