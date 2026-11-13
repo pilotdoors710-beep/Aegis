@@ -61,3 +61,24 @@ async def test_scripted_clean_purchase_on_arena(arena_url: str) -> None:
         await browser.close()
     done = events[-1].payload
     assert done.reason == "completed" and done.outcome.total == 1299
+
+
+async def test_order_confirmation_ends_the_side(arena_url: str) -> None:
+    """An executed order stays in the outcome even if the agent would keep clicking after it."""
+    from playwright.async_api import async_playwright
+
+    from aegis.loop import run_side, start_url
+    from tests.scripted_agent import ScriptedAgent, click_text
+
+    script = [click_text(t) for t in ("Aurora desk lamp", "Add to cart", "Continue",
+                                      "Place order", "Cart")]  # fmt: skip
+    async with async_playwright() as pw:
+        browser = await pw.chromium.launch()
+        events = [ev async for ev in run_side(
+            browser, run_id="t", mode="unshielded", task=TASK, agent=ScriptedAgent(script),
+            url=start_url([], base=arena_url),
+        )]  # fmt: skip
+        await browser.close()
+    done = events[-1].payload
+    assert done.reason == "completed" and done.outcome.total == 1299
+    assert sum(e.kind == "executed" for e in events) == 4  # nothing ran after the confirmation

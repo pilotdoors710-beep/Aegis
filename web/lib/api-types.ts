@@ -290,7 +290,7 @@ export interface components {
              * Reason
              * @enum {string}
              */
-            reason: "final_payment" | "uncertain" | "retries_exhausted" | "guard_unavailable";
+            reason: "final_payment" | "uncertain" | "retries_exhausted" | "guard_unavailable" | "cloaked_checkout";
             action?: components["schemas"]["Action"] | null;
             /**
              * Findings
@@ -299,6 +299,7 @@ export interface components {
             findings: components["schemas"]["Finding"][];
             audit?: components["schemas"]["AuditReport"] | null;
             trial?: components["schemas"]["TrialReport"] | null;
+            two_view?: components["schemas"]["TwoViewReport"] | null;
             /**
              * Status
              * @enum {string}
@@ -1037,6 +1038,48 @@ export interface components {
              */
             blocked_requests: number;
         };
+        /**
+         * TwoViewReport
+         * @description The same checkout loaded in a disposable ordinary-browser context (automation signals
+         *     removed; same engine and network) and compared with what the agent's browser was shown.
+         *     Read-only: nothing is ticked or ordered in the copy.
+         */
+        TwoViewReport: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "match" | "mismatch" | "unavailable";
+            /**
+             * Diffs
+             * @default []
+             */
+            diffs: string[];
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /** Agent Screenshot B64 */
+            agent_screenshot_b64?: string | null;
+            /** Ordinary Screenshot B64 */
+            ordinary_screenshot_b64?: string | null;
+            /**
+             * Disposable Actions
+             * @default 0
+             */
+            disposable_actions: number;
+            /**
+             * Elapsed Ms
+             * @default 0
+             */
+            elapsed_ms: number;
+            /**
+             * Blocked Requests
+             * @default 0
+             */
+            blocked_requests: number;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -1109,6 +1152,7 @@ export interface components {
              */
             neutralized: components["schemas"]["Neutralization"][];
             trial?: components["schemas"]["TrialReport"] | null;
+            two_view?: components["schemas"]["TwoViewReport"] | null;
         };
     };
     responses: never;

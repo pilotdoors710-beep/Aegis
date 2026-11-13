@@ -29,6 +29,7 @@ from aegis.schemas import (
     PageSnapshot,
     TrialBranch,
     TrialReport,
+    TwoViewReport,
 )
 from aegis.security import install_guard
 from aegis.snapshot import screenshot_b64, take_snapshot
@@ -39,7 +40,7 @@ ReplayStep = tuple[Action, str | None]
 DEFAULT_TIMEOUT_S = 10.0
 
 
-def _signature(state: CheckoutState) -> dict:
+def signature(state: CheckoutState) -> dict:
     """What must match between the original checkout and a copy (element ids excluded)."""
     return {
         "lines": sorted((ln.name, ln.qty, ln.amount) for ln in state.lines),
@@ -49,6 +50,33 @@ def _signature(state: CheckoutState) -> dict:
         "total": state.total,
         "shipping": state.shipping.method if state.shipping else None,
     }
+
+
+def _money(v: float | None) -> str:
+    return "no total" if v is None else f"₹{v:,.0f}"
+
+
+def diff_states(a: CheckoutState, b: CheckoutState, a_name: str, b_name: str) -> list[str]:
+    """Plain sentences for every commitment-relevant difference between two checkout readings."""
+    sa, sb = signature(a), signature(b)
+    out: list[str] = []
+    if sa["total"] != sb["total"]:
+        out.append(f"Total: {_money(sa['total'])} {a_name}, {_money(sb['total'])} {b_name}")
+    opts_a, opts_b = dict(sa["options"]), dict(sb["options"])
+    for label in sorted(opts_a.keys() | opts_b.keys()):
+        x, y = opts_a.get(label), opts_b.get(label)
+        if x != y:
+            word = {True: "ticked", False: "unticked", None: "absent"}
+            out.append(f"{label}: {word[x]} {a_name}, {word[y]} {b_name}")
+    for key, title in (("lines", "Item"), ("fees", "Fee"), ("recurring", "Recurring charge")):
+        mine, theirs = set(sa[key]), set(sb[key])
+        for only, name in ((mine - theirs, a_name), (theirs - mine, b_name)):
+            out += [f"{title} {item[0] if isinstance(item, tuple) else item!r} only {name}"
+                    for item in sorted(only, key=str)]  # fmt: skip
+    if sa["shipping"] != sb["shipping"]:
+        ship_a, ship_b = sa["shipping"] or "none", sb["shipping"] or "none"
+        out.append(f"Shipping: {ship_a} {a_name}, {ship_b} {b_name}")
+    return out
 
 
 def _same_element(a: Element | None, b: Element | None) -> bool:
@@ -105,18 +133,12 @@ async def _branch(
         page = await ctx.new_page()
         await page.clock.set_fixed_time(frozen_time)
         await page.goto(start_url, wait_until="domcontentloaded")
-        for action, neutralized in replay:
-            await take_snapshot(page)  # stamps the same deterministic element ids
-            if neutralized:
-                await neutralize(page, neutralized)
-            res = await execute(page, action)
-            branch.disposable_actions += 1
-            if not res.ok:
-                branch.error = f"replay step failed: {res.error}"
-                return branch
+        branch.disposable_actions, branch.error = await _replay(page, replay)
+        if branch.error:
+            return branch
 
         snap = await take_snapshot(page)
-        same = _signature(extract_checkout_state(snap)) == _signature(
+        same = signature(extract_checkout_state(snap)) == signature(
             extract_checkout_state(original)
         )
         control, target = _find(snap, control_id), _find(snap, commit_action.target_id)
@@ -148,6 +170,20 @@ async def _branch(
         return branch
     finally:
         await ctx.close()
+
+
+async def _replay(page: Page, replay: list[ReplayStep]) -> tuple[int, str | None]:
+    """Redo the agent's executed actions in a copy. Returns (actions done, error)."""
+    done = 0
+    for action, neutralized in replay:
+        await take_snapshot(page)  # stamps the same deterministic element ids
+        if neutralized:
+            await neutralize(page, neutralized)
+        res = await execute(page, action)
+        done += 1
+        if not res.ok:
+            return done, f"replay step failed: {res.error}"
+    return done, None
 
 
 def _close_extra_pages(ctx: BrowserContext):  # noqa: ANN202
@@ -189,7 +225,7 @@ async def run_trials(
         report.reason = "unsupported: only a single checkbox is supported"
         return report
     blocked: list[str] = []
-    before = _signature(extract_checkout_state(original))
+    before = signature(extract_checkout_state(original))
     try:
         async with asyncio.timeout(timeout_s):
             for checked in (True, False):
@@ -206,7 +242,7 @@ async def run_trials(
     report.blocked_requests = len(blocked)
     try:
         after = await take_snapshot(original_page)
-        report.original_unchanged = _signature(extract_checkout_state(after)) == before
+        report.original_unchanged = signature(extract_checkout_state(after)) == before
     except Exception:
         report.original_unchanged = None
     report.elapsed_ms = int((time.perf_counter() - started) * 1000)
@@ -290,3 +326,85 @@ def apply_trial(report: AuditReport, trial: TrialReport) -> AuditReport:
             "status": status,
         }))  # fmt: skip
     return report.model_copy(update={"checks": checks})
+
+
+# --- Two-view check: agent view vs an ordinary-browser view of the same checkout ---------------
+
+# Removes the automation signals a cloaking site can key on from page script. It is not proof of
+# what a person sees: the engine and the network exit are the same as the agent's.
+_HIDE_AUTOMATION = "Object.defineProperty(Navigator.prototype, 'webdriver', {get: () => false})"
+
+
+def _ordinary_user_agent(browser: Browser) -> str:
+    major = browser.version.split(".")[0]
+    return (f"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
+            f"Chrome/{major}.0.0.0 Safari/537.36")  # fmt: skip
+
+
+async def run_two_view(
+    browser: Browser,
+    *,
+    original_page: Page,
+    original: PageSnapshot,
+    commit_action: Action,
+    start_url: str,
+    allowed_origin: str,
+    replay: list[ReplayStep],
+    viewport: dict,
+    frozen_time: datetime,
+    timeout_s: float = DEFAULT_TIMEOUT_S,
+) -> TwoViewReport:
+    """Reproduce the checkout in one disposable ordinary-browser context and compare what it shows
+    with the agent's view. Read-only (the commit action is never executed). Never raises: any
+    failure is `unavailable`, which is not a pass."""
+    started = time.perf_counter()
+    report = TwoViewReport(status="unavailable")
+    blocked: list[str] = []
+    ctx: BrowserContext | None = None
+    try:
+        async with asyncio.timeout(timeout_s):
+            ctx = await browser.new_context(
+                viewport=viewport,  # type: ignore[arg-type]
+                user_agent=_ordinary_user_agent(browser),
+                accept_downloads=False,
+                service_workers="block",
+            )
+            await ctx.add_init_script(_HIDE_AUTOMATION)
+            await install_guard(ctx, allowed_origin, blocked.append)
+            ctx.on("page", _close_extra_pages(ctx))
+            page = await ctx.new_page()
+            await page.clock.set_fixed_time(frozen_time)
+            await page.goto(start_url, wait_until="domcontentloaded")
+            report.disposable_actions, error = await _replay(page, replay)
+            if error:
+                report.reason = error
+            else:
+                snap = await take_snapshot(page)
+                diffs = diff_states(
+                    extract_checkout_state(original), extract_checkout_state(snap),
+                    "in the agent view", "in the ordinary-browser view",
+                )  # fmt: skip
+                mine = _find(original, commit_action.target_id)
+                theirs = _find(snap, commit_action.target_id)
+                if not _same_element(mine, theirs):
+                    diffs.append(
+                        f"Button: {mine.text if mine else 'missing'!r} in the agent view, "
+                        f"{theirs.text if theirs else 'missing'!r} in the ordinary-browser view"
+                    )
+                report.diffs = diffs
+                report.status = "mismatch" if diffs else "match"
+                if diffs:
+                    report.reason = "the site shows an automated browser a different checkout"
+                    report.ordinary_screenshot_b64 = await screenshot_b64(page, quality=50)
+                    report.agent_screenshot_b64 = await screenshot_b64(original_page, quality=50)
+    except TimeoutError:
+        report.status, report.reason = "unavailable", f"timeout after {timeout_s:.0f} s"
+    except Exception as e:  # experimental module: failure is never a pass
+        report.status = "unavailable"
+        report.reason = f"two-view check failed: {type(e).__name__}: {str(e)[:200]}"
+    finally:
+        if ctx is not None:
+            await ctx.close()
+    report.blocked_requests = len(blocked)
+    report.elapsed_ms = int((time.perf_counter() - started) * 1000)
+    return report

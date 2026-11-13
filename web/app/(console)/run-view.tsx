@@ -5,7 +5,7 @@ import { useRunStream } from "@/lib/events";
 import type { RunEvent, Schema } from "@/lib/api";
 import { approvalLabels, latestAsks, pendingAsk } from "@/lib/run-evidence";
 import { ApprovalDialog } from "./approval-dialog";
-import { EvidenceCards } from "./evidence-cards";
+import { EvidenceCards, TwoView } from "./evidence-cards";
 import { OutcomeCards } from "./outcome-cards";
 import { PermissionPair } from "./permission-pair";
 
@@ -56,6 +56,7 @@ function AgentPane({ mode, events, summary }: { mode: RunEvent["mode"]; events: 
         })}</svg>}
       </> : <span>Waiting for a browser snapshot</span>}
     </div>
+    {mode === "shielded" && <TwoView report={side.findLast((event): event is VerdictEvent => event.kind === "verdict" && event.payload.two_view?.status === "mismatch")?.payload.two_view} />}
     {mode === "shielded" && <Ledger ledger={summary?.ledger} />}
     {inspected && <button className="inspect-button" onClick={() => setSelected(null)}>Inspecting step {inspected.step} · Return to latest</button>}
     <ol className="event-feed" aria-label={`${mode} events`}>{side.filter((event) => mode === "shielded" || event.kind !== "verdict").map((event, index) => <li key={index}>

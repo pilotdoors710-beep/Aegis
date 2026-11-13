@@ -58,13 +58,14 @@ from aegis.schemas import (
     SnapshotEvent,
     SnapshotPayload,
     TrialReport,
+    TwoViewReport,
     Verdict,
     VerdictEvent,
     VerdictPayload,
 )
 from aegis.security import install_guard, origin
 from aegis.snapshot import screenshot_b64, take_snapshot
-from aegis.trials import ReplayStep, apply_trial, run_trials
+from aegis.trials import ReplayStep, apply_trial, diff_states, run_trials, run_two_view
 from aegis.verdict import (
     GUARD,
     MAX_RETRIES,
@@ -81,8 +82,9 @@ VIEWPORT = {"width": 1280, "height": 720}
 # Fixed clock so countdowns and dates render identically on every run (brief §3).
 FROZEN_TIME = datetime(2026, 11, 18, 10, 0, tzinfo=UTC)
 PageHook = Callable[[Page], Awaitable[None]]
-# U is mode="unshielded". I_R2 = I plus R2 disposable consent trials (experimental; kept out of the
-# core U/F/I comparison, brief §12).
+# U is mode="unshielded". I_R2 = I plus the disposable-copy checks: R2 consent trials and the
+# two-view (agent vs ordinary-browser) check. Experimental; kept out of the core U/F/I comparison
+# (brief §12).
 ShieldConfig = Literal["F", "I", "I_MINUS_AUDIT", "I_R2"]
 
 _TOTAL_RE = re.compile(r"Order total[^\d₹]*₹?\s*([\d,]+(?:\.\d+)?)", re.I)
@@ -248,6 +250,11 @@ async def run_side(
                     removed=view.removed,
                 ),
             )
+            # A visible order confirmation is an executed commitment: it cannot be undone by
+            # clicking on, so the side ends here (both modes) and the outcome is read from it.
+            if step > 1 and (await outcome_from_page(page)).task_completed:
+                reason = "completed"
+                break
             feedback: list[str] = []
             action: Action | None = None
             attempt = 0
@@ -284,6 +291,7 @@ async def run_side(
                 verdict = combine(findings, action, ms, fix)
                 report: AuditReport | None = None
                 trial: TrialReport | None = None
+                two_view: TwoViewReport | None = None
                 ask_reason: AskReason | None = None
                 if any(f.detector == GUARD for f in blocking_findings(findings, action)):
                     ask_reason = "guard_unavailable"  # retrying cannot fix a broken check
@@ -310,6 +318,25 @@ async def run_side(
                     verdict, ask_reason, last_audit = _commit_decision(
                         verdict, report, step, last_audit, findings
                     )
+                    # Two-view check: only once the agent's own view passed the audit, so a
+                    # checkout that is about to be approved is also what an ordinary browser gets.
+                    if trials and report is not None and verdict.decision == "ASK":
+                        two_view = await run_two_view(
+                            browser, original_page=page, original=snap, commit_action=action,
+                            start_url=url, allowed_origin=allowed_origin or origin(url),
+                            replay=replay, viewport=VIEWPORT, frozen_time=FROZEN_TIME,
+                            timeout_s=settings.trial_timeout_s,
+                        )  # fmt: skip
+                        if two_view.status == "mismatch":
+                            findings.append(Finding(
+                                detector="two_view", trap_type="hidden_info", severity="high",
+                                element_id=action.target_id,
+                                evidence="This site shows an automated browser a different "
+                                         "checkout: " + "; ".join(two_view.diffs),
+                                suggestion="Do not pay: the agent's view cannot be trusted.",
+                            ))  # fmt: skip
+                            ask_reason = "cloaked_checkout"
+                            verdict = verdict.model_copy(update={"findings": findings})
                 if (
                     verdict.decision == "ALLOW"
                     and fix
@@ -323,7 +350,7 @@ async def run_side(
                         verdict=verdict, action=action, audit=report,
                         highlights=highlights(findings, snap),
                         neutralized=[fix] if fix and verdict.decision == "ALLOW" else [],
-                        trial=trial,
+                        trial=trial, two_view=two_view,
                     ),
                 )  # fmt: skip
                 if verdict.decision == "ALLOW":
@@ -331,7 +358,8 @@ async def run_side(
                 if ask_reason:
                     pending = AskPayload(
                         ask_id=_ask_id(), reason=ask_reason, action=action,
-                        findings=verdict.findings, audit=report, trial=trial, status="pending",
+                        findings=verdict.findings, audit=report, trial=trial, two_view=two_view,
+                        status="pending",
                     )  # fmt: skip
                     async for ev in ask(step, pending):
                         yield ev
@@ -343,11 +371,18 @@ async def run_side(
                         again, guard = await _audit(snap, ledger, action, (step, set()))
                         if trial is not None and again is not None:  # same control, same evidence
                             again = apply_trial(again, trial)
-                        if guard or _keys(again) - _keys(report) or _new_uncertain(again, report):
+                        # Consent binding: the approval covers exactly the checkout shown, so
+                        # any change (even one still within the ledger) needs a fresh look.
+                        changed = diff_states(
+                            report.observed, again.observed, "when approved", "now"
+                        ) if again else []  # fmt: skip
+                        if (guard or changed or _keys(again) - _keys(report)
+                                or _new_uncertain(again, report)):  # fmt: skip
                             yield VerdictEvent(**env(step), payload=VerdictPayload(
                                 verdict=Verdict(decision="REROUTE", findings=findings,
                                                 reroute_hint="The checkout changed while waiting "
-                                                "for approval; check it again."),
+                                                "for approval; check it again."
+                                                + (f" ({'; '.join(changed)})" if changed else "")),
                                 action=action, audit=again))  # fmt: skip
                             feedback.append(_audit_feedback(action, again, changed=True))
                             action = None

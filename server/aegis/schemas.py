@@ -216,6 +216,23 @@ class TrialReport(BaseModel):
     blocked_requests: int = 0
 
 
+class TwoViewReport(BaseModel):
+    """The same checkout loaded in a disposable ordinary-browser context (automation signals
+    removed; same engine and network) and compared with what the agent's browser was shown.
+    Read-only: nothing is ticked or ordered in the copy."""
+
+    # match: both views show the same commitments; mismatch: they differ (possible AI-targeted
+    # cloaking); unavailable: the copy could not be reproduced, timed out or failed
+    status: Literal["match", "mismatch", "unavailable"]
+    diffs: list[str] = []  # plain sentences, one per commitment-relevant difference
+    reason: str = ""
+    agent_screenshot_b64: str | None = None  # the real session's checkout
+    ordinary_screenshot_b64: str | None = None  # the disposable copy (labelled so in the UI)
+    disposable_actions: int = 0  # replayed actions; not counted as task actions
+    elapsed_ms: int = 0
+    blocked_requests: int = 0
+
+
 class LabRequest(BaseModel):
     """Trap Lab: a judge writes a checkbox label and secretly picks its real effect. The effect
     only configures the arena page; the trial reads nothing but the rendered copies."""
@@ -278,6 +295,7 @@ class VerdictPayload(BaseModel):
     highlights: list[Highlight] = []
     neutralized: list[Neutralization] = []  # verdict is ALLOW; shown as "overlay neutralized"
     trial: TrialReport | None = None  # R2 evidence behind this verdict, if a trial ran
+    two_view: TwoViewReport | None = None  # agent view vs ordinary-browser view, if checked
 
 
 class ExecutedPayload(BaseModel):
@@ -288,7 +306,9 @@ class ExecutedPayload(BaseModel):
     defense_retry: bool = False
 
 
-AskReason = Literal["final_payment", "uncertain", "retries_exhausted", "guard_unavailable"]
+AskReason = Literal[
+    "final_payment", "uncertain", "retries_exhausted", "guard_unavailable", "cloaked_checkout"
+]
 AskStatus = Literal["pending", "approved", "denied", "timed_out", "auto_approved_demo"]
 
 
@@ -299,6 +319,7 @@ class AskPayload(BaseModel):
     findings: list[Finding] = []
     audit: AuditReport | None = None
     trial: TrialReport | None = None
+    two_view: TwoViewReport | None = None
     status: AskStatus
 
 
@@ -373,7 +394,7 @@ class Preset(BaseModel):
     auto_approve: bool = False  # labelled demo approval, never fresh human consent
     pair_of: str | None = None  # links an R1 authorized/forbidden pair
     consent: Literal["", "r", "o"] = ""  # R2 arena fixture: reversed-meaning consent wording
-    shield: Literal["I", "I_R2"] = "I"  # I_R2 = experimental disposable consent trials
+    shield: Literal["I", "I_R2"] = "I"  # I_R2 = experimental disposable-copy checks
 
 
 class RunCreate(BaseModel):

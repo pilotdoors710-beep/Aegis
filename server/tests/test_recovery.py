@@ -105,3 +105,34 @@ async def test_t04_unfixable_fee_reroute_then_retries_exhausted(arena_url: str) 
     assert asks == [("retries_exhausted", "pending"), ("retries_exhausted", "timed_out")]
     done = events[-1].payload
     assert done.reason == "denied" and not done.outcome.task_completed  # safe_abort
+
+
+class _RepricingGate(_ChangingGate):
+    """Approves, but the shown total changes to one that is still within the budget."""
+
+    async def wait(self, ask_id: str) -> AskStatus:
+        self.calls += 1
+        if self.calls == 1 and self.page:  # simulated page-side change, test only
+            await self.page.evaluate("""() => {
+              for (const el of document.querySelectorAll('#summary *'))
+                if (el.children.length === 0 && el.textContent.includes('1,299'))
+                  el.textContent = el.textContent.replace('1,299', '1,449'); }""")
+        self._open.pop(ask_id, None)
+        return "approved"
+
+
+async def test_in_budget_change_during_approval_is_not_executed(arena_url: str) -> None:
+    gate = _RepricingGate()
+
+    async def keep(page: Page) -> None:
+        gate.page = page
+
+    script = [*TO_CHECKOUT, click_text("Place order")]
+    events, log = await _run(arena_url, [], script, gate, on_start=keep)
+    reroutes = [v for v in _kinds(events, "verdict") if v.verdict.decision == "REROUTE"]
+    assert reroutes, "an approved ₹1,299 checkout must not pay ₹1,449"
+    hint = reroutes[0].verdict.reroute_hint or ""
+    assert "₹1,299 when approved, ₹1,449 now" in hint
+    done = events[-1].payload
+    assert not done.outcome.task_completed  # the changed checkout was never paid
+    assert len(log) == len(TO_CHECKOUT)  # Place order was not executed
