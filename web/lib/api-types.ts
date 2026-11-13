@@ -277,6 +277,7 @@ export interface components {
              */
             findings: components["schemas"]["Finding"][];
             audit?: components["schemas"]["AuditReport"] | null;
+            trial?: components["schemas"]["TrialReport"] | null;
             /**
              * Status
              * @enum {string}
@@ -898,6 +899,77 @@ export interface components {
             /** Element Id */
             element_id?: string | null;
         };
+        /**
+         * TrialBranch
+         * @description One disposable copy of the checkout with the control set one way, ordered to the end.
+         */
+        TrialBranch: {
+            /** Control Checked */
+            control_checked: boolean;
+            /**
+             * State Matched
+             * @default false
+             */
+            state_matched: boolean;
+            outcome?: components["schemas"]["Outcome"] | null;
+            /**
+             * Effect
+             * @default []
+             */
+            effect: string[];
+            /**
+             * Unauthorized
+             * @default []
+             */
+            unauthorized: string[];
+            /** Screenshot B64 */
+            screenshot_b64?: string | null;
+            /**
+             * Disposable Actions
+             * @default 0
+             */
+            disposable_actions: number;
+            /** Error */
+            error?: string | null;
+        };
+        /** TrialReport */
+        TrialReport: {
+            /** Control Id */
+            control_id: string;
+            /** Control Label */
+            control_label: string;
+            /** Current Checked */
+            current_checked: boolean;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "resolved" | "both_ok" | "uncertain" | "unavailable";
+            /** Recommended Checked */
+            recommended_checked?: boolean | null;
+            /**
+             * Branches
+             * @default []
+             */
+            branches: components["schemas"]["TrialBranch"][];
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /**
+             * Elapsed Ms
+             * @default 0
+             */
+            elapsed_ms: number;
+            /** Original Unchanged */
+            original_unchanged?: boolean | null;
+            /**
+             * Blocked Requests
+             * @default 0
+             */
+            blocked_requests: number;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -969,6 +1041,7 @@ export interface components {
              * @default []
              */
             neutralized: components["schemas"]["Neutralization"][];
+            trial?: components["schemas"]["TrialReport"] | null;
         };
     };
     responses: never;

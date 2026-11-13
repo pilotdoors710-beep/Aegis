@@ -185,6 +185,37 @@ class Outcome(BaseModel):
     commitments: list[Commitment] = []
 
 
+# --- R2: disposable consent trials (experimental; never the real session) -------------------
+
+
+class TrialBranch(BaseModel):
+    """One disposable copy of the checkout with the control set one way, ordered to the end."""
+
+    control_checked: bool
+    state_matched: bool = False  # the copy reproduced the original checkout before the test
+    outcome: Outcome | None = None  # read from the copy's visible confirmation only
+    effect: list[str] = []  # commitments present here but not in the other branch
+    unauthorized: list[str] = []  # effect items the ledger does not allow
+    screenshot_b64: str | None = None  # the copy's confirmation (labelled disposable in the UI)
+    disposable_actions: int = 0  # replayed + test actions; not counted as task actions
+    error: str | None = None
+
+
+class TrialReport(BaseModel):
+    control_id: str
+    control_label: str
+    current_checked: bool
+    # resolved: exactly one state satisfies the ledger; both_ok: either does; uncertain: neither,
+    # or no observable difference to judge; unavailable: reproduction failed, timeout, unsupported
+    status: Literal["resolved", "both_ok", "uncertain", "unavailable"]
+    recommended_checked: bool | None = None
+    branches: list[TrialBranch] = []
+    reason: str = ""
+    elapsed_ms: int = 0
+    original_unchanged: bool | None = None  # the real checkout was identical before and after
+    blocked_requests: int = 0
+
+
 # --- Event payloads (typed per kind, behind the brief's envelope) ---------------------------
 
 
@@ -234,6 +265,7 @@ class VerdictPayload(BaseModel):
     audit: AuditReport | None = None
     highlights: list[Highlight] = []
     neutralized: list[Neutralization] = []  # verdict is ALLOW; shown as "overlay neutralized"
+    trial: TrialReport | None = None  # R2 evidence behind this verdict, if a trial ran
 
 
 class ExecutedPayload(BaseModel):
@@ -254,6 +286,7 @@ class AskPayload(BaseModel):
     action: Action | None = None
     findings: list[Finding] = []
     audit: AuditReport | None = None
+    trial: TrialReport | None = None
     status: AskStatus
 
 
