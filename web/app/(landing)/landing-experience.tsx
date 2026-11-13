@@ -7,6 +7,7 @@ import { ArrowRight } from "lucide-react";
 import { SEEN_KEY, signalConsoleEntry, TIMING, animate, type Phase } from "@/lib/landing/phases";
 import { SquareTunnel } from "./square-tunnel";
 import { SliderControl } from "./slider-control";
+import { MathScramble } from "@/components/ui/math-scramble";
 import styles from "./landing.module.css";
 
 const Scene = dynamic(() => import("./scene").then((m) => m.Scene), { ssr: false });
@@ -259,10 +260,35 @@ export function LandingExperience() {
           <div className={styles.orangeRule} aria-hidden="true" />
         </div>
 
-        {/* 3. Cinematic description copy block */}
-        <p className={styles.description}>
-          “A runtime shield between autonomous agents and the live web—stopping deception before it becomes a commitment.”
-        </p>
+        {/* 3. Cinematic description copy block with MathScramble on top */}
+        <div className={styles.descriptionBlock}>
+          <p className={styles.description}>
+            “A runtime shield between autonomous agents and the live web—stopping deception before it becomes a commitment.”
+          </p>
+          <div className={styles.mathScrambleLayer} aria-hidden="true">
+            <MathScramble
+              lines={[
+                "“A runtime shield between autonomous agents",
+                "and the live web—stopping deception",
+                "before it becomes a commitment.”",
+              ]}
+              highlight={["autonomous agents", "runtime shield", "commitment"]}
+              color="transparent"
+              highlightColor="transparent"
+              background="transparent"
+              colors={["#DD700B", "#FCF8D8", "#D9DADF", "#7C7D75", "#f25b23", "#e9c84f"]}
+              font='var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+              highlightFont='var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+              fontSize={15}
+              autoplay={true}
+              cursor={false}
+              radius={0.8}
+              speed={1}
+              boxed={0.25}
+              style={{ width: "100%", height: "100%", minHeight: "unset" }}
+            />
+          </div>
+        </div>
 
         {/* 4. Labeled slide-to-enter control */}
         <div className={styles.controlBlock}>

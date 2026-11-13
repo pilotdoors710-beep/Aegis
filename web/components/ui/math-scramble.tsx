@@ -734,6 +734,24 @@ export function MathScramble({
             amt[j] = Math.max(0, Math.min(1, age / FADE_IN, (t.hold[j] - age) / FADE_OUT));
           }
         }
+        // When color is transparent (overlay mode over existing text), mask active cells
+        if (t && base[3] === 0) {
+          ctx.fillStyle = c.background && c.background !== "transparent" ? c.background : "#0c0d0c";
+          for (let j = 0; j < n; j++) {
+            if (!on[j]) continue;
+            const cell = ln.cells[j];
+            const lb = j > 0 && on[j - 1] && t.box[j - 1];
+            const rb = j < n - 1 && on[j + 1] && t.box[j + 1];
+            const gap = Math.max(0.5, adv * 0.02);
+            const ext = adv * 0.07;
+            const x0 = cell.x - adv / 2 + (lb ? gap : -ext);
+            const x1 = cell.x + adv / 2 - (rb ? gap : -ext);
+            const top = ln.y - adv * 0.47 - bh / 2;
+            roundRect(x0, top, x1 - x0, bh, br);
+            ctx.fill();
+          }
+        }
+
         // boxes first, behind the glyphs
         if (t) {
           ctx.lineWidth = lw;

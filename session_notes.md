@@ -22,9 +22,10 @@ Template:
 
 ## Log
 
-### 2026-11-13 (late night) · Dev B · Antigravity · Restore description typography and alignment
-- Restored the landing page mission description text “A runtime shield between autonomous agents and the live web—stopping deception before it becomes a commitment.” to its original centered typography, casing, quotation marks, and balanced layout.
-- Kept `web/components/ui/math-scramble.tsx` and `web/components/ui/demo.tsx` properly installed and isolated in `/components/ui` for modular reuse.
+### 2026-11-13 (late night) · Dev B · Antigravity · MathScramble overlay on description
+- Preserved the landing page mission description text formatting and centered alignment exactly as before.
+- Added `MathScramble` directly on top of the description as an interactive overlay layer (`web/app/(landing)/landing-experience.tsx`, `web/app/(landing)/landing.module.css`).
+- Scrambles letters into mathematical symbols in the Aegis palette (#DD700B, #FCF8D8, #D9DADF) upon pointer hover and gentle autoplay drift, smoothly revealing the underlying text.
 - All web checks (typecheck, lint, 12 unit tests, production build) pass cleanly.
 
 ### 2026-11-13 (late night) · Dev B · Antigravity · Aegis landing hero redesign
