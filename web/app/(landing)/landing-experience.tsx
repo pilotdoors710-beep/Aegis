@@ -173,7 +173,7 @@ export function LandingExperience() {
           </div>
           <div className={styles.subtitleWrapper}>
             <DecryptedText
-              text="Protect your agents like never before"
+              text="PROTECT YOUR AGENTS LIKE NEVER BEFORE"
               animateOn="inViewHover"
               revealDirection="center"
               speed={40}
@@ -182,8 +182,11 @@ export function LandingExperience() {
               scrambleColor="#d9541e"
               className={styles.subtitleRevealed}
               encryptedClassName={styles.subtitleEncrypted}
-              parentClassName={styles.subtitle}
+              parentClassName={styles.displaySubtitle}
             />
+            <p className={styles.heroDescription}>
+              You gave your AI a card and told it to browse the web—but the internet is full of traps waiting to trick it. Aegis acts as a real-time bodyguard over your agent’s shoulder, catching sneaky subscriptions, killing deceptive checkouts, and verifying the receipt before a single dollar leaves your wallet.
+            </p>
           </div>
         </div>
         <div className={styles.frame} aria-hidden="true">

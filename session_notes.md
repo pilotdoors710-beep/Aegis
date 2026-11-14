@@ -22,6 +22,21 @@ Template:
 
 ## Log
 
+### 2026-11-15 · Dev B · Antigravity · hero description, wordmark repositioning and display font on landing
+- Shifted 'AEGIS' wordmark upward to balance hero proportions and vertical rhythm.
+- Styled "PROTECT YOUR AGENTS LIKE NEVER BEFORE" in bold display typography with responsive sizing, letter-spacing, and warm glow.
+- Added product bodyguard description paragraph directly below the display headline with balanced text wrapping.
+- Maintained smooth page load zoom-in animation, interactive scramble effect, and reduced-motion fallbacks.
+- Verified TypeScript, 18 Node unit tests, and responsive layout across breakpoints.
+
+### 2026-11-15 · Codex · Sybil implementation foundation
+- Recorded the agreed extension, ownership handoff and staged gates in brief §14. Core submission work stays required.
+- Added sparse trust scoring, all four score components, edge-removal checks, frozen normalization and unavailable results on nonconvergence.
+- Added resumable source download/preflight tooling. Live metadata reports 9,061,322,465 source bytes; the declared storage allowance fits locally. No graph files were downloaded or extracted.
+- Added a typed readiness endpoint and gated /sybil preview with unavailable scores, formula details and retry. Regenerated API types. SYBIL_ENABLED stays false by default.
+- Checks: 16 new backend/import tests, 18 web tests, web types/lint/build, backend lint/format and Chrome desktop/phone readiness checks pass. Broader backend regression results are recorded below when complete.
+- Next: WebGraph extraction, artifact manifests and benchmarks, numerical worker/persistence, real graph editing and the frozen two-shop agent integration. Stages 1–3 are not complete.
+
 ### 2026-11-15 · Dev B · Antigravity · smooth page load zoom-in animation for AEGIS wordmark
 - Added ultra-smooth cinematic zoom-in entrance animation for the 'AEGIS' wordmark on page load (`scale(0.68)` with soft optical blur to `scale(1)` via `cubic-bezier(0.16, 1, 0.3, 1)` over 1.4s).
 - Coordinated entrance with `<DecryptedText />` subtitle floating in smoothly and decrypting below it.
