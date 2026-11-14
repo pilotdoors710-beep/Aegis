@@ -99,6 +99,54 @@ class SybilGenerate(BaseModel):
     target: Literal["A", "B"] = "B"
 
 
+class SybilExtractionParameters(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    seed: int
+    fanout: int = Field(ge=1)
+    maximum_depth: int = Field(ge=1)
+    node_limit: int = Field(ge=8, le=50000)
+    edge_limit: int = Field(ge=1, le=1000000)
+    version: Literal["seeded-neighborhood-v1"]
+
+
+class SybilArtifactNode(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid", allow_inf_nan=False)
+    id: str = Field(pattern=r"^[0-9]+$")
+    domain: str = Field(min_length=1, max_length=253)
+    original_outdegree: int = Field(ge=0)
+    retained_outdegree: int = Field(ge=0)
+    depth: int = Field(ge=0)
+    x: float
+    y: float
+
+
+class SybilSourceCounts(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    nodes: int = Field(gt=0)
+    arcs: int = Field(gt=0)
+
+
+class SybilArtifactManifest(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid", allow_inf_nan=False)
+    id: str = Field(pattern=r"^[a-f0-9]{64}$")
+    release: Literal["cc-main-2026-aug-sep-oct"]
+    source_counts: SybilSourceCounts
+    source_sha256: dict[str, str]
+    extraction: SybilExtractionParameters
+    nodes: int = Field(ge=8, le=50000)
+    edges: int = Field(ge=1, le=1000000)
+    anchors: tuple[str, ...] = Field(min_length=8, max_length=8)
+    tau: float = Field(gt=0)
+    webgraph_commit: str = Field(pattern=r"^[a-f0-9]{40}$")
+    webgraph_jar_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    created_at: datetime
+    observation_crawls: tuple[str, ...]
+    terms: str
+    source_url: str
+    artifacts: dict[str, str]
+    limitations: str
+
+
 TrapType = Literal[
     "hidden_info",
     "preselection",

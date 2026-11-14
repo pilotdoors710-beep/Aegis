@@ -22,6 +22,12 @@ Template:
 
 ## Log
 
+### 2026-11-15 · Codex · Sybil artifact preparation checkpoint
+- Added a WebGraph binary bridge, pinned graph preparation command and strict artifact loader.
+- Loader checks file hashes, graph direction, curated anchors, degrees and recomputed clean normalization. Seven artifact tests are included.
+- 48 targeted Sybil tests and backend lint pass. The Common Crawl download has reached 1.84 GB of 9.06 GB; extraction and agent integration remain incomplete.
+- Ready to save this checkpoint; prior full backend run still had 3 existing trial failures, so the full suite is not green.
+
 ### 2026-11-15 · Codex · Sybil scenario engine and extraction progress
 - Added immutable scenario edits, canonical revision hashes, Challenge budgets/refunds, cooperation/compromise rules and seeded attack generation. Research settings reach the pure scorer without ownership labels.
 - Added deterministic bounded incoming/outgoing neighborhood selection with original outdegrees, extraction depths and edge limits. All 41 targeted Sybil tests pass.
