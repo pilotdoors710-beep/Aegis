@@ -128,3 +128,14 @@ Main app performance update (14 Nov): all visual effects remain. Glass alignment
 Spotlights share pointer listeners and a frame scheduler that measures before painting. Spotlights, star borders, counters and click sparks pause in hidden tabs. SSE batches routine events once per animation frame, preserves every event and reconnect deduplication, and immediately flushes approvals, errors and completion. Unchanged agent panes and feed rows skip rendering. Replay steps preserve pane/effect instances while resetting verdict inspection. API contracts, backend behavior, Arena and entrance code are unchanged by this optimization.
 
 Performance probe: run `python lib/verify-performance.py build/performance.json` with `LANDING_WEB_URL` set to a production preview and the existing Python Playwright dependencies available. It uses mocked presets and no LLM calls, records a cold scroll and three measured scroll passes at desktop/phone sizes, and reports median frame tails, long-task time, glass copies and unchanged-scroll redraws. Use the same browser/hardware and run previews sequentially. Headless graphics timings are diagnostic; they do not establish a physical phone or demo-laptop frame rate. Regression tests also include `node --test lib/effect-scheduler.test.mjs`.
+
+Final sequential headless Chrome comparison (median of three 4-second passes, after a warm-up):
+
+| Metric | Desktop before → after | Phone viewport before → after |
+| --- | --- | --- |
+| p95 frame interval | 271 → 215 ms | 222 → 97 ms |
+| Time in tasks over 50 ms | 3,130 → 85 ms | 2,635 → 0 ms |
+| Glass redraws after unchanged scroll notifications | 11 → 0 | 9 → 0 |
+| Frames slower than 33.4 ms | 100% → 100% | 93% → 95% |
+
+CPU stalls and frame tails improved, but the 30% slow-frame reduction target was not met in this graphics environment. Check the actual demo laptop and physical phone before making a smooth-frame-rate claim. Verification passed: release-source lint, type checking, production build, 18 Node tests, shader/glass checks, four responsive/replay browser checks and two mocked launch/approval/own-key checks. The isolated builds use the same Geist fonts cached locally; no real LLM runs were launched.
