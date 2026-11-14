@@ -70,7 +70,11 @@ def run():
         page.locator('.dithering-background[data-ready]').wait_for()
         page.locator('.featured-run').wait_for()
         page.wait_for_timeout(300)
-        page.wait_for_function('dither.draws > 1')
+        count = page.evaluate('dither.draws')
+        page.wait_for_timeout(300)
+        assert page.evaluate('dither.draws') == count
+        assert page.evaluate('dither.uniforms.u_scene[2]') == 0
+        assert page.locator('.dithering-background').evaluate('e=>getComputedStyle(e).filter') == 'blur(14px)'
         assert page.evaluate('dither.args') == [4, 0, 3]
         assert page.evaluate('dither.gl.getError()') == 0
         uniforms = page.evaluate('dither.uniforms')
@@ -180,7 +184,7 @@ def run():
         assert page.locator('.console-sky').evaluate('e=>getComputedStyle(e).backgroundImage') != 'none'
         context.close()
         browser.close()
-    print('Shader uniforms, animation, glass copies, visibility pause, reduced motion, context restore, mobile, DPR, route cleanup and no-WebGL fallback passed.')
+    print('Shader uniforms, static frame, blur, glass copies, visibility pause, reduced motion, context restore, mobile, DPR, route cleanup and no-WebGL fallback passed.')
 
 
 if __name__ == '__main__':

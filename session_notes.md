@@ -22,6 +22,11 @@ Template:
 
 ## Log
 
+### 2026-11-14 - Dev B - Codex - static, softer dashboard background
+- Froze the shader at time zero and removed its continuous animation loop. Resize and context recovery still redraw the same scene.
+- Added 14px blur to the backdrop and its glass copies. Text and controls stay sharp.
+- TypeScript, lint, 13 Node tests and the isolated production build passed. Chrome confirmed a stable frame, matching blur, desktop/phone layouts and no page errors. Updated the existing browser check for the static frame and blur.
+
 ### 2026-11-14 · Dev A · Claude Code · "use your own API key" for console runs
 - Did: `POST /runs` takes an optional `llm` (provider from the fixed list, model, key). That run uses its own router for both agents and the ledger, with no shared keys and the cache off. `RunSummary.own_key` marks such runs. api-types regenerated.
 - Key safety: it stays in memory for that run only. Provider errors have the key replaced by `[redacted]`. Tests check that a test key never shows up in events, summaries, API/SSE responses, the store or logs (4 new tests in `test_run_api.py`).

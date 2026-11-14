@@ -14,19 +14,18 @@ export default function DitheringBackground() {
     if (!canvas) return;
     const gl = canvas.getContext("webgl", {
       alpha: false, antialias: false, depth: false, stencil: false,
-      // The glass reads this same frame on scroll and for the static motion fallback.
+      // The glass reads this same static frame on scroll.
       preserveDrawingBuffer: true,
     });
     if (!gl) return;
-    const motion = matchMedia("(prefers-reduced-motion: reduce)");
     const opaque = matchMedia("(prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active)");
     let program: WebGLProgram | null = null;
     let buffer: WebGLBuffer | null = null;
     let shaders: WebGLShader[] = [];
     let scene: WebGLUniformLocation | null = null;
-    let frame = 0, elapsed = 0, previous = 0;
+    let frame = 0;
 
-    const pause = () => { cancelAnimationFrame(frame); frame = 0; previous = 0; };
+    const pause = () => { cancelAnimationFrame(frame); frame = 0; };
     const dispose = () => {
       pause();
       delete canvas.dataset.ready;
@@ -74,7 +73,7 @@ export default function DitheringBackground() {
         dispose();
       }
     };
-    const render = (now: number) => {
+    const render = () => {
       frame = 0;
       if (!program || gl.isContextLost() || document.hidden || opaque.matches) return;
       const dpr = Math.min(devicePixelRatio || 1, 2);
@@ -84,13 +83,11 @@ export default function DitheringBackground() {
         canvas.width = width; canvas.height = height;
         gl.viewport(0, 0, width, height);
       }
-      if (previous && !motion.matches) elapsed += (now - previous) / 1000;
-      previous = now;
-      gl.uniform4f(scene, width, height, elapsed * 1.56, 4.0);
+      // A fixed time keeps the same composition across redraws and restoration.
+      gl.uniform4f(scene, width, height, 0.0, 4.0);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       canvas.dataset.ready = "true";
       publishDitheringScene(canvas);
-      if (!motion.matches) frame = requestAnimationFrame(render);
     };
     const resume = () => {
       pause();
@@ -101,7 +98,7 @@ export default function DitheringBackground() {
     canvas.addEventListener("webglcontextlost", lost);
     canvas.addEventListener("webglcontextrestored", restored);
     document.addEventListener("visibilitychange", resume);
-    motion.addEventListener("change", resume); opaque.addEventListener("change", resume);
+    opaque.addEventListener("change", resume);
     window.addEventListener("resize", resume);
     const resize = new ResizeObserver(resume); resize.observe(canvas);
     initialize(); resume();
@@ -110,7 +107,7 @@ export default function DitheringBackground() {
       canvas.removeEventListener("webglcontextlost", lost);
       canvas.removeEventListener("webglcontextrestored", restored);
       document.removeEventListener("visibilitychange", resume);
-      motion.removeEventListener("change", resume); opaque.removeEventListener("change", resume);
+      opaque.removeEventListener("change", resume);
       window.removeEventListener("resize", resume);
       dispose();
     };
