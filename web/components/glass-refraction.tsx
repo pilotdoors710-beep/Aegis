@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { createGlass } from "@/lib/liquid-glass-engine";
+import { followDitheringScene } from "@/lib/dithering-scene";
 import styles from "./glass-refraction.module.css";
 
 type Material = "panel" | "control" | "compact";
@@ -53,15 +54,35 @@ export function GlassRefraction({ variant = "panel", list = false }: { variant?:
       if (!visible || preference.matches) return;
       const scene = document.createElement("span");
       scene.className = styles.scene;
-      // Same viewport-sized, static artwork as the page. Never duplicate live DOM.
+      // A cropped copy of the shared shader is refracted, leaving native content sharp.
       scene.style.background = getComputedStyle(sky).background;
+      const copy = document.createElement("canvas");
+      copy.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:none";
+      scene.append(copy);
+      const context = copy.getContext("2d", { alpha: false });
       surface.append(scene);
-      let viewport = "";
+      let source: HTMLCanvasElement | null = null;
+      let left = 0, top = 0, width = 1, height = 1;
+      const paint = () => {
+        copy.style.display = source && context ? "block" : "none";
+        if (!source || !context) return;
+        context.fillStyle = "#001219"; context.fillRect(0, 0, width, height);
+        context.drawImage(source, -left, -top, innerWidth, innerHeight);
+      };
       const place = () => {
-        const size = `${innerWidth}x${innerHeight}`;
-        if (size !== viewport) { scene.style.background = getComputedStyle(sky).background; viewport = size; }
         const rect = surface.getBoundingClientRect();
-        Object.assign(scene.style, { left: `${-rect.left}px`, top: `${-rect.top}px`, width: `${innerWidth}px`, height: `${innerHeight}px` });
+        // Overscan supplies pixels for the full-dome displacement near the edges.
+        const padding = 40;
+        left = rect.left - padding; top = rect.top - padding;
+        width = Math.max(1, Math.ceil(rect.width + padding * 2));
+        height = Math.max(1, Math.ceil(rect.height + padding * 2));
+        if (copy.width !== width) copy.width = width;
+        if (copy.height !== height) copy.height = height;
+        Object.assign(scene.style, {
+          left: `${-padding}px`, top: `${-padding}px`, width: `${width}px`, height: `${height}px`,
+          backgroundSize: `${innerWidth}px ${innerHeight}px`, backgroundPosition: `${-left}px ${-top}px`,
+        });
+        paint();
       };
       place();
       try {
@@ -70,10 +91,11 @@ export function GlassRefraction({ variant = "panel", list = false }: { variant?:
           ...optics[variant], chroma: .12, mapScale: innerWidth < 600 ? .75 : 1,
         });
         layer.dataset.refraction = "active";
+        const unfollowScene = followDitheringScene(canvas => { source = canvas; paint(); });
         const unfollow = follow(place);
         const resize = new ResizeObserver(schedule); resize.observe(host);
         stop = () => {
-          unfollow(); resize.disconnect();
+          unfollowScene(); unfollow(); resize.disconnect();
           glass.destroy(); scene.remove(); delete layer.dataset.refraction;
         };
       } catch { scene.remove(); }

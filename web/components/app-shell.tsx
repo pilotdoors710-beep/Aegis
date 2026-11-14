@@ -11,6 +11,7 @@ import { arrivedFromEntrance } from "@/lib/landing/phases";
 import "@/app/app-theme.css";
 
 const Galaxy = dynamic(() => import("@/components/reactbits/Galaxy"), { ssr: false });
+const DitheringBackground = dynamic(() => import("@/components/dithering-background"), { ssr: false });
 
 const pages = [["/console", "Console"], ["/lab", "Trap Lab"], ["/scan", "Scan"], ["/runs", "Runs"], ["/stats", "Stats"]] as const;
 const also = [{ label: "Health", link: "/health" }, { label: "Arena", link: "/arena/index.html?traps=none", external: true }];
@@ -39,14 +40,18 @@ function CurrentMenu() {
   return <Menu pathname={usePathname()} />;
 }
 
+function Background() {
+  const dashboard = usePathname() === "/console";
+  return <div className="console-sky" aria-hidden="true">{dashboard ? <DitheringBackground /> :
+    <Galaxy starColors={STARS} density={0.55} starSpeed={0.3} speed={0.5} glowIntensity={0.22} twinkleIntensity={0.2} rotationSpeed={0.02} mouseInteraction={false} clickWarp={false} intro={false} opacity={0.6} dpr={1} />
+  }</div>;
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const [arriving] = useState(arrivedFromEntrance);
   return <div className="app-theme console-shell" data-arriving={arriving || undefined}>
     <a className="skip-content" href="#app-content">Skip to content</a>
-    {/* The same star field as the entrance, turned down so it sits behind the glass. */}
-    <div className="console-sky" aria-hidden="true">
-      <Galaxy starColors={STARS} density={0.55} starSpeed={0.3} speed={0.5} glowIntensity={0.22} twinkleIntensity={0.2} rotationSpeed={0.02} mouseInteraction={false} clickWarp={false} intro={false} opacity={0.6} dpr={1} />
-    </div>
+    <Suspense fallback={<div className="console-sky" aria-hidden="true" />}><Background /></Suspense>
     <Suspense fallback={<Menu pathname="" />}><CurrentMenu /></Suspense>
     <ClickSpark sparkColor={SPARKS} sparkSize={9} sparkRadius={22} sparkCount={8} duration={420}>
       <main id="app-content" className="console-content" tabIndex={-1}>{children}</main>

@@ -372,12 +372,12 @@
 }
 :root:has(#console-menu-home) { background: #2B3D55; }
 .app-theme:has(#console-menu-home) .console-sky {
-  background:
-    radial-gradient(ellipse 65% 18% at 82% 23%, rgb(184 146 90 / 15%), transparent 75%),
-    repeating-radial-gradient(ellipse 85vw 48vh at 125% 30%, transparent 0 45px, rgb(236 235 239 / 12%) 47px 54px, transparent 65px 100px),
-    repeating-radial-gradient(ellipse 75vw 70vh at -30% 85%, transparent 0 70px, rgb(184 146 90 / 15%) 74px 82px, transparent 94px 145px), #2B3D55;
+  background: linear-gradient(135deg, #001219, #005F73 62%, #94D2BD);
 }
-.app-theme:has(#console-menu-home) .console-sky > * { display: none; }
+.app-theme .dithering-background { position: absolute; inset: 0; display: block; width: 100%; height: 100%; pointer-events: none; opacity: 0; }
+.app-theme .dithering-background[data-ready] { opacity: 1; }
+/* A steady veil keeps the pale grain from competing with the pearl labels. */
+.app-theme:has(#console-menu-home) .console-sky::after { content: ""; position: absolute; inset: 0; background: rgb(0 18 25 / 68%); }
 .app-theme:has(#console-menu-home) .console-content { padding-top: calc(var(--bar) + 56px); }
 .app-theme:has(#console-menu-home) #console-heading { letter-spacing: -.045em; }
 /* Explicit stacking keeps the filtered artwork behind crisp, interactive content. */

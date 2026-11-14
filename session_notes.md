@@ -28,6 +28,19 @@ Template:
 - Web (at the user's request): a collapsible "Use your own API key" panel on /console, kept in React state only. Runs use a "Your key · provider:model" badge on the run page and the runs list. Stats only reads eval data.
 - Not done: the permission-pair "run the counterpart" button on the run page uses the shared key (the key is gone after leaving /console). The live backend still needs a restart to get this.
 
+### 2026-11-14 · Dev B · Antigravity · integrate DitherVeil shield on landing page
+- Integrated `<DitherVeil />` from React Bits in `web/components/ui/DitherVeil.tsx` with `ogl` WebGL pipeline.
+- Added custom 3D Aegis shield asset in `web/public/landing/aegis-shield.jpg` with Floyd-Steinberg dithering in brand palette (#080808, #E8C59E, #d9541e) and interactive cursor trail reveal + click shockwaves.
+- Re-architected landing stage into a balanced two-column hero: 'AEGIS' TechText wordmark aligned to the left with mission tagline, interactive DitherVeil shield on the right.
+- Both components float over the dynamic React Bits Galaxy starfield and smoothly scale/dissolve during the scroll-to-enter transition into `/console`.
+- Verified with TypeScript typecheck, ESLint, 13 Node unit tests, and production build.
+
+### 2026-11-14 - Dev B - Codex - dithering dashboard background
+- Added the supplied Paper Shaders adaptation behind the dashboard glass, using plain WebGL1 and no new dependencies. Included its Apache license and source credit.
+- The glass bends cropped copies of the same animated frame. A dark teal veil keeps pearl labels readable; sampled small-text contrast was 4.73:1 and 4.80:1 in two captures.
+- Browser checks passed for exact uniforms, animation, hidden-tab pause, reduced motion, context recovery, phone sizing, DPR cap, sample approval, navigation cleanup and the no-WebGL fallback.
+- Types, lint, 13 Node tests and the final isolated production build passed. Chrome checks passed with the final veil applied; a later repeat was interrupted when another build replaced preview files. The preview uses local Geist files. Physical-device performance and other browsers remain unchecked.
+
 ### 2026-11-14 - Dev B - Codex - clear glass dashboard implementation
 - Replaced opaque pearl panes with transparent pearl glass over navy and bronze ribbons. Added full-surface refraction to navigation, cards, labels, controls, sample panels and approval dialogs.
 - Kept text, screenshots and controls sharp. Added stable decoration mounts and off-screen cleanup; fixed menu positioning and React portal text warnings found during review.
