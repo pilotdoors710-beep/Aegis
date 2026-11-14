@@ -47,15 +47,117 @@
   clip-path: inset(var(--edge-y) var(--edge-x));
 }
 
-.mark {
-  font-family: var(--font-geist-sans), sans-serif;
+.stageContent {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 max(32px, 7vw);
+  max-width: 1440px;
+  margin: 0 auto;
+  z-index: 1;
   opacity: calc(1 - var(--mark));
-  transform: scale(calc(1 + 0.55 * var(--mark)));
-  filter: blur(calc(var(--mark) * 20px));
+  transform: scale(calc(1 + 0.35 * var(--mark)));
+  filter: blur(calc(var(--mark) * 16px));
+  transition: opacity 100ms;
 }
 
-.stage[data-scrolling] .mark {
+.stage[data-scrolling] .stageContent {
   pointer-events: none;
+}
+
+.leftColumn {
+  flex: 1 1 50%;
+  max-width: 580px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  z-index: 2;
+}
+
+.markWrapper {
+  width: 100%;
+  height: clamp(110px, 20vh, 190px);
+  position: relative;
+  font-family: var(--font-geist-sans), sans-serif;
+}
+
+.taglineBlock {
+  margin-top: 18px;
+  padding-left: calc(100% * 0.05);
+}
+
+.taglineQuote {
+  font: 600 13px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.24em;
+  color: #d9541e;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.orangeRule {
+  height: 2px;
+  width: 44px;
+  background: #d9541e;
+  margin: 12px 0 16px 0;
+  border-radius: 1px;
+}
+
+.taglineDesc {
+  font: 400 15px/1.6 var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: rgb(252 248 216 / 78%);
+  max-width: 480px;
+  margin: 0;
+}
+
+.rightColumn {
+  flex: 1 1 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 2;
+}
+
+.shieldWrapper {
+  width: min(480px, 42vw);
+  height: min(480px, 42vw);
+  max-height: 56svh;
+  aspect-ratio: 1 / 1;
+  position: relative;
+  border-radius: 50%;
+  overflow: hidden;
+  filter: drop-shadow(0 0 50px rgba(217, 84, 30, 0.22));
+}
+
+@media (max-width: 860px) {
+  .stageContent {
+    flex-direction: column-reverse;
+    justify-content: center;
+    gap: 24px;
+    padding: 24px;
+  }
+
+  .leftColumn {
+    max-width: 100%;
+    align-items: center;
+    text-align: center;
+  }
+
+  .taglineBlock {
+    padding-left: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .shieldWrapper {
+    width: min(280px, 60vw);
+    height: min(280px, 60vw);
+    max-height: 35svh;
+  }
 }
 
 .frame {

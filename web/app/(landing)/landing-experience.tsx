@@ -9,6 +9,7 @@ import { signalConsoleEntry } from "@/lib/landing/phases";
 import styles from "./landing.module.css";
 
 const Galaxy = dynamic(() => import("@/components/reactbits/Galaxy"), { ssr: false });
+const DitherVeil = dynamic(() => import("@/components/ui/DitherVeil"), { ssr: false });
 
 const WORD = "AEGIS";
 const WEIGHT = 600;
@@ -45,10 +46,11 @@ export function LandingExperience() {
 
     const travel = () => trackEl.offsetHeight - window.innerHeight;
 
-    // Same fit TechText uses, so the frame starts exactly on the wordmark's ink.
+    // Fit left-aligned TechText wordmark and stage framing
     const measure = () => {
       const width = stageEl.clientWidth, height = stageEl.clientHeight;
-      const wanted = Math.max(64, Math.round(width * 0.2));
+      const markW = markEl.clientWidth || Math.min(540, width * 0.48);
+      const wanted = Math.max(54, Math.round(markW * 0.28));
       setFontSize(wanted);
       if (!probe) return;
       const family = getComputedStyle(markEl).fontFamily || "sans-serif";
@@ -59,12 +61,12 @@ export function LandingExperience() {
         return { w: m.actualBoundingBoxLeft + m.actualBoundingBoxRight, h: m.actualBoundingBoxAscent + m.actualBoundingBoxDescent };
       };
       const full = ink(wanted);
-      const size = wanted * Math.min(1, (width * 0.9) / Math.max(full.w, 1), (height * 0.66) / Math.max(full.h, 1));
+      const size = wanted * Math.min(1, (markW * 0.9) / Math.max(full.w, 1), (height * 0.4) / Math.max(full.h, 1));
       const fitted = ink(size);
       const pad = Math.max(14, size * 0.14);
       start = { w: fitted.w + pad * 2, h: fitted.h + pad * 2 };
-      stageEl.style.setProperty("--inset-x", `${Math.max(0, (width - start.w) / 2)}px`);
-      stageEl.style.setProperty("--inset-y", `${Math.max(0, (height - start.h) / 2)}px`);
+      stageEl.style.setProperty("--inset-x", `${Math.max(0, width * 0.04)}px`);
+      stageEl.style.setProperty("--inset-y", `${Math.max(0, height * 0.08)}px`);
       draw();
     };
 
@@ -153,21 +155,58 @@ export function LandingExperience() {
           />
         </div>
         <div className={styles.ground} aria-hidden="true" />
-        <div ref={mark} className={styles.mark}>
-          <TechText
-            text={WORD}
-            fontWeight={WEIGHT}
-            fontSize={fontSize}
-            letterSpacing={TRACKING}
-            reveal="letter"
-            dashLength={5}
-            dashGap={3}
-            strokeWidth={1.5}
-            specks={15}
-            intro="none"
-            clickKick
-            guides={false}
-          />
+
+        {/* Two-column stage: 'AEGIS' aligned left, DitherVeil shield on right */}
+        <div className={styles.stageContent}>
+          <div className={styles.leftColumn}>
+            <div ref={mark} className={styles.markWrapper}>
+              <TechText
+                text={WORD}
+                align="left"
+                fontWeight={WEIGHT}
+                fontSize={fontSize}
+                letterSpacing={TRACKING}
+                reveal="letter"
+                dashLength={5}
+                dashGap={3}
+                strokeWidth={1.5}
+                specks={15}
+                intro="none"
+                clickKick
+                guides={false}
+              />
+            </div>
+            <div className={styles.taglineBlock}>
+              <p className={styles.taglineQuote}>COMMIT BEFORE CODE</p>
+              <div className={styles.orangeRule} aria-hidden="true" />
+              <p className={styles.taglineDesc}>
+                A runtime shield between autonomous agents and the live web—stopping deception before it becomes a commitment.
+              </p>
+            </div>
+          </div>
+
+          <div className={styles.rightColumn}>
+            <div className={styles.shieldWrapper}>
+              <DitherVeil
+                src="/landing/aegis-shield.jpg"
+                fit="contain"
+                pattern="floyd"
+                pixelSize={2}
+                levels={3}
+                palette="duotone"
+                inkColor="#080808"
+                paperColor="#E8C59E"
+                rimColor="#d9541e"
+                rim={0.12}
+                revealRadius={180}
+                softness={0.65}
+                linger={1.2}
+                contrast={1.2}
+                brightness={0.05}
+                clickBurst={true}
+              />
+            </div>
+          </div>
         </div>
         <div className={styles.frame} aria-hidden="true">
           <span ref={readout} className={styles.readout} />
