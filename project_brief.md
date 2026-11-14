@@ -453,3 +453,182 @@ If R2 passes its ship gate, add: "For supported ambiguous controls in our simula
 Rehearse actual timings; the paired run gate is <90 s and the complete presentation is ≤120 s. Keep the backup recording clearly labelled. Prepare Q&A on close prior work (especially Veer), false positives, parser errors, uncertain evidence, provider limits, isolation, and the difference between visible confirmation and trusted backend truth. Judge affiliation is not a substitute for evidence.
 
 **Claim ladder:** describe permission-sensitive recovery as a product capability; describe R2 as an experimental mechanism only if implemented; call it a research contribution only to the extent supported by related-work comparison and reproducible results. No "first ever," formal security guarantee, universal malware detection, or promise of impressing/winning over a particular judge.
+
+---
+
+## 14. Sybil Playground extension (authorized 15 November 2026)
+
+This extension stays in Track 03 and preserves every core submission gate, R1/R2 timebox,
+evaluation requirement and November 18 deadline above. Stages are exit-gated, not a promise
+to finish the full extension before submission. The first complete extension release requires
+stages 1–3. Planned capabilities must never be represented as implemented.
+
+### Ownership and milestones
+
+The human explicitly handed Codex backend/data implementation as well as frontend work on
+15 November. Codex may edit `server/`, `eval/`, and persistence for this extension, coordinating
+with Dev A and preserving unrelated work. This is an exception to §9.15 for Sybil work only.
+Contract changes still originate in `server/aegis/schemas.py`; regenerate frontend types in
+the same commit. The human's handoff authorizes this coordinated extension work.
+
+| Stage | Owner | Deliverables and exit gate |
+|---|---|---|
+| 0: reconcile | Codex, coordinate Dev A | Record scope, contracts, ownership and resource preflight; no unresolved scope conflict |
+| 1: real-data engine | Codex (backend/data handoff) | Pinned resumable import, deterministic extraction, artifacts, pure sparse scoring; real graph, numerical tests and measured performance tier pass |
+| 2: judge playground | Codex (frontend and backend) | `/sybil`, arbitrary permitted edits, budgets, graph views, revision-correct scores/deltas and exports |
+| 3: agent integration | Codex, coordinate Dev A | Two-shop arena, evidence, separate uncertainty ASK, paired runs and recorded replay; graph edit reaches actual agent and visible simulated purchase |
+| 4: advanced analysis | Backend/data + frontend | Bounded bottleneck witness, attack search, expanded benchmarks |
+| 5: real merchants | Further specification required | Read-only first; identity mapping, recommendation semantics, freshness and action support must be established separately |
+
+Release behind `SYBIL_ENABLED=false` on both services. Enable publicly only after a deployed
+assessment and complete paired browser run succeed through the public URL. A local preview
+may expose explicit unavailable states for development; this is not the release gate.
+
+### Real data and import contract
+
+Pin `cc-main-2026-aug-sep-oct`, domain graph. Common Crawl's
+[release manifest](https://index.commoncrawl.org/graphinfo.json) reports 134,979,706 source
+domains and 1,817,202,146 source arcs. These are archive counts, never interactive counts.
+Use the official [WebGraph exploration tooling](https://github.com/commoncrawl/cc-webgraph/blob/main/graph-exploration-README.md)
+for offline forward/reverse adjacency access. Observed links can include assets and do not
+establish endorsement. Store attribution and [terms](https://commoncrawl.org/terms-of-use).
+
+- Default offline budget: 60 GiB. Fetch release metadata, inspect exact Content-Length and
+  available storage before downloading graph, transpose and labels. Account for derived
+  offsets, decompression, extraction and deployed artifacts before claiming import readiness.
+  Stop with exact requirements if over budget; never substitute synthetic background data.
+- Resume transfers; verify published checksums when available; always record local SHA-256.
+  Raw downloads and large graph artifacts stay out of Git.
+- Extract incoming/outgoing neighborhoods from eight declared anchors: wikipedia.org, w3.org,
+  ietf.org, acm.org, ieee.org, mit.edu, stanford.edu, commoncrawl.org. These are assumptions.
+  Order expansion by seeded hash of original IDs. Preserve IDs, direction, original and
+  retained outdegree, extraction depth/parameters, preprocessing and dataset versions.
+- Track omitted outgoing probability with an outside-sample sink; acknowledge missing incoming
+  links. Scores describe the imported graph, not the whole web.
+- Target 50,000 nodes / up to 1 million edges; benchmark first, use a declared 25,000 / 500,000
+  tier if needed. Browser starts near 1,500 nodes, capped at 5,000 nodes / 20,000 edges.
+  Visual filters never change the scored graph. Publish exact imported/scored/displayed counts.
+- Build CSR, reverse adjacency, lookup and initial layout plus a versioned manifest containing
+  counts, hashes, provenance, anchors, extraction and frozen normalization. No article bodies
+  or screenshots are required.
+
+### Mathematical and module contract
+
+`assess(graph, seeds, recommendations, config) -> assessment` is pure numerical work with
+NumPy/SciPy float64 sparse arrays. It cannot see attacker ownership, target shop, domain
+wording, review text, agent choice or success labels. `apply(base, edits, policy)` creates
+immutable canonical revisions; `evidence(assessment, candidate_shops)` emits bounded agent
+evidence. Recommendations are separate from website transitions.
+
+- Deduplicate website links; unique outgoing links share probability equally. Omitted outgoing
+  links go to an absorbing outside-sample sink; genuinely dangling websites self-loop.
+- Seeded Personalized PageRank (TrustRank-style, not SybilRank):
+  `p_next = rho*s + (1-rho)*P.T*p`, uniform restart across eight anchors, rho=0.15,
+  global L1 difference <1e-10, maximum 300 iterations. Return residual, convergence,
+  iterations and elapsed time. Nonconvergence cannot authorize a graph-policy pass.
+- Deduplicate recommendations; a website recommending k shops allocates p/k to each.
+  M is summed support; counts are distinct recommending websites.
+- Freeze tau at the clean positive non-anchor/non-sink node-score 95th percentile.
+  Reject a dataset without positive non-anchor support. `S=M/(M+tau)`.
+- Solve each anchor separately using the same transition matrix. Normalize anchor support c;
+  `N_eff=1/sum(c²)` and `D=(N_eff-1)/(K-1)` (K=8). This does not establish independent people.
+- `L=min(1,min_i M_without_anchor_i/M)` using exact per-anchor linear decomposition and
+  restart redistribution across remaining anchors, with P unchanged.
+- For each shop test up to five highest steady-state-flow edges entering its supporters.
+  Remove each edge in a disposable graph, renormalize that source, recompute, restore.
+  `E=min(1,min_e M_without_edge/M)`, or zero without incoming candidates. This is tested
+  connection resilience, not a worst-case guarantee. Flow is `(1-rho)*p[u]*P[u,v]`.
+- Formula version `sybil-v1`: `R=100*S*(0.40+0.20*D+0.20*L+0.20*E)`.
+  Zero support makes all components zero; numerical failure is unavailable, never zero.
+  Round total to one decimal only for display. Freeze weights before held-out evaluation.
+- Always label: "A heuristic measure of structural support and tested sensitivity. Not a
+  probability that this shop is safe."
+
+### Scenario, interface and persistence contract
+
+Challenge freezes background, anchors, rho, normalization and weights. Limits: 1,000 injected
+websites, 100,000 internal directed edges, 25 external credits. Internal links/recommendations
+are free within limits; cooperating background→injected edge costs 2, non-anchor compromise 5,
+anchor compromise 15. Compromise permits at most 100 changed outgoing relationships per
+website. Injected→background links are freely creatable but do not carry trust backwards.
+Recalculate credits from the active edit set; removal/undo/redo cannot mint credits. Generation
+(dense, multiple clusters, hub/spoke, chain) is seeded and reproducible. Research permits
+anchor/background/rho/weight/recommendation changes and bundle import, always labelled and
+excluded from bounded comparisons.
+
+Every accepted edit validates budget, creates a canonical immutable hash, updates the view,
+stales prior scores and debounces assessment by 250 ms. Support may arrive before sensitivity
+results; never combine revisions or show a total until all components match. Preserve undo,
+redo, reset, history and export. Runs freeze the scenario; subsequent edits form a new draft.
+
+`/sybil` inherits console styles: controls left, interactive graph center, inspector right;
+persistent dataset/count/mode/revision/status strip, two-shop comparison tray. Show
+"Real website-link background. Shop recommendations and attack edits are simulated."
+Observed nodes are circles, anchors outlined diamonds, simulations marked circles, shops
+squares; observed links solid directed, simulated links dashed, recommendations distinct.
+Ownership is visible only to the judge; never score or send it to the agent. Real domains
+are never labelled fraudulent. Sigma.js + a compatible pinned worker layout provide
+Topology / Trust / Change / Dependence overlays, search, fit, zoom, neighborhood expansion
+and synchronized tables. Moving coordinates never edits mathematical edges.
+
+Node inspector: identity/provenance/degrees/original vs retained outdegree, mass and baseline
+delta, shop and anchor contributions. Edge inspector: direction/provenance/weight/flow and
+removal deltas. Counterfactual returns support/component/total/rank deltas, status and time.
+Particles only in Trust, labelled calculated flow rather than browsing traffic. Forms/tables
+provide keyboard and no-WebGL access; shapes supplement color, reduced motion disables
+particles/layout, phones stack Controls / Graph / Evidence. Dispose hidden renderers/workers.
+
+Public model groups in schemas.py: dataset manifest, immutable scenario revision, assessment,
+bounded graph view, bounded graph evidence and frozen run context. REST endpoints:
+`GET /sybil/datasets`, `POST /sybil/scenarios`, `GET /sybil/scenarios/{id}`,
+`GET /sybil/scenarios/{id}/view`, `POST /sybil/scenarios/{id}/assessments`,
+`GET /sybil/assessments/{id}`, `POST /sybil/scenarios/{id}/counterfactuals`.
+Poll graph jobs; keep existing SSE lifecycle for browser events. Add optional typed RunCreate
+configuration, reject incompatible presets, retain legacy requests/event kinds. Typed comparison
+metadata controls pane labels. Separate graph ASK reason from payment/audit approval.
+
+Persist dataset manifests, immutable scenarios and assessments in Postgres; large sparse
+artifacts remain backend files. Canonical graph cache is separate from LLM cache. Replays
+show recorded evidence, never silently recompute with new weights. Exports include scenario,
+manifest, settings, assessment, score CSV and graph image, never keys.
+
+### Agent, resource and evaluation gates
+
+Both simulated shops sell the same eligible Aurora lamp for ₹1,299, standard shipping,
+with product→checkout→visible confirmation, same arena origin, immutable fixture token,
+scenario recommendation counts/lists and no default checkout traps. Real domains are evidence;
+the agent does not browse them. No attack labels or expected winners in DOM or prompts.
+Use the same base system prompt/action schema and approximately 350 tokens of separately
+labelled system-produced graph evidence; reserve prompt space. LLM chooses the shop.
+
+Prototype policy passes only a full, converged assessment with R>=60 and S>=0.5; otherwise
+ASK before entering the proposed shop. Allow is scoped to shop/run/frozen revision only;
+deny feeds back for reconsideration under the existing retry limit. Payment, subscription,
+data-sharing and ledger approvals remain separate. Graph failure never releases uncertain
+sensitive actions. Existing runs work without the extension.
+
+Default comparison: Unprotected vs Aegis+graph; evaluation also compares current Aegis vs
+current Aegis+graph. Freeze fixture/task/graph/model/action budget per comparison. Outcome
+shop identity comes from visible confirmation. Run four evaluation arms (Unprotected, current
+Aegis, graph only, current Aegis+graph): 12 held-out scenarios × 4 × 3 = 144 agent-side runs,
+subject to timing/quota pilot and any predeclared reduction. Disable LLM cache and separate
+fallback models. Structural benchmark: 6 families × 3 sizes × 2 credit levels × 5 seeds =
+180 attacks plus 30 controls; compare counts, ordinary PageRank, seeded support, full score
+and weight ablations. Report selection, completion/safe completion, executed commitments,
+expected/uncertainty approvals, unnecessary escalation, human assistance, latency/tokens,
+queueing and failures. Do not label the real background honest or hide incomplete purchases.
+
+One background numerical process; queue 20, payload 2 MiB, views bounded as above. Cancel
+superseded previews between iterations, reuse canonical assessments, reclaim temporary work.
+Typed unavailable/invalid/timeout/cancelled/nonconverged/persistence-failure states. Targets
+require measurement: edits <100 ms, support p95 <1 s, full p95 <5 s, counterfactual p95 <2 s,
+pan/zoom >=30 FPS on demo laptop, worker <1.5 GiB, paired run <90 s.
+
+Test probability/direction/dangling/sink/conservation, anchor decomposition/withdrawal,
+recommendation deduplication, bounds, frozen tau, nonconvergence and ID/name/order/label
+invariance against an independent reference. Cover budgets/refunds/forbidden edits,
+rapid stale responses, independent drafts/frozen runs, accessibility and renderer loss.
+Scripted agent tests precede real runs; retain every original arena/audit/approval test.
+Stage 4 max-flow is limited to a declared explanation subgraph (2,500 nodes), unit website
+capacities and one unit per anchor; attack search caps at 500 proposals / 60 seconds,
+fixed seed, no LLM, same Challenge budget, no optimality claim.
