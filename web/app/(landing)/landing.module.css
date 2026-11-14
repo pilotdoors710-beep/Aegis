@@ -66,7 +66,7 @@
   justify-content: center;
   pointer-events: none;
   transform-origin: center center;
-  translate: 0 -8.5vh;
+  translate: 0 -14vh;
   animation: aegisZoomIn 1.4s cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity, filter;
   backface-visibility: hidden;
@@ -90,7 +90,7 @@
 
 .subtitleWrapper {
   position: absolute;
-  top: calc(100% - var(--inset-y) + 20px - 8.5vh);
+  top: calc(100% - var(--inset-y) + 18px - 14vh);
   left: 50%;
   transform: translateX(-50%);
   width: max-content;
@@ -154,13 +154,17 @@
 
 @media (max-width: 640px) {
   .wordmarkZoom {
-    translate: 0 -6vh;
+    translate: 0 -10vh;
   }
 
   .subtitleWrapper {
-    top: calc(100% - var(--inset-y) + 14px - 6vh);
+    top: calc(100% - var(--inset-y) + 14px - 10vh);
     max-width: 92vw;
     gap: 12px;
+  }
+
+  .frame {
+    translate: 0 calc(-10vh * (1 - var(--t)));
   }
 
   .displaySubtitle,
@@ -178,12 +182,16 @@
 
 @media (max-height: 600px) {
   .wordmarkZoom {
-    translate: 0 -7vh;
+    translate: 0 -11vh;
   }
 
   .subtitleWrapper {
-    top: calc(100% - var(--inset-y) + 10px - 7vh);
+    top: calc(100% - var(--inset-y) + 10px - 11vh);
     gap: 10px;
+  }
+
+  .frame {
+    translate: 0 calc(-11vh * (1 - var(--t)));
   }
 
   .displaySubtitle,
@@ -203,6 +211,7 @@
   border: 1px solid rgb(252 248 216 / 50%);
   opacity: var(--frame);
   pointer-events: none;
+  translate: 0 calc(-14vh * (1 - var(--t)));
 }
 
 .frame i {
@@ -298,7 +307,7 @@
     transform: none;
     filter: none;
     opacity: 1;
-    translate: 0 -8.5vh;
+    translate: 0 -14vh;
   }
   .subtitleWrapper {
     animation: none;

@@ -22,6 +22,12 @@ Template:
 
 ## Log
 
+### 2026-11-15 · Dev B · Antigravity · refine AEGIS wordmark scale and position
+- Scaled down 'AEGIS' wordmark (~25% smaller, `width * 0.15`) for a sleeker, more refined presence.
+- Shifted wordmark higher up (`translate: 0 -14vh`) with matched subtitle and inspection frame transitions.
+- Adjusted responsive breakpoints and reduced-motion offsets to match.
+- Verified TypeScript, 18 Node unit tests, and layout alignment.
+
 ### 2026-11-15 · Codex · Sybil source checkpoint
 - Saved the implementation described in the Sybil foundation entry below; another session committed landing work while these files were staged, so source files were staged again explicitly.
 - New numerical/import/API tests, web checks and readiness browser checks pass. The full Chrome backend run has 3 failures in existing trial tests; publishing is held.

@@ -49,7 +49,7 @@ export function LandingExperience() {
     // Same fit TechText uses, so the frame starts exactly on the wordmark's ink.
     const measure = () => {
       const width = stageEl.clientWidth, height = stageEl.clientHeight;
-      const wanted = Math.max(64, Math.round(width * 0.2));
+      const wanted = Math.max(52, Math.round(width * 0.15));
       setFontSize(wanted);
       if (!probe) return;
       const family = getComputedStyle(markEl).fontFamily || "sans-serif";
@@ -60,7 +60,7 @@ export function LandingExperience() {
         return { w: m.actualBoundingBoxLeft + m.actualBoundingBoxRight, h: m.actualBoundingBoxAscent + m.actualBoundingBoxDescent };
       };
       const full = ink(wanted);
-      const size = wanted * Math.min(1, (width * 0.9) / Math.max(full.w, 1), (height * 0.66) / Math.max(full.h, 1));
+      const size = wanted * Math.min(1, (width * 0.85) / Math.max(full.w, 1), (height * 0.55) / Math.max(full.h, 1));
       const fitted = ink(size);
       const pad = Math.max(14, size * 0.14);
       start = { w: fitted.w + pad * 2, h: fitted.h + pad * 2 };
