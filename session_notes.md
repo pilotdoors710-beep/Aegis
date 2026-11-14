@@ -22,6 +22,12 @@ Template:
 
 ## Log
 
+### 2026-11-14 · Dev A · Claude Code · loose ends + E6 browser-use drop-in
+- Fixed: the sample run's approval dialog now stays up 4 s (the server holds the pending ask). `verify-landing.py` was rewritten for the scroll entrance, and `verify-glass.py` now targets the Staggered Menu header. Both pass (14 + 4 checks) on bundled Chromium; `BROWSER_CHANNEL=chrome` uses installed Chrome.
+- Did E6: `server/aegis/wrap.py` `AegisTools` for **browser-use 0.13.14** (1.0 can't be gated: its model writes Python against raw CDP). Every action goes through the detectors, the audit and the approval gate. `evaluate`/`upload_file` are removed, and the run ends after an approved commitment. It runs in a separate uv env (pins conflict with our lock); the command is in `eval/browser_use_demo.py`. 5 tests in `tests/test_wrap.py`, skipped in normal CI.
+- Pilot N=1 (gemini-3.5-flash-lite; Groq 20b is over its TPM limit with browser-use's prompt): browser-use alone avoids T01/02/03/05/06/08 and pays on T04 (₹1,548) and T11 (₹1,598). With Aegis, T04 pays nothing; T11 is still missed (no two-view check in the wrapper). Table in eval/README.md.
+- Next: tag `eval-freeze`, start the final eval blocks, restart `aegis.service` (the live server runs old code), README, backup video. E10 after that.
+
 ### 2026-11-14 · Dev B · Codex · navy and pearl dashboard
 - Changed the dashboard to navy #2B3D55, pearl #ECEBEF glass panels and glossy bronze #B8925A buttons. Added reflective edges, a floating menu bar and readable light-panel text.
 - Included the side conversation's local glass refraction on cards and buttons. The entrance, Arena and other tool pages keep their existing themes.
