@@ -29,6 +29,13 @@ Template:
 - Not done: nothing is committed. `verify-landing.py` and `verify-glass.py` still target the old landing/header. Old landing files and `@designcodeio/threeui` are unused but left in place (Dev B has edits there). Brief §8 still says "clicking anywhere enters the console"; it is scroll now.
 - Watch: the sample run's approval dialog only shows for 0.3 s (server sample timing). Check star-field frame rate on the real demo laptop. `.mcp.json` adds the shadcn MCP for Claude Code. Details in web/README.md, design context in PRODUCT.md.
 
+### 2026-11-14 · Dev B · Antigravity · fix dithered artwork explosion on slider commit
+- Fixed WebGL artwork lifecycle in `aegis-artwork.tsx`: removed phase from mount effect dependencies so the WebGL context is never disposed or recreated on phase change.
+- Added dedicated `explosion` uniform in `renderer.ts`: particles blast outward radially from their exact shield coordinates along turbulent trajectory vectors (`scatter * 2.4`) with expanding pixel shards.
+- Implemented high-performance native RAF loop in `AegisArtwork` and synchronized with master exit timeline: particles detonate instantly on slider commit (>= 90%) across 0–650ms, with smooth crossfade out between 400–650ms.
+- Ensured static fallback image is hidden when WebGL canvas is active and on exit so it never covers the particle blast.
+- Verified with TypeScript typecheck, ESLint, 13 Node unit tests, and production Next.js build.
+
 ### 2026-11-14 - Dev B - Codex - FluxLines landing background
 - Replaced the landing background with React Bits FluxLines, using white lines, pointer interaction and click swirl. Kept the hero, artwork, slider and tunnel flow.
 - Added JavaScript, CSS, typed props and the upstream license without installing dependencies. Adjusted dimming so the new background stays visible.

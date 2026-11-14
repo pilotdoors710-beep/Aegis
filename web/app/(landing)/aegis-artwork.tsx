@@ -9,7 +9,7 @@ import styles from "./landing.module.css";
 interface Props {
   phase: Phase;
   reduced: boolean;
-  exitElapsed: number;
+  exitElapsed?: number;
   onLoaded?: (ok: boolean) => void;
   onSettled?: () => void;
 }
@@ -21,18 +21,25 @@ export function AegisArtwork({ phase, reduced, exitElapsed, onLoaded, onSettled 
   const progressRef = useRef(0);
   const hoverRef = useRef(0);
   const hoverAnimRef = useRef<number | null>(null);
-  const cancelAssemblyRef = useRef<(() => void) | null>(null);
+  const assemblyAnimRef = useRef<(() => void) | null>(null);
+  const explosionAnimRef = useRef<number | null>(null);
+  const isExplodingRef = useRef(false);
+
+  const phaseRef = useRef(phase);
+  const reducedRef = useRef(reduced);
   const onLoadedRef = useRef(onLoaded);
   const onSettledRef = useRef(onSettled);
 
   useEffect(() => {
+    phaseRef.current = phase;
+    reducedRef.current = reduced;
     onLoadedRef.current = onLoaded;
     onSettledRef.current = onSettled;
   });
 
   // Smooth hover transition helper
   const animateHover = useCallback((targetHover: number) => {
-    if (phase === "exiting" || phase === "entering" || reduced || !renderer.current) return;
+    if (isExplodingRef.current || phaseRef.current === "exiting" || phaseRef.current === "entering" || reducedRef.current || !renderer.current) return;
     if (hoverAnimRef.current !== null) {
       cancelAnimationFrame(hoverAnimRef.current);
       hoverAnimRef.current = null;
@@ -49,7 +56,9 @@ export function AegisArtwork({ phase, reduced, exitElapsed, onLoaded, onSettled 
       const eased = 1 - (1 - t) * (1 - t);
       hoverRef.current = startHover + (targetHover - startHover) * eased;
 
-      renderer.current?.draw(progressRef.current, hoverRef.current, 1);
+      if (!isExplodingRef.current) {
+        renderer.current?.draw(progressRef.current, hoverRef.current, 1, 0);
+      }
 
       if (t < 1) {
         hoverAnimRef.current = requestAnimationFrame(tick);
@@ -59,7 +68,7 @@ export function AegisArtwork({ phase, reduced, exitElapsed, onLoaded, onSettled 
     };
 
     hoverAnimRef.current = requestAnimationFrame(tick);
-  }, [phase, reduced]);
+  }, []);
 
   const handlePointerEnter = useCallback(() => {
     animateHover(1);
@@ -69,7 +78,46 @@ export function AegisArtwork({ phase, reduced, exitElapsed, onLoaded, onSettled 
     animateHover(0);
   }, [animateHover]);
 
-  // Initialize WebGL2 particles and start assembly animation
+  // Start explosion loop helper
+  const triggerExplosion = useCallback(() => {
+    if (isExplodingRef.current || reducedRef.current || !renderer.current) return;
+    isExplodingRef.current = true;
+
+    assemblyAnimRef.current?.();
+    if (hoverAnimRef.current !== null) {
+      cancelAnimationFrame(hoverAnimRef.current);
+      hoverAnimRef.current = null;
+    }
+
+    const duration = TIMING.explosion; // 650ms
+    const crossfadeStart = TIMING.crossfadeStart; // 400ms
+    const startTime = performance.now();
+
+    const tick = (now: number) => {
+      const elapsed = now - startTime;
+      const explosionProgress = Math.min(1, elapsed / duration);
+
+      let layerAlpha = 1;
+      if (elapsed >= crossfadeStart) {
+        layerAlpha = Math.max(0, 1 - (elapsed - crossfadeStart) / (duration - crossfadeStart));
+      }
+      if (elapsed >= duration) {
+        layerAlpha = 0;
+      }
+
+      renderer.current?.draw(1, 0, layerAlpha, explosionProgress);
+
+      if (elapsed < duration) {
+        explosionAnimRef.current = requestAnimationFrame(tick);
+      } else {
+        explosionAnimRef.current = null;
+      }
+    };
+
+    explosionAnimRef.current = requestAnimationFrame(tick);
+  }, []);
+
+  // Initialize WebGL2 particles once on mount
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -79,7 +127,15 @@ export function AegisArtwork({ phase, reduced, exitElapsed, onLoaded, onSettled 
     const fail = () => {
       failed = true;
       clearTimeout(loadTimer);
-      cancelAssemblyRef.current?.();
+      assemblyAnimRef.current?.();
+      if (hoverAnimRef.current !== null) {
+        cancelAnimationFrame(hoverAnimRef.current);
+        hoverAnimRef.current = null;
+      }
+      if (explosionAnimRef.current !== null) {
+        cancelAnimationFrame(explosionAnimRef.current);
+        explosionAnimRef.current = null;
+      }
       renderer.current?.dispose();
       renderer.current = null;
       if (!disposed) {
@@ -96,7 +152,9 @@ export function AegisArtwork({ phase, reduced, exitElapsed, onLoaded, onSettled 
     canvas.addEventListener("webglcontextlost", handleContextLost);
 
     const observer = new ResizeObserver(() => {
-      renderer.current?.draw(progressRef.current, hoverRef.current, 1);
+      if (!isExplodingRef.current && renderer.current) {
+        renderer.current.draw(progressRef.current, hoverRef.current, 1, 0);
+      }
     });
     observer.observe(canvas);
 
@@ -108,7 +166,7 @@ export function AegisArtwork({ phase, reduced, exitElapsed, onLoaded, onSettled 
       if (disposed || failed) return;
       clearTimeout(loadTimer);
 
-      if (reduced) {
+      if (reducedRef.current) {
         progressRef.current = 1;
         onLoadedRef.current?.(true);
         onSettledRef.current?.();
@@ -138,21 +196,28 @@ export function AegisArtwork({ phase, reduced, exitElapsed, onLoaded, onSettled 
         setPainted(true);
         onLoadedRef.current?.(true);
 
-        if (phase === "ready") {
+        // Check if already in exiting phase
+        if (phaseRef.current === "exiting" || phaseRef.current === "disassembling") {
+          triggerExplosion();
+        } else if (phaseRef.current === "ready") {
           progressRef.current = 1;
-          renderer.current.draw(1, 0, 1);
+          renderer.current.draw(1, 0, 1, 0);
           onSettledRef.current?.();
         } else {
           // Smooth entrance assembly
-          cancelAssemblyRef.current = animate(
+          assemblyAnimRef.current = animate(
             TIMING.assembly,
             (p) => {
               progressRef.current = p;
-              renderer.current?.draw(p, hoverRef.current, 1);
+              if (!isExplodingRef.current) {
+                renderer.current?.draw(p, hoverRef.current, 1, 0);
+              }
             },
             () => {
               progressRef.current = 1;
-              renderer.current?.draw(1, hoverRef.current, 1);
+              if (!isExplodingRef.current) {
+                renderer.current?.draw(1, hoverRef.current, 1, 0);
+              }
               onSettledRef.current?.();
             }
           );
@@ -165,54 +230,53 @@ export function AegisArtwork({ phase, reduced, exitElapsed, onLoaded, onSettled 
     return () => {
       disposed = true;
       clearTimeout(loadTimer);
-      cancelAssemblyRef.current?.();
+      assemblyAnimRef.current?.();
       if (hoverAnimRef.current !== null) {
         cancelAnimationFrame(hoverAnimRef.current);
+        hoverAnimRef.current = null;
+      }
+      if (explosionAnimRef.current !== null) {
+        cancelAnimationFrame(explosionAnimRef.current);
+        explosionAnimRef.current = null;
       }
       observer.disconnect();
       canvas.removeEventListener("webglcontextlost", handleContextLost);
       renderer.current?.dispose();
       renderer.current = null;
     };
-  }, [phase, reduced]);
+  }, [triggerExplosion]);
 
-  // Handle phase changes (e.g. ready state if assembly is done)
+  // Watch for phase transition to exiting/disassembling
   useEffect(() => {
-    if (phase === "ready" && renderer.current && progressRef.current < 1) {
-      cancelAssemblyRef.current?.();
+    if ((phase === "exiting" || phase === "disassembling") && !reduced) {
+      triggerExplosion();
+    } else if (phase === "ready" && renderer.current && progressRef.current < 1 && !isExplodingRef.current) {
+      assemblyAnimRef.current?.();
       progressRef.current = 1;
-      renderer.current.draw(1, hoverRef.current, 1);
+      renderer.current.draw(1, hoverRef.current, 1, 0);
     }
-  }, [phase]);
+  }, [phase, reduced, triggerExplosion]);
 
-  // Handle exit explosion timeline:
-  // "and the actual big dithered art in the right will explode"
-  // 0ms..650ms: progress goes 1 -> 0, causing particles to scatter outward!
-  // 400ms..650ms: particles crossfade out (layerAlpha 1 -> 0)
+  // Secondary exit sync if exitElapsed is driven from parent
   useEffect(() => {
-    if ((phase !== "exiting" && phase !== "disassembling") || reduced || !renderer.current) return;
-    if (exitElapsed < 0) return;
-
-    cancelAssemblyRef.current?.();
-    if (hoverAnimRef.current !== null) {
-      cancelAnimationFrame(hoverAnimRef.current);
-      hoverAnimRef.current = null;
+    if (
+      exitElapsed !== undefined &&
+      exitElapsed >= 0 &&
+      (phase === "exiting" || phase === "disassembling") &&
+      !reduced &&
+      renderer.current
+    ) {
+      const duration = TIMING.explosion;
+      const explosionProgress = Math.min(1, exitElapsed / duration);
+      let layerAlpha = 1;
+      if (exitElapsed >= TIMING.crossfadeStart) {
+        layerAlpha = Math.max(0, 1 - (exitElapsed - TIMING.crossfadeStart) / (duration - TIMING.crossfadeStart));
+      }
+      if (exitElapsed >= duration) {
+        layerAlpha = 0;
+      }
+      renderer.current.draw(1, 0, layerAlpha, explosionProgress);
     }
-
-    const explosionDuration = TIMING.explosion;
-    const pExp = Math.min(1, Math.max(0, exitElapsed / explosionDuration));
-    const currentProgress = 1 - pExp;
-
-    let layerAlpha = 1;
-    if (exitElapsed >= TIMING.crossfadeStart) {
-      const fadeProgress = (exitElapsed - TIMING.crossfadeStart) / (explosionDuration - TIMING.crossfadeStart);
-      layerAlpha = Math.max(0, 1 - fadeProgress);
-    }
-    if (exitElapsed >= explosionDuration) {
-      layerAlpha = 0;
-    }
-
-    renderer.current.draw(currentProgress, 0, layerAlpha);
   }, [exitElapsed, phase, reduced]);
 
   const showCanvas = painted && !reduced;
