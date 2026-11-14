@@ -12,8 +12,8 @@ const Galaxy = dynamic(() => import("@/components/reactbits/Galaxy"), { ssr: fal
 const DecryptedText = dynamic(() => import("@/components/reactbits/DecryptedText"), { ssr: false });
 
 const WORD = "AEGIS";
-const WEIGHT = 600;
-const TRACKING = 0.14; // em
+const WEIGHT = 700;
+const TRACKING = 0.38; // em
 const STARS = ["#FCF8D8", "#E8C59E", "#d9541e"];
 const COMMIT_AT = 0.12; // released past this, the scroll finishes on its own
 const ARRIVE_AT = 0.985;
@@ -60,10 +60,10 @@ export function LandingExperience() {
         return { w: m.actualBoundingBoxLeft + m.actualBoundingBoxRight, h: m.actualBoundingBoxAscent + m.actualBoundingBoxDescent };
       };
       const full = ink(wanted);
-      const size = wanted * Math.min(1, (width * 0.85) / Math.max(full.w, 1), (height * 0.55) / Math.max(full.h, 1));
+      const size = wanted * Math.min(1, (width * 0.88) / Math.max(full.w * 1.12, 1), (height * 0.55) / Math.max(full.h, 1));
       const fitted = ink(size);
       const pad = Math.max(14, size * 0.14);
-      start = { w: fitted.w + pad * 2, h: fitted.h + pad * 2 };
+      start = { w: Math.round((fitted.w + pad * 2) * 1.12), h: fitted.h + pad * 2 };
       stageEl.style.setProperty("--inset-x", `${Math.max(0, (width - start.w) / 2)}px`);
       stageEl.style.setProperty("--inset-y", `${Math.max(0, (height - start.h) / 2)}px`);
       draw();
@@ -156,20 +156,22 @@ export function LandingExperience() {
         <div className={styles.ground} aria-hidden="true" />
         <div ref={mark} className={styles.mark}>
           <div className={styles.wordmarkZoom}>
-            <TechText
-              text={WORD}
-              fontWeight={WEIGHT}
-              fontSize={fontSize}
-              letterSpacing={TRACKING}
-              reveal="letter"
-              dashLength={5}
-              dashGap={3}
-              strokeWidth={1.5}
-              specks={15}
-              intro="none"
-              clickKick
-              guides={false}
-            />
+            <div className={styles.wordmarkBroad}>
+              <TechText
+                text={WORD}
+                fontWeight={WEIGHT}
+                fontSize={fontSize}
+                letterSpacing={TRACKING}
+                reveal="letter"
+                dashLength={5}
+                dashGap={3}
+                strokeWidth={1.5}
+                specks={15}
+                intro="none"
+                clickKick
+                guides={false}
+              />
+            </div>
           </div>
           <div className={styles.subtitleWrapper}>
             <DecryptedText

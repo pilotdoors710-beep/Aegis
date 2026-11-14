@@ -22,6 +22,13 @@ Template:
 
 ## Log
 
+### 2026-11-15 · Dev B · Antigravity · broaden AEGIS wordmark and lower subtitle block
+- Broadened 'AEGIS' wordmark horizontally with extended letter tracking (`TRACKING = 0.38`), bold weight (`700`), and horizontal glyph expansion (`scaleX(1.12)`).
+- Synchronized inspection frame width measurement and dynamic scroll transitions with the broadened wordmark.
+- Lowered the "Protect your agents" headline and description paragraph to give AEGIS generous breathing room while maintaining its position.
+- Adjusted responsive mobile and short-screen offsets.
+- Verified TypeScript and 18 Node unit tests pass.
+
 ### 2026-11-15 · Dev B · Antigravity · refine AEGIS wordmark scale and position
 - Scaled down 'AEGIS' wordmark (~25% smaller, `width * 0.15`) for a sleeker, more refined presence.
 - Shifted wordmark higher up (`translate: 0 -14vh`) with matched subtitle and inspection frame transitions.

@@ -72,6 +72,14 @@
   backface-visibility: hidden;
 }
 
+.wordmarkBroad {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: scaleX(1.12);
+  transform-origin: center center;
+}
+
 @keyframes aegisZoomIn {
   0% {
     opacity: 0;
@@ -90,7 +98,7 @@
 
 .subtitleWrapper {
   position: absolute;
-  top: calc(100% - var(--inset-y) + 18px - 14vh);
+  top: calc(100% - var(--inset-y) + 84px - 14vh);
   left: 50%;
   transform: translateX(-50%);
   width: max-content;
@@ -158,7 +166,7 @@
   }
 
   .subtitleWrapper {
-    top: calc(100% - var(--inset-y) + 14px - 10vh);
+    top: calc(100% - var(--inset-y) + 54px - 10vh);
     max-width: 92vw;
     gap: 12px;
   }
@@ -186,7 +194,7 @@
   }
 
   .subtitleWrapper {
-    top: calc(100% - var(--inset-y) + 10px - 11vh);
+    top: calc(100% - var(--inset-y) + 40px - 11vh);
     gap: 10px;
   }
 
