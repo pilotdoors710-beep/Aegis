@@ -22,12 +22,10 @@ Template:
 
 ## Log
 
-### 2026-11-14 · Dev B · Antigravity · transparent dithered shield with Galaxy starfield
-- Replaced shield asset with clean cut-out PNG (`web/public/landing/aegis-shield.png`).
-- Set `paperColor="#000000"` with `mix-blend-mode: screen` on `.shieldWrapper` so the image background is completely transparent, allowing the animated Galaxy starfield to seamlessly show through behind the dithered shield.
-- Left-aligned 'AEGIS' wordmark and tagline block on the left, interactive Floyd-Steinberg dithered shield on the right.
-- Cleaned up all ESLint warnings and errors in `DitherVeil.tsx` so Vercel Next.js production builds pass without lint failures.
-- Verified TypeScript typecheck, ESLint, and 18 Node unit tests pass cleanly.
+### 2026-11-14 · Dev B · Antigravity · restore original centered AEGIS landing
+- Restored original landing layout: centered 'AEGIS' TechText wordmark over the dynamic Galaxy starfield, with expanding inspection frame on scroll.
+- Removed DitherVeil component, shield image asset, and `ogl` dependency.
+- Kept all main-app performance optimizations and verified clean build.
 
 ### 2026-11-14 - Dev B - Codex - main app performance
 - Kept all effects and cached the dashboard blur, reused glass lenses, skipped unchanged draws and shared spotlight work. Hidden tabs stop decorative rendering.

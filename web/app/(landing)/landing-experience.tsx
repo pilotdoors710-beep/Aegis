@@ -9,7 +9,6 @@ import { signalConsoleEntry } from "@/lib/landing/phases";
 import styles from "./landing.module.css";
 
 const Galaxy = dynamic(() => import("@/components/reactbits/Galaxy"), { ssr: false });
-const DitherVeil = dynamic(() => import("@/components/ui/DitherVeil"), { ssr: false });
 
 const WORD = "AEGIS";
 const WEIGHT = 600;
@@ -154,58 +153,21 @@ export function LandingExperience() {
           />
         </div>
         <div className={styles.ground} aria-hidden="true" />
-
-        {/* Two-column: AEGIS left, dithered shield right */}
-        <div className={styles.stageContent}>
-          <div className={styles.leftColumn}>
-            <div ref={mark} className={styles.markWrapper}>
-              <TechText
-                text={WORD}
-                align="left"
-                fontWeight={WEIGHT}
-                fontSize={fontSize}
-                letterSpacing={TRACKING}
-                reveal="letter"
-                dashLength={5}
-                dashGap={3}
-                strokeWidth={1.5}
-                specks={15}
-                intro="none"
-                clickKick
-                guides={false}
-              />
-            </div>
-            <div className={styles.taglineBlock}>
-              <p className={styles.taglineQuote}>COMMIT BEFORE CODE</p>
-              <div className={styles.orangeRule} aria-hidden="true" />
-              <p className={styles.taglineDesc}>
-                A runtime shield between autonomous agents and the live web—stopping deception before it becomes a commitment.
-              </p>
-            </div>
-          </div>
-
-          <div className={styles.rightColumn}>
-            <div className={styles.shieldWrapper}>
-              <DitherVeil
-                src="/landing/aegis-shield.png"
-                fit="contain"
-                pattern="floyd"
-                pixelSize={2}
-                levels={3}
-                palette="duotone"
-                inkColor="#E8C59E"
-                paperColor="#000000"
-                rimColor="#d9541e"
-                rim={0.14}
-                revealRadius={190}
-                softness={0.65}
-                linger={1.2}
-                contrast={1.3}
-                brightness={-0.05}
-                clickBurst={true}
-              />
-            </div>
-          </div>
+        <div ref={mark} className={styles.mark}>
+          <TechText
+            text={WORD}
+            fontWeight={WEIGHT}
+            fontSize={fontSize}
+            letterSpacing={TRACKING}
+            reveal="letter"
+            dashLength={5}
+            dashGap={3}
+            strokeWidth={1.5}
+            specks={15}
+            intro="none"
+            clickKick
+            guides={false}
+          />
         </div>
         <div className={styles.frame} aria-hidden="true">
           <span ref={readout} className={styles.readout} />
