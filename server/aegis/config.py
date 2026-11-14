@@ -53,6 +53,8 @@ class Settings(BaseSettings):
     supabase_service_key: str = ""
     # R2 disposable consent trials (gated research experiment, brief §3).
     r2_enabled: bool = False
+    # Sybil stays off until the public real-data + paired-run release gate passes.
+    sybil_enabled: bool = False
 
     @property
     def cors_origin_list(self) -> list[str]:

@@ -484,6 +484,14 @@ Release behind `SYBIL_ENABLED=false` on both services. Enable publicly only afte
 assessment and complete paired browser run succeed through the public URL. A local preview
 may expose explicit unavailable states for development; this is not the release gate.
 
+Implementation checkpoint (15 November): pure sparse scoring, tested download/resume preflight,
+typed readiness endpoint and gated `/sybil` readiness UI are implemented. Stage 1 is incomplete:
+WebGraph extraction, deployable artifact validation and real-data benchmarks remain. No real
+graph is loaded and no graph-assisted browser comparison is available. Live source metadata
+preflight measured 9,061,322,465 bytes; with a declared 20 GiB derived-file allowance this is
+30,536,158,945 bytes, within the 60 GiB budget and observed 76,682,182,656 bytes free.
+These are download-planning measurements, not proof of extraction/runtime capacity.
+
 ### Real data and import contract
 
 Pin `cc-main-2026-aug-sep-oct`, domain graph. Common Crawl's

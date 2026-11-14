@@ -18,6 +18,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  sybilDatasets: (signal?: AbortSignal) => request<Schema["SybilDatasetStatus"][]>("/sybil/datasets", { signal }),
   presets: (signal?: AbortSignal) => request<Schema["Preset"][]>("/presets", { signal }),
   run: (id: string, signal?: AbortSignal) => request<Schema["RunSummary"]>(`/runs/${encodeURIComponent(id)}`, { signal }),
   runs: (signal?: AbortSignal) => request<Schema["RunSummary"][]>("/runs?limit=20", { signal }),

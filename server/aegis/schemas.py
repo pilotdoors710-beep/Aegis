@@ -11,6 +11,21 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
 # --- Enumerations ---------------------------------------------------------------------------
 
+
+class SybilDatasetStatus(BaseModel):
+    """Readiness is separate from the eventual validated artifact manifest."""
+
+    release: str
+    status: Literal["unavailable"] = "unavailable"
+    source_nodes: int
+    source_edges: int
+    imported_nodes: int = 0
+    imported_edges: int = 0
+    observation_date: str | None = None
+    reason: str
+    source_url: str
+
+
 TrapType = Literal[
     "hidden_info",
     "preselection",

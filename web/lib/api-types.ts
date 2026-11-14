@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/sybil/datasets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Sybil Datasets */
+        get: operations["sybil_datasets_sybil_datasets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -1120,6 +1137,40 @@ export interface components {
              */
             removed: components["schemas"]["RemovedText"][];
         };
+        /**
+         * SybilDatasetStatus
+         * @description Readiness is separate from the eventual validated artifact manifest.
+         */
+        SybilDatasetStatus: {
+            /** Release */
+            release: string;
+            /**
+             * Status
+             * @default unavailable
+             * @constant
+             */
+            status: "unavailable";
+            /** Source Nodes */
+            source_nodes: number;
+            /** Source Edges */
+            source_edges: number;
+            /**
+             * Imported Nodes
+             * @default 0
+             */
+            imported_nodes: number;
+            /**
+             * Imported Edges
+             * @default 0
+             */
+            imported_edges: number;
+            /** Observation Date */
+            observation_date?: string | null;
+            /** Reason */
+            reason: string;
+            /** Source Url */
+            source_url: string;
+        };
         /** TickedOption */
         TickedOption: {
             /** Label */
@@ -1325,6 +1376,26 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    sybil_datasets_sybil_datasets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SybilDatasetStatus"][];
+                };
+            };
+        };
+    };
     healthz_healthz_get: {
         parameters: {
             query?: never;

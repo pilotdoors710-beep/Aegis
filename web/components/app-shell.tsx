@@ -18,10 +18,11 @@ const also = [{ label: "Health", link: "/health" }, { label: "Arena", link: "/ar
 const STARS = ["#f3eee3", "#E8C59E", "#d9541e"];
 const SPARKS = ["#d9541e", "#f3eee3"];
 
-function Menu({ pathname }: { pathname: string }) {
+function Menu({ pathname, sybilEnabled = false }: { pathname: string; sybilEnabled?: boolean }) {
+  const navigation = sybilEnabled ? [...pages, ["/sybil", "Sybil Playground"] as const] : pages;
   const here = (href: string) => pathname === href || pathname.startsWith(href + "/");
   const dashboard = pathname === "/console";
-  const section = [...pages, ["/health", "Health"] as const].find(([href]) => here(href))?.[1];
+  const section = [...navigation, ["/health", "Health"] as const].find(([href]) => here(href))?.[1];
   return <div id={dashboard ? "console-menu-home" : undefined}><StaggeredMenu
     isFixed
     position="right"
@@ -31,13 +32,13 @@ function Menu({ pathname }: { pathname: string }) {
     openMenuButtonColor={dashboard ? "#142033" : "#f3eee3"}
     socialsTitle="Also"
     socialItems={also}
-    items={pages.map(([link, label]) => ({ label, link, ariaLabel: label, current: here(link) }))}
+    items={navigation.map(([link, label]) => ({ label, link, ariaLabel: label, current: here(link) }))}
     logo={<Link href="/console" className="console-brand" aria-label="Aegis console"><ShieldCheck size={22} aria-hidden="true" /><b>AEGIS</b>{section && <span>{section}</span>}</Link>}
   /></div>;
 }
 
-function CurrentMenu() {
-  return <Menu pathname={usePathname()} />;
+function CurrentMenu({ sybilEnabled }: { sybilEnabled: boolean }) {
+  return <Menu pathname={usePathname()} sybilEnabled={sybilEnabled} />;
 }
 
 function Background() {
@@ -47,12 +48,12 @@ function Background() {
   }</div>;
 }
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({ children, sybilEnabled = false }: { children: ReactNode; sybilEnabled?: boolean }) {
   const [arriving] = useState(arrivedFromEntrance);
   return <div className="app-theme console-shell" data-arriving={arriving || undefined}>
     <a className="skip-content" href="#app-content">Skip to content</a>
     <Suspense fallback={<div className="console-sky" aria-hidden="true" />}><Background /></Suspense>
-    <Suspense fallback={<Menu pathname="" />}><CurrentMenu /></Suspense>
+    <Suspense fallback={<Menu pathname="" sybilEnabled={sybilEnabled} />}><CurrentMenu sybilEnabled={sybilEnabled} /></Suspense>
     <ClickSpark sparkColor={SPARKS} sparkSize={9} sparkRadius={22} sparkCount={8} duration={420}>
       <main id="app-content" className="console-content" tabIndex={-1}>{children}</main>
     </ClickSpark>

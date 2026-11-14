@@ -1,0 +1,19 @@
+.page { display: flex; flex-direction: column; gap: 20px; }
+.page h2 { font-size: 1.05rem; }
+.strip { display: flex; flex-wrap: wrap; gap: 16px 24px; font-size: .85rem; }
+.strip span { display: inline-flex; align-items: center; gap: 8px; }
+.workspace { display: grid; grid-template-columns: minmax(200px, .8fr) minmax(300px, 1.7fr) minmax(240px, 1fr); gap: 16px; }
+.empty { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; min-height: 340px; text-align: center; }
+.empty p { max-width: 55ch; }
+.facts { display: flex; flex-direction: column; gap: 14px; margin: 24px 0; }
+.facts div { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.facts dd { font-variant-numeric: tabular-nums; }
+.formula { margin-top: 20px; }
+.formula summary { cursor: pointer; padding: 12px 0; }
+.formula code { overflow-wrap: anywhere; }
+.formula dt { margin-top: 14px; font-weight: 600; }
+.formula dd { color: var(--muted-foreground); font-size: .875rem; margin-top: 4px; }
+.comparison { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; align-items: center; }
+.disclosure { color: var(--muted-foreground); font-size: .875rem; max-width: 75ch; }
+@media (max-width: 1000px) { .workspace { grid-template-columns: 1fr; } .empty { min-height: 260px; } }
+@media (max-width: 600px) { .comparison { grid-template-columns: 1fr; } }

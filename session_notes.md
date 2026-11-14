@@ -22,6 +22,11 @@ Template:
 
 ## Log
 
+### 2026-11-15 · Codex · Sybil source checkpoint
+- Saved the implementation described in the Sybil foundation entry below; another session committed landing work while these files were staged, so source files were staged again explicitly.
+- New numerical/import/API tests, web checks and readiness browser checks pass. The full Chrome backend run has 3 failures in existing trial tests; publishing is held.
+- The extension remains disabled and incomplete. Real graph extraction and stages 2–3 are next.
+
 ### 2026-11-15 · Dev B · Antigravity · hero description, wordmark repositioning and display font on landing
 - Shifted 'AEGIS' wordmark upward to balance hero proportions and vertical rhythm.
 - Styled "PROTECT YOUR AGENTS LIKE NEVER BEFORE" in bold display typography with responsive sizing, letter-spacing, and warm glow.

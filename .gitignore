@@ -2,4 +2,7 @@
 .env.*
 *.kate-swp
 node_modules/
+.tools/
+.sybil-data/
+eval/__pycache__/
 

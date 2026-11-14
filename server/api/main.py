@@ -55,6 +55,7 @@ from aegis.schemas import (
     RunSummary,
     ScanReport,
     ScanRequest,
+    SybilDatasetStatus,
     TrialReport,
 )
 from aegis.security import ScanGuard, arena_origin, install_guard, validate_scan_url, validate_url
@@ -96,6 +97,22 @@ app.add_middleware(
 
 
 # --- Health ---------------------------------------------------------------------------------
+
+
+@app.get("/sybil/datasets", response_model=list[SybilDatasetStatus])
+async def sybil_datasets() -> list[SybilDatasetStatus]:
+    if not settings.sybil_enabled:
+        raise HTTPException(404, "Sybil Playground is disabled")
+    return [
+        SybilDatasetStatus(
+            release="cc-main-2026-aug-sep-oct",
+            source_nodes=134979706,
+            source_edges=1817202146,
+            reason="Real graph extraction, artifact validation and performance gates are pending. "
+            "Download preflight alone does not make a dataset ready.",
+            source_url="https://index.commoncrawl.org/graphinfo.json",
+        )
+    ]
 
 
 @app.get("/healthz")
