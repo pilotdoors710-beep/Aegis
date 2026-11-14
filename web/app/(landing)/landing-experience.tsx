@@ -1,5 +1,4 @@
 "use client";
-// v2 – two-column layout with DitherVeil shield
 
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import dynamic from "next/dynamic";
