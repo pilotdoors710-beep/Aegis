@@ -22,6 +22,12 @@ Template:
 
 ## Log
 
+### 2026-11-14 · Dev A · Claude Code · "use your own API key" for console runs
+- Did: `POST /runs` takes an optional `llm` (provider from the fixed list, model, key). That run uses its own router for both agents and the ledger, with no shared keys and the cache off. `RunSummary.own_key` marks such runs. api-types regenerated.
+- Key safety: it stays in memory for that run only. Provider errors have the key replaced by `[redacted]`. Tests check that a test key never shows up in events, summaries, API/SSE responses, the store or logs (4 new tests in `test_run_api.py`).
+- Web (at the user's request): a collapsible "Use your own API key" panel on /console, kept in React state only. Runs use a "Your key · provider:model" badge on the run page and the runs list. Stats only reads eval data.
+- Not done: the permission-pair "run the counterpart" button on the run page uses the shared key (the key is gone after leaving /console). The live backend still needs a restart to get this.
+
 ### 2026-11-14 - Dev B - Codex - clear glass dashboard implementation
 - Replaced opaque pearl panes with transparent pearl glass over navy and bronze ribbons. Added full-surface refraction to navigation, cards, labels, controls, sample panels and approval dialogs.
 - Kept text, screenshots and controls sharp. Added stable decoration mounts and off-screen cleanup; fixed menu positioning and React portal text warnings found during review.
