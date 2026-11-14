@@ -14,17 +14,27 @@ const optics = {
   control: { refraction: 9, bezel: 1, curvature: 2.5, blur: .3, specular: .4 },
   compact: { refraction: 5, bezel: 1, curvature: 2.5, blur: .2, specular: .25 },
 };
-const placements = new Set<() => void>();
+// Every measurement runs before any style/canvas write in the frame.
+const placements = new Set<() => (() => void) | undefined>();
 let frame = 0;
 function schedule() {
-  if (frame) return;
-  frame = requestAnimationFrame(() => { frame = 0; placements.forEach(place => place()); });
+  if (frame || document.hidden || !placements.size) return;
+  frame = requestAnimationFrame(() => {
+    frame = 0;
+    const writes = Array.from(placements, measure => measure());
+    writes.forEach(write => write?.());
+  });
 }
-function follow(place: () => void) {
+function visibilityChanged() {
+  if (document.hidden) { cancelAnimationFrame(frame); frame = 0; }
+  else schedule();
+}
+function follow(place: () => (() => void) | undefined) {
   if (!placements.size) {
     window.addEventListener("scroll", schedule, true);
     window.addEventListener("resize", schedule);
     document.addEventListener("toggle", schedule, true);
+    document.addEventListener("visibilitychange", visibilityChanged);
   }
   placements.add(place);
   return () => {
@@ -33,6 +43,7 @@ function follow(place: () => void) {
     window.removeEventListener("scroll", schedule, true);
     window.removeEventListener("resize", schedule);
     document.removeEventListener("toggle", schedule, true);
+    document.removeEventListener("visibilitychange", visibilityChanged);
     cancelAnimationFrame(frame); frame = 0;
   };
 }
@@ -49,9 +60,10 @@ export function GlassRefraction({ variant = "panel", list = false }: { variant?:
     const preference = matchMedia("(prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active)");
     let visible = false;
     let stop: (() => void) | undefined;
+    let dirty = true;
     const configure = () => {
-      stop?.(); stop = undefined;
-      if (!visible || preference.matches) return;
+      if (preference.matches) { stop?.(); stop = undefined; return; }
+      if (!visible || stop) { if (visible) schedule(); return; }
       const scene = document.createElement("span");
       scene.className = styles.scene;
       // A cropped copy of the shared shader is refracted, leaving native content sharp.
@@ -62,37 +74,49 @@ export function GlassRefraction({ variant = "panel", list = false }: { variant?:
       const context = copy.getContext("2d", { alpha: false });
       surface.append(scene);
       let source: HTMLCanvasElement | null = null;
-      let left = 0, top = 0, width = 1, height = 1;
+      let geometry = "";
       const paint = () => {
         copy.style.display = source && context ? "block" : "none";
+        copy.dataset.preblurred = source?.dataset.preblurred ?? "false";
         if (!source || !context) return;
-        context.fillStyle = "#001219"; context.fillRect(0, 0, width, height);
-        context.drawImage(source, -left, -top, innerWidth, innerHeight);
+        context.fillStyle = "#001219"; context.fillRect(0, 0, copy.width, copy.height);
       };
       const place = () => {
+        if (!visible || document.hidden) return;
         const rect = surface.getBoundingClientRect();
         // Overscan supplies pixels for the full-dome displacement near the edges.
         const padding = 40;
-        left = rect.left - padding; top = rect.top - padding;
-        width = Math.max(1, Math.ceil(rect.width + padding * 2));
-        height = Math.max(1, Math.ceil(rect.height + padding * 2));
-        if (copy.width !== width) copy.width = width;
-        if (copy.height !== height) copy.height = height;
-        Object.assign(scene.style, {
-          left: `${-padding}px`, top: `${-padding}px`, width: `${width}px`, height: `${height}px`,
-          backgroundSize: `${innerWidth}px ${innerHeight}px`, backgroundPosition: `${-left}px ${-top}px`,
-        });
-        paint();
+        const left = rect.left - padding, top = rect.top - padding;
+        const width = Math.max(1, Math.ceil(rect.width + padding * 2));
+        const height = Math.max(1, Math.ceil(rect.height + padding * 2));
+        const viewportWidth = innerWidth, viewportHeight = innerHeight;
+        const next = `${left},${top},${width},${height},${viewportWidth},${viewportHeight}`;
+        if (!dirty && next === geometry) return;
+        return () => {
+          dirty = false; geometry = next;
+          if (copy.width !== width) copy.width = width;
+          if (copy.height !== height) copy.height = height;
+          Object.assign(scene.style, {
+            left: `${-padding}px`, top: `${-padding}px`, width: `${width}px`, height: `${height}px`,
+            backgroundSize: `${viewportWidth}px ${viewportHeight}px`, backgroundPosition: `${-left}px ${-top}px`,
+          });
+          paint();
+          if (source && context) {
+            const margin = Number(source.dataset.scenePadding ?? 0);
+            context.drawImage(source, -left - margin, -top - margin, viewportWidth + margin * 2, viewportHeight + margin * 2);
+          }
+        };
       };
-      place();
+      dirty = true;
       try {
         const glass = createGlass(surface, {
           fit: true, clip: true, radius: parseFloat(getComputedStyle(host).borderTopLeftRadius) || 12,
           ...optics[variant], chroma: .12, mapScale: innerWidth < 600 ? .75 : 1,
         });
         layer.dataset.refraction = "active";
-        const unfollowScene = followDitheringScene(canvas => { source = canvas; paint(); });
+        const unfollowScene = followDitheringScene(canvas => { source = canvas; dirty = true; schedule(); });
         const unfollow = follow(place);
+        schedule();
         const resize = new ResizeObserver(schedule); resize.observe(host);
         stop = () => {
           unfollowScene(); unfollow(); resize.disconnect();
@@ -100,7 +124,14 @@ export function GlassRefraction({ variant = "panel", list = false }: { variant?:
         };
       } catch { scene.remove(); }
     };
-    const observer = new IntersectionObserver(entries => { visible = entries[0].isIntersecting; configure(); });
+    const observer = new IntersectionObserver(entries => {
+      const next = entries[0].isIntersecting;
+      if (visible === next) return;
+      visible = next;
+      // Keep the lens/map allocation, but exclude off-screen filters from paint.
+      layer.style.visibility = visible ? "" : "hidden";
+      configure();
+    });
     observer.observe(host);
     preference.addEventListener("change", configure);
     return () => { observer.disconnect(); preference.removeEventListener("change", configure); stop?.(); };
@@ -120,9 +151,12 @@ export function DashboardGlass() {
     let pending = 0;
     let sequence = 0;
     const mounts = new Map<HTMLElement, { mount: HTMLElement; key: string }>();
+    const additions = new Set<Element>([root]);
     const collect = () => {
       pending = 0;
-      const next = Array.from(root.querySelectorAll<HTMLElement>(targets), element => {
+      let changed = false;
+      const add = (element: HTMLElement) => {
+        if (!root.contains(element)) return;
         let entry = mounts.get(element);
         if (!entry || entry.mount.parentElement !== element) {
           const mount = document.createElement(element.tagName === "OL" ? "li" : "span");
@@ -131,17 +165,38 @@ export function DashboardGlass() {
           element.append(mount);
           entry = { mount, key: String(sequence++) };
           mounts.set(element, entry);
+          changed = true;
         }
-        return { element, ...entry };
-      });
-      for (const [element, { mount }] of mounts) if (!root.contains(element)) { mount.remove(); mounts.delete(element); }
-      setHosts(previous => previous.length === next.length && previous.every((host, i) => host.element === next[i].element && host.mount === next[i].mount) ? previous : next);
+      };
+      for (const node of additions) {
+        if (node instanceof HTMLElement && node.matches(targets)) add(node);
+        node.querySelectorAll<HTMLElement>(targets).forEach(add);
+      }
+      additions.clear();
+      for (const [element, { mount }] of mounts) {
+        if (!root.contains(element)) { mount.remove(); mounts.delete(element); changed = true; }
+        else if (mount.parentElement !== element) add(element);
+      }
+      if (changed) setHosts(Array.from(mounts, ([element, entry]) => ({ element, ...entry })));
+      schedule();
     };
     const observer = new MutationObserver(records => {
-      if (records.some(record => record.type === "attributes" && !(record.target as Element).closest?.("[data-glass-layer]"))) schedule();
-      if (records.every(record => (record.target as Element).closest?.("[data-glass-layer]"))) return;
-      if (!records.some(record => record.type === "childList")) return;
-      if (!pending) pending = requestAnimationFrame(collect);
+      let structural = false;
+      for (const record of records) {
+        const target = record.target instanceof Element ? record.target : record.target.parentElement;
+        if (!target || target.closest("[data-glass-mount]")) continue;
+        if (record.type === "attributes") {
+          // Animated decorative spans cannot move a glass host. Ignore their
+          // per-frame gradients/opacity instead of measuring the whole page.
+          if (target.matches(targets) || target.querySelector(targets)) schedule();
+          continue;
+        }
+        const nodes = [...record.addedNodes, ...record.removedNodes];
+        if (nodes.every(node => node instanceof Element && node.hasAttribute("data-glass-mount"))) continue;
+        structural = true;
+        record.addedNodes.forEach(node => { if (node instanceof Element) additions.add(node); });
+      }
+      if (structural && !pending) pending = requestAnimationFrame(collect);
     });
     observer.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "data-open"] });
     collect();

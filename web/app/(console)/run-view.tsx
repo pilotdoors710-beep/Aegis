@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import Counter from "@/components/reactbits/Counter";
 import ElectricBorder from "@/components/reactbits/ElectricBorder";
 import { useRunStream } from "@/lib/events";
@@ -39,9 +39,30 @@ function Ledger({ ledger }: { ledger: Schema["Ledger"] | null | undefined }) {
 // Arcs around the protected browser while Aegis is holding an action back.
 const ALERT: Record<string, string> = { BLOCK: "#ff6b5e", REROUTE: "#d9541e", ASK: "#f3eee3" };
 
-function AgentPane({ mode, events, summary }: { mode: RunEvent["mode"]; events: RunEvent[]; summary: Schema["RunSummary"] | null }) {
+const EventRow = memo(function EventRow({ event, inspected, sample, onSelect }: {
+  event: RunEvent; inspected: boolean; sample: boolean; onSelect: (event: VerdictEvent) => void;
+}) {
+  return <li>
+    <span className={`event-kind kind-${event.kind}`}>{event.kind}</span><div>
+      {event.kind === "verdict" ? <button className="verdict-row" aria-pressed={inspected} onClick={() => onSelect(event)}>
+        <strong className={`chip chip-${event.payload.verdict.decision.toLowerCase()}`}>{event.payload.verdict.decision}</strong><span className="event-meta"> {event.payload.verdict.latency_ms} ms · Step {event.step}</span>
+        {event.payload.verdict.findings?.map((finding, i) => <p key={i}><strong>{finding.detector} · {finding.trap_type}</strong><br />{finding.evidence}</p>)}
+        {!event.payload.verdict.findings?.length && <p>Checks passed</p>}
+        {event.payload.neutralized?.map((cover) => <p key={cover.element_id}><strong>Overlay neutralized</strong><br />{cover.evidence}</p>)}
+        {event.payload.verdict.reroute_hint && <p>Next: {event.payload.verdict.reroute_hint}</p>}
+      </button> : <p>{event.kind === "ask" && sample ? "Recorded sample · " : ""}{describe(event)}</p>}
+      {event.kind === "decision" && <><span className="event-meta">{event.payload.provider} · {event.payload.model} · {event.payload.llm_latency_ms} ms</span>{event.payload.cached && <strong className="badge">Replayed decision</strong>}</>}
+      {event.kind === "snapshot" && event.payload.removed?.map((removed, i) => <p key={i}>Removed ({removed.reason}): {removed.text}</p>)}
+    </div>
+  </li>;
+});
+
+type PaneProps = { mode: RunEvent["mode"]; events: RunEvent[]; summary: Schema["RunSummary"] | null; replayStep?: number };
+const AgentPane = memo(function AgentPane({ mode, events: side, summary, replayStep }: PaneProps) {
   const [selected, setSelected] = useState<VerdictEvent | null>(null);
-  const side = events.filter((event) => event.mode === mode);
+  const [previousStep, setPreviousStep] = useState(replayStep);
+  // Reset inspection when scrubbing without remounting screenshots or effects.
+  if (previousStep !== replayStep) { setPreviousStep(replayStep); setSelected(null); }
   const inspected = selected && side.includes(selected) ? selected : null;
   const snapshots = side.filter((event) => event.kind === "snapshot");
   const snapshot = inspected ? snapshots.findLast((event) => event.step === inspected.step) : snapshots.at(-1);
@@ -69,31 +90,26 @@ function AgentPane({ mode, events, summary }: { mode: RunEvent["mode"]; events: 
     {mode === "shielded" && <TwoView report={side.findLast((event): event is VerdictEvent => event.kind === "verdict" && event.payload.two_view?.status === "mismatch")?.payload.two_view} />}
     {mode === "shielded" ? <Ledger ledger={summary?.ledger} /> : <aside className="ledger-panel ledger-none" aria-label="No protection"><h4>No Aegis checks</h4><p>{summary?.task ?? "Waiting for the task…"}</p><p className="ledger-note">Same model, prompt and starting page. Every proposed action runs as it is.</p></aside>}
     {inspected && <button className="inspect-button" onClick={() => setSelected(null)}>Inspecting step {inspected.step} · Return to latest</button>}
-    <ol ref={feed} className="event-feed" aria-label={`${mode} events`}>{side.filter((event) => mode === "shielded" || event.kind !== "verdict").map((event, index) => <li key={index}>
-      <span className={`event-kind kind-${event.kind}`}>{event.kind}</span><div>
-        {event.kind === "verdict" ? <button className="verdict-row" aria-pressed={inspected === event} onClick={() => setSelected(event)}>
-          <strong className={`chip chip-${event.payload.verdict.decision.toLowerCase()}`}>{event.payload.verdict.decision}</strong><span className="event-meta"> {event.payload.verdict.latency_ms} ms · Step {event.step}</span>
-          {event.payload.verdict.findings?.map((finding, i) => <p key={i}><strong>{finding.detector} · {finding.trap_type}</strong><br />{finding.evidence}</p>)}
-          {!event.payload.verdict.findings?.length && <p>Checks passed</p>}
-          {event.payload.neutralized?.map((cover) => <p key={cover.element_id}><strong>Overlay neutralized</strong><br />{cover.evidence}</p>)}
-          {event.payload.verdict.reroute_hint && <p>Next: {event.payload.verdict.reroute_hint}</p>}
-        </button> : <p>{event.kind === "ask" && summary?.is_sample ? "Recorded sample · " : ""}{describe(event)}</p>}
-        {event.kind === "decision" && <><span className="event-meta">{event.payload.provider} · {event.payload.model} · {event.payload.llm_latency_ms} ms</span>{event.payload.cached && <strong className="badge">Replayed decision</strong>}</>}
-        {event.kind === "snapshot" && event.payload.removed?.map((removed, i) => <p key={i}>Removed ({removed.reason}): {removed.text}</p>)}
-      </div>
-    </li>)}</ol>
+    <ol ref={feed} className="event-feed" aria-label={`${mode} events`}>{side.filter((event) => mode === "shielded" || event.kind !== "verdict").map((event, index) => <EventRow key={index} event={event} inspected={inspected === event} sample={!!summary?.is_sample} onSelect={setSelected} />)}</ol>
   </article>;
-}
+}, (previous, next) => previous.mode === next.mode && previous.summary === next.summary && previous.replayStep === next.replayStep &&
+  previous.events.length === next.events.length && previous.events.every((event, index) => event === next.events[index]));
 
-export function RunComparison({ summary, events, status, error, replay = false }: { summary: Schema["RunSummary"] | null; events: RunEvent[]; status: string; error?: string | null; replay?: boolean }) {
+export function RunComparison({ summary, events, status, error, replay = false, replayStep }: { summary: Schema["RunSummary"] | null; events: RunEvent[]; status: string; error?: string | null; replay?: boolean; replayStep?: number }) {
+  const sides = useMemo(() => {
+    const split: Record<RunEvent["mode"], RunEvent[]> = { shielded: [], unshielded: [] };
+    for (const event of events) split[event.mode].push(event);
+    return split;
+  }, [events]);
+  const asks = useMemo(() => latestAsks(events), [events]);
   const finished = (["unshielded", "shielded"] as const).every((mode) => events.some((event) => event.kind === "done" && event.mode === mode));
   return <section className="run-section" aria-label="Run comparison">
     <div className="run-bar"><h2>Run comparison</h2>{summary && <p className="task-line" title={summary.task}><span>Task</span>{summary.task}</p>}<div className="run-state">{replay && <strong className="badge">REPLAY</strong>} {summary?.is_sample && <strong className="badge">SAMPLE DATA</strong>} {summary?.own_key && <strong className="badge" title="Run with a visitor's own API key; not part of the published evaluation">Your key · {summary.model}</strong>} <span role="status">{status}</span></div></div>
     {error && <p className="error-message" role="alert">{error}</p>}
     <OutcomeCards events={events} summary={summary} />
     {summary && <PermissionPair summary={summary} finished={finished} />}
-    <div className="comparison-grid">{(["unshielded", "shielded"] as const).map((mode) => <AgentPane key={mode} mode={mode} events={events} summary={summary} />)}</div>
-    {latestAsks(events).length > 0 && <section className="approval-history" aria-label="Approval history"><h2>Approval history</h2>{latestAsks(events).map((ask) => <p key={ask.payload.ask_id}>{summary?.is_sample ? "Recorded sample · " : replay ? "Recorded response · " : ""}{approvalLabels[ask.payload.status]} · {ask.payload.reason.replaceAll("_", " ")}</p>)}</section>}
+    <div className="comparison-grid">{(["unshielded", "shielded"] as const).map((mode) => <AgentPane key={mode} mode={mode} events={sides[mode]} summary={summary} replayStep={replayStep} />)}</div>
+    {asks.length > 0 && <section className="approval-history" aria-label="Approval history"><h2>Approval history</h2>{asks.map((ask) => <p key={ask.payload.ask_id}>{summary?.is_sample ? "Recorded sample · " : replay ? "Recorded response · " : ""}{approvalLabels[ask.payload.status]} · {ask.payload.reason.replaceAll("_", " ")}</p>)}</section>}
     <EvidenceCards events={events} />
   </section>;
 }

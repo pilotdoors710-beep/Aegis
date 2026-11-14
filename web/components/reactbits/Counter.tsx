@@ -310,6 +310,7 @@ function Counter({
   const frame = (now: number) => {
     const e = engine.current;
     e.raf = 0;
+    if (document.hidden) return;
     const s = settingsRef.current;
     const elapsed = clamp((now - e.last) / 1000, 0, 1 / 20);
     e.last = now;
@@ -372,7 +373,7 @@ function Counter({
 
   const kick = () => {
     const e = engine.current;
-    if (e.raf || typeof window === 'undefined') return;
+    if (e.raf || typeof window === 'undefined' || document.hidden) return;
     e.last = performance.now();
     e.raf = requestAnimationFrame(frame);
   };
@@ -537,7 +538,15 @@ function Counter({
 
   useEffect(() => {
     const e = engine.current;
-    return () => cancelAnimationFrame(e.raf);
+    const visibility = () => {
+      if (document.hidden) { cancelAnimationFrame(e.raf); e.raf = 0; }
+      else kickRef.current();
+    };
+    document.addEventListener('visibilitychange', visibility);
+    return () => {
+      cancelAnimationFrame(e.raf); e.raf = 0;
+      document.removeEventListener('visibilitychange', visibility);
+    };
   }, []);
 
   const affix = (node: ReactNode) =>

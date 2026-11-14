@@ -22,6 +22,20 @@ Template:
 
 ## Log
 
+### 2026-11-14 · Dev B · Antigravity · transparent dithered shield with Galaxy starfield
+- Replaced shield asset with clean cut-out PNG (`web/public/landing/aegis-shield.png`).
+- Set `paperColor="#000000"` with `mix-blend-mode: screen` on `.shieldWrapper` so the image background is completely transparent, allowing the animated Galaxy starfield to seamlessly show through behind the dithered shield.
+- Left-aligned 'AEGIS' wordmark and tagline block on the left, interactive Floyd-Steinberg dithered shield on the right.
+- Cleaned up all ESLint warnings and errors in `DitherVeil.tsx` so Vercel Next.js production builds pass without lint failures.
+- Verified TypeScript typecheck, ESLint, and 18 Node unit tests pass cleanly.
+
+### 2026-11-14 - Dev B - Codex - main app performance
+- Kept all effects and cached the dashboard blur, reused glass lenses, skipped unchanged draws and shared spotlight work. Hidden tabs stop decorative rendering.
+- Batched live events without delaying approvals or losing history. Replay steps keep their panes and reset inspected verdicts.
+- TypeScript, lint on the release source, 18 Node tests and the isolated production build pass. Chrome checks cover responsive routes, replay, glass, sample approval, mocked live approval and own-key launch. The preview uses the same Geist fonts cached locally.
+- Headless checks confirm zero glass copies on unchanged scroll notifications. Physical-device frame rate and Safari/Firefox still need checking; the 30% slow-frame target is not established.
+- Preserved the other session's landing and package edits. Restored only the main-app files after that session changed the shared checkout.
+
 ### 2026-11-14 - Dev B - Codex - static, softer dashboard background
 - Froze the shader at time zero and removed its continuous animation loop. Resize and context recovery still redraw the same scene.
 - Added 14px blur to the backdrop and its glass copies. Text and controls stay sharp.

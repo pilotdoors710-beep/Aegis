@@ -22,7 +22,18 @@ export function useRunStream(runId: string): StreamState {
     const finished = new Set<RunEvent["mode"]>();
     let closed = false;
     let retries = 0; // consecutive transport errors since the last frame
+    let pending: RunEvent[] = [];
+    let frame = 0;
+    function flush() {
+      cancelAnimationFrame(frame); frame = 0;
+      if (!pending.length) return;
+      const batch = pending; pending = [];
+      setState(previous => ({ ...previous, events: [...previous.events, ...batch], status: finished.size === 2 ? "complete" : "streaming" }));
+    }
+    const visibility = () => { if (document.hidden) flush(); };
+    document.addEventListener("visibilitychange", visibility);
     function fail(message: string) {
+      flush();
       closed = true;
       source.close();
       setState((previous) => ({ ...previous, status: "error", error: message }));
@@ -33,6 +44,7 @@ export function useRunStream(runId: string): StreamState {
         const summary = JSON.parse(message.data) as Schema["RunSummary"];
         if (summary.run_id !== runId || typeof summary.is_sample !== "boolean") throw new Error();
         retries = 0;
+        flush();
         setState((previous) => ({ ...previous, summary, status: "streaming" }));
       } catch { fail("The server sent an invalid run summary."); }
     });
@@ -48,7 +60,11 @@ export function useRunStream(runId: string): StreamState {
           if (event.kind === "done") finished.add(event.mode);
           const complete = finished.size === 2;
           if (complete) { closed = true; source.close(); }
-          setState((previous) => ({ ...previous, events: [...previous.events, event], status: complete ? "complete" : "streaming" }));
+          pending.push(event);
+          // Approval and terminal states cannot wait for an animation frame,
+          // particularly when the browser throttles a background tab.
+          if (event.kind === "ask" || event.kind === "done" || event.kind === "error" || document.hidden) flush();
+          else if (!frame) frame = requestAnimationFrame(flush);
         } catch { fail("The server sent an invalid run event."); }
       });
     }
@@ -57,10 +73,14 @@ export function useRunStream(runId: string): StreamState {
     source.onerror = (event) => {
       if (closed || event instanceof MessageEvent) return;
       retries += 1;
+      flush();
       if (source.readyState === 2 || retries > MAX_RETRIES) fail("The event stream was interrupted. Reload to reconnect; check the run history before launching another run.");
       else setState((previous) => ({ ...previous, status: "reconnecting" }));
     };
-    return () => { closed = true; source.close(); };
+    return () => {
+      closed = true; source.close(); cancelAnimationFrame(frame); pending = [];
+      document.removeEventListener("visibilitychange", visibility);
+    };
   }, [runId]);
   return state;
 }

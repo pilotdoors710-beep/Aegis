@@ -89,7 +89,16 @@ def run():
             actual = page.evaluate('(i)=>Array.from(dither.gl.getUniform(dither.gl.getParameter(dither.gl.CURRENT_PROGRAM), dither.gl.getUniformLocation(dither.gl.getParameter(dither.gl.CURRENT_PROGRAM), `u_colors[${i}]`)))', i)
             assert all(abs(a - b) < .00001 for a, b in zip(actual, color))
         assert page.locator('[data-refraction="active"] canvas').count() > 0
+        glass_canvas = page.locator('[data-refraction="active"] canvas').first
+        assert glass_canvas.get_attribute('data-preblurred') == 'true'
+        assert glass_canvas.evaluate('e=>getComputedStyle(e).filter') == 'none'
         page.screenshot(path=str(OUTPUT / 'desktop.png'))
+        page.evaluate('window.originalGlassCanvas = document.querySelector(".featured-run [data-glass-layer] canvas")')
+        page.evaluate('scrollTo(0,document.documentElement.scrollHeight)')
+        page.wait_for_timeout(250)
+        page.evaluate('scrollTo(0,0)')
+        page.wait_for_timeout(250)
+        assert page.evaluate('originalGlassCanvas === document.querySelector(".featured-run [data-glass-layer] canvas")')
 
         page.evaluate("Object.defineProperty(document, 'hidden', {configurable:true,get:()=>true}); document.dispatchEvent(new Event('visibilitychange'))")
         count = page.evaluate('dither.draws')
@@ -149,7 +158,7 @@ def run():
         page.screenshot(path=str(OUTPUT / 'mobile.png'))
         page.get_by_role('button', name='Play sample run').click()
         page.locator('dialog[open]').wait_for()
-        page.wait_for_timeout(300)
+        page.locator('dialog [data-refraction="active"] canvas').first.wait_for(state='attached')
         assert page.locator('dialog [data-refraction="active"] canvas').count() > 0
         assert page.get_by_role('button', name='Approve', exact=True).is_disabled()
         page.screenshot(path=str(OUTPUT / 'sample-approval.png'))

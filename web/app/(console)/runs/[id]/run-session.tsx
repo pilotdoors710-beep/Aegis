@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { api, type Schema, type RunEvent } from "@/lib/api";
 import { RunComparison, RunView } from "../../run-view";
@@ -18,12 +18,12 @@ function Replay({ runId }: { runId: string }) {
     }).catch((error: Error) => { if (!controller.signal.aborted) setError(error.message); });
     return () => controller.abort();
   }, [runId]);
-  const steps = [...new Set(events.map((event) => event.step))].sort((a, b) => a - b);
+  const steps = useMemo(() => [...new Set(events.map((event) => event.step))].sort((a, b) => a - b), [events]);
   const step = steps[index];
-  const visible = step == null ? [] : events.filter((event) => event.step <= step);
+  const visible = useMemo(() => step == null ? [] : events.filter((event) => event.step <= step), [events, step]);
   return <>
     <div className="replay-controls"><button disabled={index === 0 || !steps.length} onClick={() => setIndex(index - 1)}>Previous</button><label htmlFor="replay-step">Step {step ?? "—"}</label><input id="replay-step" aria-label="Replay step" type="range" min={0} max={Math.max(0, steps.length - 1)} value={index} disabled={!steps.length} onChange={(event) => setIndex(Number(event.target.value))} /><button disabled={index >= steps.length - 1} onClick={() => setIndex(index + 1)}>Next</button></div>
-    <RunComparison key={index} summary={summary} events={visible} status={error ? "error" : loaded ? steps.length ? "Stored events" : "No stored events" : "Loading replay…"} error={error} replay />
+    <RunComparison summary={summary} events={visible} replayStep={step} status={error ? "error" : loaded ? steps.length ? "Stored events" : "No stored events" : "Loading replay…"} error={error} replay />
   </>;
 }
 

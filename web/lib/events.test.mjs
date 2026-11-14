@@ -12,6 +12,15 @@ const source = ts.transpileModule(readFileSync(new URL("./events.ts", import.met
 function harness() {
   let state;
   let cleanup;
+  let updates = 0;
+  let sequence = 0;
+  const frames = new Map();
+  const listeners = new Map();
+  const document = { hidden: false,
+    addEventListener(type, callback) { listeners.set(type, callback); },
+    removeEventListener(type) { listeners.delete(type); },
+    dispatchEvent(event) { listeners.get(event.type)?.(event); },
+  };
   const connections = [];
   class MessageEvent {
     constructor(data, lastEventId = "") { this.data = JSON.stringify(data); this.lastEventId = lastEventId; }
@@ -31,11 +40,13 @@ function harness() {
   }
   const exports = {};
   vm.runInNewContext(source, {
-    exports, EventSource, MessageEvent,
+    exports, EventSource, MessageEvent, document,
+    requestAnimationFrame(callback) { frames.set(++sequence, callback); return sequence; },
+    cancelAnimationFrame(id) { frames.delete(id); },
     require(name) {
       if (name === "./api") return { API_URL: "https://api.example" };
       if (name === "react") return {
-        useState(initial) { state = initial; return [state, (update) => { state = update(state); }]; },
+        useState(initial) { state = initial; return [state, (update) => { updates++; state = update(state); }]; },
         useEffect(effect) { cleanup = effect(); },
       };
       throw new Error(`Unexpected import ${name}`);
@@ -43,8 +54,51 @@ function harness() {
   });
   exports.useRunStream("sample");
   assert.equal(connections.length, 1);
-  return { get state() { return state; }, get connection() { return connections[0]; }, cleanup: () => cleanup() };
+  return { get state() { return state; }, get updates() { return updates; }, document,
+    get connection() { return connections[0]; }, cleanup: () => cleanup(),
+    flush() { for (const [id, callback] of [...frames]) { frames.delete(id); callback(); } } };
 }
+
+test("bursts render once per frame, preserving order and reconnect deduplication", () => {
+  const h = harness();
+  for (let i = 0; i < 100; i++) {
+    const event = { run_id: "sample", kind: "snapshot", mode: "shielded", step: i, payload: {} };
+    h.connection.emit("snapshot", event, String(i));
+    h.connection.emit("snapshot", event, String(i));
+  }
+  assert.equal(h.state.events.length, 0);
+  h.flush();
+  assert.equal(h.updates, 1);
+  assert.deepEqual(Array.from(h.state.events, e => e.step), Array.from({length: 100}, (_, i) => i));
+});
+
+test("approval and transport failure flush older pending events immediately", () => {
+  const h = harness();
+  h.connection.emit("snapshot", { run_id: "sample", kind: "snapshot", mode: "shielded", payload: {} }, "1");
+  h.connection.emit("ask", { run_id: "sample", kind: "ask", mode: "shielded", payload: {} }, "2");
+  assert.deepEqual(Array.from(h.state.events, e => e.kind), ["snapshot", "ask"]);
+  h.connection.emit("decision", { run_id: "sample", kind: "decision", mode: "shielded", payload: {} }, "3");
+  h.connection.readyState = 2;
+  h.connection.onerror({type: "error"});
+  assert.equal(h.state.events.length, 3);
+  assert.equal(h.state.status, "error");
+  h.flush();
+  assert.equal(h.state.status, "error");
+});
+
+test("hidden tabs flush events immediately and unmount cancels pending batches", () => {
+  const h = harness();
+  h.connection.emit("snapshot", { run_id: "sample", kind: "snapshot", mode: "shielded", payload: {} });
+  h.document.hidden = true;
+  h.document.dispatchEvent({type: "visibilitychange"});
+  assert.equal(h.state.events.length, 1);
+  h.connection.emit("snapshot", { run_id: "sample", kind: "snapshot", mode: "shielded", payload: {} });
+  assert.equal(h.state.events.length, 2);
+  h.document.hidden = false;
+  h.connection.emit("snapshot", { run_id: "sample", kind: "snapshot", mode: "shielded", payload: {} });
+  h.cleanup(); h.flush();
+  assert.equal(h.state.events.length, 2);
+});
 
 test("one stream handles summary, ignores unknown names, and closes after both distinct sides finish", () => {
   const h = harness();

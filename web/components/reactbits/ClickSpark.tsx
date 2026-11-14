@@ -323,6 +323,7 @@ const ClickSpark = forwardRef<ClickSparkHandle, ClickSparkProps>(
 
       const frame = (now: number) => {
         raf = 0;
+        if (document.hidden) return;
         for (const burst of [...bursts]) {
           const elapsed = now - burst.start;
           const ctx = burst.ctx;
@@ -342,7 +343,7 @@ const ClickSpark = forwardRef<ClickSparkHandle, ClickSparkProps>(
 
       const spawn = (clientX: number, clientY: number) => {
         const s = settingsRef.current;
-        if (s.disabled) return;
+        if (s.disabled || document.hidden) return;
         const rect = root.getBoundingClientRect();
         const offset = Math.floor(Math.random() * s.colors.length);
         const full = s.spread >= 359.5;
@@ -440,6 +441,11 @@ const ClickSpark = forwardRef<ClickSparkHandle, ClickSparkProps>(
 
       root.addEventListener('pointerdown', onPointerDown);
       root.addEventListener('click', onClick);
+      const onVisibility = () => {
+        if (document.hidden) { cancelAnimationFrame(raf); raf = 0; }
+        else if (bursts.length && !raf) raf = requestAnimationFrame(frame);
+      };
+      document.addEventListener('visibilitychange', onVisibility);
 
       engineRef.current = {
         spark: (x?: number, y?: number) => {
@@ -452,6 +458,7 @@ const ClickSpark = forwardRef<ClickSparkHandle, ClickSparkProps>(
         cancelAnimationFrame(raf);
         root.removeEventListener('pointerdown', onPointerDown);
         root.removeEventListener('click', onClick);
+        document.removeEventListener('visibilitychange', onVisibility);
         for (const burst of [...bursts]) remove(burst);
         engineRef.current = null;
       };

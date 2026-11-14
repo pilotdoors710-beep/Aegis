@@ -1,9 +1,10 @@
+import { useMemo } from "react";
 import SpotlightCard from "@/components/reactbits/SpotlightCard";
 import type { RunEvent, Schema } from "@/lib/api";
 import { auditEvidence } from "@/lib/run-evidence";
 
 export function EvidenceCards({ events }: { events: RunEvent[] }) {
-  const cards = auditEvidence(events).filter(({ check }) => check.status !== "ok");
+  const cards = useMemo(() => auditEvidence(events).filter(({ check }) => check.status !== "ok"), [events]);
   if (!cards.length) return null;
   const label = (status: string) => status === "permitted" ? "Permitted by your request" : status === "uncertain" ? "Needs a human decision" : "Outside your request";
   return <section className="evidence-section" aria-label="Permission and checkout evidence"><div className="section-heading"><h2>From permission to verified result</h2><span>Each row is one constraint from the ledger</span></div>{cards.map(({ key, event, check, correction, correctionExecuted, recheck, recheckStep }) => <SpotlightCard key={key} spotlightColor="#d9541e" intensity={0.4} spotlightSize={420} grain={0} className={`evidence-card check-${check.status}`}>

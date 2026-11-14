@@ -392,7 +392,9 @@ export function createGlass(target, options = {}) {
   // Filter coordinates are fractions of the element box, so every resize has to re-flush.
   const observer = active
     ? new ResizeObserver(() => {
-        box = { width: target.offsetWidth, height: target.offsetHeight };
+        const width = target.offsetWidth, height = target.offsetHeight;
+        if (box.width === width && box.height === height) return;
+        box = { width, height };
         schedule();
       })
     : null;
@@ -400,6 +402,7 @@ export function createGlass(target, options = {}) {
   // Re-issue the filter id shortly after a map swap: WebKit loads its own copy of the data URL and
   // does not repaint the filter when that load lands.
   function settle() {
+    if (engine !== 'webkit') return;
     settleTimers.forEach(clearTimeout);
     settleTimers = [60, 250].map((ms) => setTimeout(schedule, ms));
   }

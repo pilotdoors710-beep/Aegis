@@ -67,6 +67,7 @@ class GlassChecks(unittest.TestCase):
         slider = self.page.get_by_role('slider', name='Replay step')
         slider.wait_for()
         self.page.wait_for_function('!document.querySelector("#replay-step").disabled')
+        self.page.evaluate('window.originalPane = document.querySelector(".agent-pane"); window.originalImage = document.querySelector(".agent-pane img")')
         slider.focus()
         self.page.keyboard.press('End')
         self.page.locator('.outcome-card').first.wait_for()
@@ -76,6 +77,19 @@ class GlassChecks(unittest.TestCase):
         self.assertTrue(self.page.get_by_label('Permission ledger').is_visible())
         self.assertEqual(self.page.locator('dialog[open]').count(),0)
         self.assertEqual(self.page.locator('.highlight-layer').count(),1)
+        self.assertTrue(self.page.evaluate('originalPane === document.querySelector(".agent-pane")'))
+        # Inspect an old verdict, then scrub: inspection must reset even though
+        # the pane (and its effects) is intentionally preserved.
+        verdict = self.page.locator('.verdict-row').first
+        if verdict.count():
+            verdict.click()
+            self.assertEqual(self.page.locator('.inspect-button').count(), 1)
+            slider.focus()
+            self.page.keyboard.press('Home')
+            self.assertEqual(self.page.locator('.inspect-button').count(), 0)
+            self.assertTrue(self.page.evaluate('originalPane === document.querySelector(".agent-pane")'))
+            self.page.keyboard.press('End')
+            self.page.locator('.outcome-card').first.wait_for()
         self.page.screenshot(path=str(OUTPUT / 'replay-outcomes.png'),full_page=True)
 
     def test_material_preferences_and_theme_isolation(self):

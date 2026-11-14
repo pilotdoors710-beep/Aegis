@@ -474,7 +474,7 @@ const StarBorder = <T extends React.ElementType = 'button'>({
         resizePending = false;
         applyMeasure();
       }
-      if (!alive) return;
+      if (!alive || !state.visible || document.hidden) return;
       const s = settingsRef.current;
       const dt = Math.min(0.05, Math.max(0.001, (now - last) / 1000));
       last = now;
@@ -547,7 +547,7 @@ const StarBorder = <T extends React.ElementType = 'button'>({
     };
 
     const wake = () => {
-      if (raf || !alive || !state.visible) return;
+      if (raf || !alive || !state.visible || document.hidden) return;
       last = performance.now();
       raf = requestAnimationFrame(frame);
     };
@@ -601,6 +601,11 @@ const StarBorder = <T extends React.ElementType = 'button'>({
       if (state.visible) wake();
     });
     visibility.observe(root);
+    const onPageVisibility = () => {
+      if (document.hidden) { cancelAnimationFrame(raf); raf = 0; }
+      else wake();
+    };
+    document.addEventListener('visibilitychange', onPageVisibility);
     root.addEventListener('pointerenter', onEnter);
     root.addEventListener('pointerleave', onLeave);
     root.addEventListener('pointerdown', onDown);
@@ -615,6 +620,7 @@ const StarBorder = <T extends React.ElementType = 'button'>({
       cancelAnimationFrame(raf);
       resizeObserver.disconnect();
       visibility.disconnect();
+      document.removeEventListener('visibilitychange', onPageVisibility);
       root.removeEventListener('pointerenter', onEnter);
       root.removeEventListener('pointerleave', onLeave);
       root.removeEventListener('pointerdown', onDown);

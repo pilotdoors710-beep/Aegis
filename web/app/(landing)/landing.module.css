@@ -47,15 +47,126 @@
   clip-path: inset(var(--edge-y) var(--edge-x));
 }
 
-.mark {
-  font-family: var(--font-geist-sans), sans-serif;
+/* Two-column stage content wrapper */
+.stageContent {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 max(32px, 6vw);
+  max-width: 1440px;
+  margin: 0 auto;
+  z-index: 1;
   opacity: calc(1 - var(--mark));
-  transform: scale(calc(1 + 0.55 * var(--mark)));
-  filter: blur(calc(var(--mark) * 20px));
+  transform: scale(calc(1 + 0.35 * var(--mark)));
+  filter: blur(calc(var(--mark) * 16px));
 }
 
-.stage[data-scrolling] .mark {
+.stage[data-scrolling] .stageContent {
   pointer-events: none;
+}
+
+.leftColumn {
+  flex: 1 1 50%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  z-index: 2;
+}
+
+.markWrapper {
+  width: 100%;
+  height: clamp(100px, 18vh, 180px);
+  position: relative;
+  font-family: var(--font-geist-sans), sans-serif;
+}
+
+.taglineBlock {
+  margin-top: 20px;
+}
+
+.taglineQuote {
+  font: 600 13px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.24em;
+  color: #d9541e;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.orangeRule {
+  height: 2px;
+  width: 44px;
+  background: #d9541e;
+  margin: 12px 0 16px 0;
+  border-radius: 1px;
+}
+
+.taglineDesc {
+  font: 400 15px/1.6 var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: rgb(252 248 216 / 78%);
+  max-width: 460px;
+  margin: 0;
+}
+
+.rightColumn {
+  flex: 1 1 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 2;
+}
+
+/* mix-blend-mode: screen makes pure black = transparent, so the
+   white bg of the PNG maps to black (paperColor) and vanishes into
+   the Galaxy starfield behind it. */
+.shieldWrapper {
+  width: min(500px, 44vw);
+  height: min(500px, 44vw);
+  max-height: 60svh;
+  aspect-ratio: 1 / 1;
+  position: relative;
+  mix-blend-mode: screen;
+}
+
+@media (max-width: 860px) {
+  .stageContent {
+    flex-direction: column-reverse;
+    justify-content: center;
+    gap: 20px;
+    padding: 24px;
+  }
+
+  .leftColumn {
+    max-width: 100%;
+    align-items: center;
+    text-align: center;
+  }
+
+  .taglineBlock {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .shieldWrapper {
+    width: min(260px, 62vw);
+    height: min(260px, 62vw);
+    max-height: 36svh;
+  }
+}
+
+/* keep .mark for the scroll transition—no longer used for wordmark display but
+   referenced by the scroll animation CSS vars */
+.mark {
+  position: absolute;
+  inset: 0;
+  font-family: var(--font-geist-sans), sans-serif;
+  pointer-events: none;
+  opacity: 0;
 }
 
 .frame {

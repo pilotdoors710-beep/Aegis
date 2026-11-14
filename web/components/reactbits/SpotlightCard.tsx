@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
+import { requestEffectFrame, cancelEffectFrame, followEffectEvent } from '@/lib/effect-scheduler';
 
 import './SpotlightCard.css';
 
@@ -175,7 +176,7 @@ const SpotlightCard = ({
 
     const tick = (now: number) => {
       raf = 0;
-      if (!alive) return;
+      if (!alive || !state.visible || document.hidden) return;
       const s = settingsRef.current;
       const dt = Math.min(0.05, Math.max(0.001, (now - last) / 1000));
       last = now;
@@ -215,16 +216,16 @@ const SpotlightCard = ({
       const press = state.pressed && s.flare && !reduce ? 1 : 0;
       state.flare += (press - state.flare) * (1 - Math.exp(-dt / (press ? 0.05 : 0.28)));
       if (Math.abs(press - state.flare) < 0.002) state.flare = press;
-      paint(s);
       const moving = Math.abs(tx - state.x) > 0.1 || Math.abs(ty - state.y) > 0.1;
       const settled = !moving && state.presence === target && state.flare === press;
-      if (!settled || (s.ambient && state.visible && !reduce)) raf = requestAnimationFrame(tick);
+      if (!settled || (s.ambient && state.visible && !reduce)) raf = requestEffectFrame(tick);
+      return () => { if (alive && state.visible && !document.hidden) paint(s); };
     };
 
     const wake = () => {
-      if (raf || !alive) return;
+      if (raf || !alive || !state.visible || document.hidden) return;
       last = performance.now();
-      raf = requestAnimationFrame(tick);
+      raf = requestEffectFrame(tick);
     };
     wakeRef.current = wake;
 
@@ -269,13 +270,21 @@ const SpotlightCard = ({
     const observer = new IntersectionObserver(entries => {
       state.visible = entries.some(entry => entry.isIntersecting);
       if (state.visible) wake();
+      else { cancelEffectFrame(raf); raf = 0; }
     });
     observer.observe(root);
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onUp);
-    window.addEventListener('scroll', onScroll, { capture: true, passive: true });
-    document.addEventListener('pointerout', onOut);
+    const unfollow = [
+      followEffectEvent('pointermove', onMove as EventListener),
+      followEffectEvent('pointerup', onUp as EventListener),
+      followEffectEvent('pointercancel', onUp as EventListener),
+      followEffectEvent('scroll', onScroll),
+      followEffectEvent('pointerout', onOut as EventListener),
+    ];
+    const onVisibility = () => {
+      if (document.hidden) { cancelEffectFrame(raf); raf = 0; }
+      else wake();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
     root.addEventListener('pointerdown', onDown);
     root.addEventListener('focusin', onFocusIn);
     root.addEventListener('focusout', onFocusOut);
@@ -283,13 +292,10 @@ const SpotlightCard = ({
 
     return () => {
       alive = false;
-      cancelAnimationFrame(raf);
+      cancelEffectFrame(raf);
       observer.disconnect();
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('pointercancel', onUp);
-      window.removeEventListener('scroll', onScroll, { capture: true });
-      document.removeEventListener('pointerout', onOut);
+      unfollow.forEach(stop => stop());
+      document.removeEventListener('visibilitychange', onVisibility);
       root.removeEventListener('pointerdown', onDown);
       root.removeEventListener('focusin', onFocusIn);
       root.removeEventListener('focusout', onFocusOut);
