@@ -88,7 +88,7 @@ function AgentPane({ mode, events, summary }: { mode: RunEvent["mode"]; events: 
 export function RunComparison({ summary, events, status, error, replay = false }: { summary: Schema["RunSummary"] | null; events: RunEvent[]; status: string; error?: string | null; replay?: boolean }) {
   const finished = (["unshielded", "shielded"] as const).every((mode) => events.some((event) => event.kind === "done" && event.mode === mode));
   return <section className="run-section" aria-label="Run comparison">
-    <div className="run-bar"><h2>Run comparison</h2>{summary && <p className="task-line" title={summary.task}><span>Task</span>{summary.task}</p>}<div className="run-state">{replay && <strong className="badge">REPLAY</strong>} {summary?.is_sample && <strong className="badge">SAMPLE DATA</strong>} <span role="status">{status}</span></div></div>
+    <div className="run-bar"><h2>Run comparison</h2>{summary && <p className="task-line" title={summary.task}><span>Task</span>{summary.task}</p>}<div className="run-state">{replay && <strong className="badge">REPLAY</strong>} {summary?.is_sample && <strong className="badge">SAMPLE DATA</strong>} {summary?.own_key && <strong className="badge" title="Run with a visitor's own API key; not part of the published evaluation">Your key · {summary.model}</strong>} <span role="status">{status}</span></div></div>
     {error && <p className="error-message" role="alert">{error}</p>}
     <OutcomeCards events={events} summary={summary} />
     {summary && <PermissionPair summary={summary} finished={finished} />}

@@ -6,7 +6,7 @@ import { ArrowRight, Play } from "lucide-react";
 import SpotlightCard from "@/components/reactbits/SpotlightCard";
 import StarBorder from "@/components/reactbits/StarBorder";
 import { DashboardGlass } from "@/components/glass-refraction";
-import { api, type Schema } from "@/lib/api";
+import { api, ApiError, type Schema } from "@/lib/api";
 import { RunView } from "../run-view";
 import { consumeConsoleEntry } from "@/lib/landing/phases";
 
@@ -35,18 +35,46 @@ function groupPresets(presets: Preset[]) {
   };
 }
 
+type Provider = Schema["OwnLLM"]["provider"];
+// Suggestions only: the visitor types any model id their provider serves.
+const MODEL_HINTS: Record<Provider, string> = {
+  groq: "openai/gpt-oss-20b",
+  gemini: "gemini-2.5-flash",
+  openrouter: "meta-llama/llama-3.3-70b-instruct:free",
+  cerebras: "llama-3.3-70b",
+};
+
+function OwnKeyPanel({ provider, model, apiKey, onChange }: { provider: Provider; model: string; apiKey: string; onChange: (next: { provider?: Provider; model?: string; apiKey?: string }) => void }) {
+  const active = apiKey.trim() !== "";
+  return <details className="console-card own-key">
+    <summary>Use your own API key{active ? <strong className="badge">Your key · {provider}:{model || MODEL_HINTS[provider]}</strong> : <span className="own-key-hint">Optional · otherwise runs use the shared server key</span>}</summary>
+    <div className="own-key-fields">
+      <label>Provider<select value={provider} onChange={(e) => onChange({ provider: e.target.value as Provider })}>{(Object.keys(MODEL_HINTS) as Provider[]).map((p) => <option key={p} value={p}>{p}</option>)}</select></label>
+      <label>Model<input type="text" value={model} placeholder={MODEL_HINTS[provider]} maxLength={100} spellCheck={false} autoComplete="off" onChange={(e) => onChange({ model: e.target.value })} /></label>
+      <label>API key<input type="password" value={apiKey} maxLength={300} autoComplete="off" spellCheck={false} onChange={(e) => onChange({ apiKey: e.target.value })} /></label>
+      <button type="button" className="secondary-button" disabled={!active && !model} onClick={() => onChange({ model: "", apiKey: "" })}>Clear</button>
+    </div>
+    <p className="sample-note">Your key is sent to the Aegis server for this run only and is not stored. Use a free-tier or throwaway key. It powers both agents and the ledger reading, so both sides use the same model. Runs with your own key are labelled and are not part of the published evaluation. The key is kept only on this page; it is forgotten when you leave or reload.</p>
+  </details>;
+}
+
 const short = (title: string) => title.replace(/^(Permission|Experimental): /, "").replace(/^T\d+ · /, "");
 const tags = (preset: Preset) => preset.traps.filter((trap) => trap !== "none");
 
 export default function ConsolePage() {
   const router = useRouter();
   const [launching, setLaunching] = useState<string | null>(null);
+  const [own, setOwn] = useState<{ provider: Provider; model: string; apiKey: string }>({ provider: "groq", model: "", apiKey: "" });
   async function launch(id: string) {
     setLaunching(id); setError(null);
+    const llm = own.apiKey.trim() ? { provider: own.provider, model: own.model.trim() || MODEL_HINTS[own.provider], api_key: own.apiKey.trim() } : undefined;
     try {
-      const run = await api.createRun({ preset_id: id });
+      const run = await api.createRun({ preset_id: id, llm });
       router.push(`/runs/${encodeURIComponent(run.run_id)}?queue=${run.status === "queued" ? run.queue_position : 0}`);
-    } catch (error) { setError(error instanceof Error ? error.message : "Could not start the run."); setLaunching(null); }
+    } catch (error) {
+      setError(llm && error instanceof ApiError && error.status === 422 ? "The server rejected your key settings. Check the model name (letters, digits and . _ : / @ -) and the key." : error instanceof Error ? error.message : "Could not start the run.");
+      setLaunching(null);
+    }
   }
   const [presets, setPresets] = useState<Preset[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -76,6 +104,7 @@ export default function ConsolePage() {
   return <><DashboardGlass />
     <header className="page-head"><h1 id="console-heading" tabIndex={-1}>Check before committing.</h1><p className="lede">Compare the same browser agent with and without Aegis.</p></header>
     {error && <p role="alert" className="error-message">{error}</p>}
+    <OwnKeyPanel {...own} onChange={(next) => setOwn((value) => ({ ...value, ...next }))} />
 
     <StarBorder as="section" className="featured-run" color="#B8925A" trailColor="#ECEBEF" radius={28} duration={7} trailLength={0.22} glow={0.35} hover="none" clickPulse={false} backgroundColor="transparent" textColor="inherit" borderColor="rgb(255 255 255 / 65%)" aria-label="Main demo">
 

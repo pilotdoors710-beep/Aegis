@@ -20,7 +20,7 @@ from playwright.async_api import Browser, async_playwright
 from sse_starlette.sse import EventSourceResponse
 
 from aegis.agent import Agent, LLMAgent
-from aegis.config import settings
+from aegis.config import Settings, settings
 from aegis.detectors import run_fast
 from aegis.events import (
     SAMPLE_RUN_ID,
@@ -33,7 +33,7 @@ from aegis.events import (
     sample_run,
 )
 from aegis.intent import parse_ledger
-from aegis.llm import LLMRouter
+from aegis.llm import AllProvidersFailed, LLMResult, LLMRouter
 from aegis.loop import FROZEN_TIME, VIEWPORT, outcome_from_page, run_pair, start_url
 from aegis.presets import PRESETS
 from aegis.schemas import (
@@ -48,6 +48,7 @@ from aegis.schemas import (
     LabRequest,
     Ledger,
     LedgerItem,
+    OwnLLM,
     Preset,
     RunCreate,
     RunCreated,
@@ -302,29 +303,50 @@ _run_slots: asyncio.Semaphore | None = None
 _tasks: set[asyncio.Task] = set()
 _router = LLMRouter()  # one router per process so per-provider rate limits hold across runs
 # Tests swap this for a ScriptedAgent factory.
-agent_factory: Callable[[], Agent] = lambda: LLMAgent(_router)  # noqa: E731
+agent_factory: Callable[[LLMRouter], Agent] = LLMAgent
 
 
-async def _parse(task: str) -> tuple[Ledger, list[str]]:
+class OwnKeyRouter(LLMRouter):
+    """A visitor's key for one run: no shared keys, no cache (nothing persisted), and any
+    provider error is re-raised with the key redacted before it can reach events or logs."""
+
+    def __init__(self, llm: OwnLLM) -> None:
+        self._secret = llm.api_key.get_secret_value()
+        blank = {f: "" for f in Settings.model_fields if "_api_key" in f}
+        super().__init__(settings.model_copy(update={
+            **blank, f"{llm.provider}_api_key": self._secret, "llm_cache_mode": "off",
+            "agent_models": f"{llm.provider}:{llm.model}",
+        }))  # fmt: skip
+
+    async def complete(self, *args, **kwargs) -> LLMResult:  # noqa: ANN002, ANN003
+        try:
+            return await super().complete(*args, **kwargs)
+        except Exception as e:
+            msg = f"{type(e).__name__}: {e}".replace(self._secret, "[redacted]")
+            raise AllProvidersFailed(msg) from None
+
+
+async def _parse(task: str, router: LLMRouter) -> tuple[Ledger, list[str]]:
     host = urlsplit(settings.arena_base_url).hostname or ""
-    return await parse_ledger(task, _router, allowed_domains=[host])
+    return await parse_ledger(task, router, allowed_domains=[host])
 
 
-ledger_parser: Callable[[str], Awaitable[tuple[Ledger, list[str]]]] = _parse  # tests swap it
+# tests swap it
+ledger_parser: Callable[[str, LLMRouter], Awaitable[tuple[Ledger, list[str]]]] = _parse
 
 
-async def _run(run_id: str, preset: Preset) -> None:
+async def _run(run_id: str, preset: Preset, router: LLMRouter) -> None:
     global _run_slots
     assert _browser is not None
     _run_slots = _run_slots or asyncio.Semaphore(settings.max_concurrent_runs)
     async with _run_slots:
         try:  # B1: the ledger is written once, before browsing, from the task text only
-            ledger, unresolved = await ledger_parser(preset.task)
+            ledger, unresolved = await ledger_parser(preset.task, router)
         except Exception as e:  # no ledger: the shielded side asks before it browses
             ledger, unresolved = None, [f"Could not read the request ({type(e).__name__})."]
         await _bus.update(run_id, ledger=ledger)
         await run_pair(
-            _browser, _bus, run_id, task=preset.task, make_agent=agent_factory,
+            _browser, _bus, run_id, task=preset.task, make_agent=lambda: agent_factory(router),
             url=validate_url(start_url(preset.traps, preset.variant, consent=preset.consent),
                              arena_origin()),
             allowed_origin=arena_origin(), ledger=ledger, unresolved=unresolved,
@@ -341,11 +363,14 @@ async def create_run(body: RunCreate) -> RunCreated:
     position = max(0, ahead - settings.max_concurrent_runs + 1)
     run_id = uuid.uuid4().hex[:12]
     auto = preset.auto_approve if body.auto_approve is None else body.auto_approve
+    own = body.llm
     await _bus.create(RunSummary(
         run_id=run_id, preset_id=preset.id, task=preset.task, status="queued",
-        created_at=datetime.now(UTC), model=settings.agent_models.split(",")[0] or None,
+        created_at=datetime.now(UTC),
+        model=f"{own.provider}:{own.model}" if own else settings.agent_models.split(",")[0] or None,
+        own_key=own is not None,
     ), AskGate(auto_approve=auto))  # fmt: skip
-    task = asyncio.create_task(_run(run_id, preset))
+    task = asyncio.create_task(_run(run_id, preset, OwnKeyRouter(own) if own else _router))
     _tasks.add(task)  # keep a reference so the task is not garbage-collected
     task.add_done_callback(_tasks.discard)
     return RunCreated(run_id=run_id, status="queued" if position else "running",

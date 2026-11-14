@@ -873,6 +873,24 @@ export interface components {
              */
             commitments: components["schemas"]["Commitment"][];
         };
+        /**
+         * OwnLLM
+         * @description A visitor's own key for one run. Provider is a fixed endpoint (no base URL: SSRF).
+         */
+        OwnLLM: {
+            /**
+             * Provider
+             * @enum {string}
+             */
+            provider: "gemini" | "groq" | "openrouter" | "cerebras";
+            /** Model */
+            model: string;
+            /**
+             * Api Key
+             * Format: password
+             */
+            api_key: string;
+        };
         /** Preset */
         Preset: {
             /** Id */
@@ -934,6 +952,7 @@ export interface components {
             preset_id: string;
             /** Auto Approve */
             auto_approve?: boolean | null;
+            llm?: components["schemas"]["OwnLLM"] | null;
         };
         /** RunCreated */
         RunCreated: {
@@ -981,6 +1000,11 @@ export interface components {
              * @default false
              */
             is_sample: boolean;
+            /**
+             * Own Key
+             * @default false
+             */
+            own_key: boolean;
         };
         /** ScanReport */
         ScanReport: {

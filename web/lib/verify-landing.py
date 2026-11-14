@@ -241,6 +241,39 @@ class LandingChecks(unittest.TestCase):
         self.assertTrue(self.page.get_by_role("button", name="Previous").is_enabled())
         self.assertEqual(self.page.get_by_role("dialog").count(), 0)
 
+    def test_18_own_key_launch_sends_llm_and_is_never_stored(self):
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "server"))
+        from aegis.presets import PRESETS
+
+        cors = {"access-control-allow-origin": "*"}
+        preset = next(p for p in PRESETS if p.id == "clean").model_dump(mode="json")
+        self.page.route("**/presets", lambda route: route.fulfill(json=[preset], headers=cors))
+        key = "sk-TEST-SENTINEL-123"
+        bodies = []
+
+        def create(route):
+            if route.request.method == "OPTIONS":
+                route.fulfill(headers={"access-control-allow-origin": "*", "access-control-allow-methods": "POST", "access-control-allow-headers": "content-type"})
+                return
+            bodies.append(route.request.post_data_json)
+            self.mocked_posts.append(route.request.url)
+            route.fulfill(status=503, json={"detail": "mocked: no run"}, headers=cors)
+
+        self.page.route("**/runs", create)
+        self.page.goto(BASE + "/console")
+        self.page.get_by_text("Use your own API key").click()
+        self.page.get_by_label("Provider").select_option("gemini")
+        self.page.get_by_label("API key").fill(key)
+        self.assertTrue(self.page.get_by_text("Your key · gemini:gemini-2.5-flash").is_visible())
+        self.page.screenshot(path=str(OUTPUT / "own-key-panel.png"))
+        self.page.get_by_role("button", name="Launch live run").click()
+        self.page.get_by_text("mocked: no run").wait_for()
+        self.assertEqual(bodies, [{"preset_id": "clean", "llm": {"provider": "gemini", "model": "gemini-2.5-flash", "api_key": key}}])
+        storage = self.page.evaluate("JSON.stringify([{...localStorage}, {...sessionStorage}, document.cookie])")
+        self.assertNotIn(key, storage)
+        self.page.get_by_role("button", name="Clear").click()
+        self.assertEqual(self.page.get_by_label("API key").input_value(), "")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

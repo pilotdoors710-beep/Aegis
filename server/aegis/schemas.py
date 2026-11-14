@@ -7,7 +7,7 @@ commit as any change here.
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
 # --- Enumerations ---------------------------------------------------------------------------
 
@@ -419,9 +419,18 @@ class Preset(BaseModel):
     shield: Literal["I", "I_R2"] = "I"  # I_R2 = experimental disposable-copy checks
 
 
+class OwnLLM(BaseModel):
+    """A visitor's own key for one run. Provider is a fixed endpoint (no base URL: SSRF)."""
+
+    provider: Literal["gemini", "groq", "openrouter", "cerebras"]  # = llm.BASE_URLS keys
+    model: str = Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9._:/@-]+$")
+    api_key: SecretStr = Field(min_length=8, max_length=300)
+
+
 class RunCreate(BaseModel):
     preset_id: str
     auto_approve: bool | None = None  # override; used by deploy/smoke.sh
+    llm: OwnLLM | None = None  # in memory for this run only; never stored or echoed
 
 
 RunStatus = Literal["queued", "running", "done", "error"]
@@ -450,6 +459,7 @@ class RunSummary(BaseModel):
     outcomes: SideOutcomes = SideOutcomes()
     model: str | None = None
     is_sample: bool = False
+    own_key: bool = False  # visitor's own LLM key: not an eval run
 
 
 class AskDecision(BaseModel):

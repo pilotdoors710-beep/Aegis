@@ -13,7 +13,7 @@ from aegis.schemas import Ledger, LedgerItem
 from tests.scripted_agent import ScriptedAgent, click_text
 
 
-def _clean_purchase() -> ScriptedAgent:
+def _clean_purchase(_router: object = None) -> ScriptedAgent:
     return ScriptedAgent([
         click_text("Aurora desk lamp"), click_text("Add to cart"),
         click_text("Continue"), click_text("Place order"),
@@ -41,7 +41,7 @@ async def client(
         main._browser = None
 
 
-async def _ledger(task: str) -> tuple[Ledger, list[str]]:
+async def _ledger(task: str, _router: object = None) -> tuple[Ledger, list[str]]:
     return Ledger(goal=task, items=[LedgerItem(name="Aurora desk lamp")], budget_max=1500,
                   shipping_method="standard"), []  # fmt: skip
 
@@ -89,3 +89,91 @@ async def test_paired_run_streams_and_queues(client: httpx.AsyncClient) -> None:
 async def test_unknown_preset_and_run(client: httpx.AsyncClient) -> None:
     assert (await client.post("/runs", json={"preset_id": "nope"})).status_code == 404
     assert (await client.get("/runs/nope")).status_code == 404
+
+
+SENTINEL = "sk-TEST-SENTINEL-123"
+OWN = {"provider": "groq", "model": "openai/gpt-oss-20b", "api_key": SENTINEL}
+
+
+def test_own_llm_providers_match_router() -> None:
+    from typing import get_args
+
+    from aegis.llm import BASE_URLS
+    from aegis.schemas import OwnLLM
+
+    assert set(get_args(OwnLLM.model_fields["provider"].annotation)) == set(BASE_URLS)
+
+
+async def test_own_llm_rejects_bad_fields(client: httpx.AsyncClient) -> None:
+    for bad in ({"provider": "evil", "model": "m"}, {"model": "m" * 101}, {"model": "a,groq:b"},
+                {"api_key": "k" * 301}, {"base_url": "http://169.254.169.254"}):  # fmt: skip
+        body = {"preset_id": "clean", "llm": {**OWN, **bad}}
+        r = await client.post("/runs", json=body)
+        # base_url is ignored (no such field), never used: the router only knows fixed endpoints
+        assert r.status_code == (201 if "base_url" in bad else 422), bad
+
+
+async def _run_own(client: httpx.AsyncClient) -> tuple[str, str]:
+    """Launch with the sentinel key; return (run_id, everything the API and SSE expose)."""
+    run_id = (await client.post("/runs", json={"preset_id": "clean", "auto_approve": True,
+                                               "llm": OWN})).json()["run_id"]  # fmt: skip
+    stream = (await client.get(f"/runs/{run_id}/stream")).text
+    seen = stream + "".join(
+        [(await client.get(u)).text for u in (f"/runs/{run_id}", f"/runs/{run_id}/events", "/runs")]
+    )
+    return run_id, seen
+
+
+async def test_own_key_run_uses_its_router_and_never_leaks(
+    client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    routers: list[object] = []
+
+    def factory(router: object) -> ScriptedAgent:
+        routers.append(router)
+        return _clean_purchase()
+
+    async def parser(task: str, router: object) -> tuple[Ledger, list[str]]:
+        routers.append(router)
+        return await _ledger(task)
+
+    monkeypatch.setattr(main, "agent_factory", factory)
+    monkeypatch.setattr(main, "ledger_parser", parser)
+    caplog.set_level("DEBUG")
+    run_id, seen = await _run_own(client)
+
+    assert len(routers) == 3 and len({id(r) for r in routers}) == 1  # ledger + both sides
+    r = routers[0]
+    assert isinstance(r, main.OwnKeyRouter) and r is not main._router
+    assert r.chain == [("groq", "openai/gpt-oss-20b")] and r._keys("groq") == [SENTINEL]
+    assert r._cfg.llm_cache_mode == "off" and not r._keys("gemini")
+    summary = (await client.get(f"/runs/{run_id}")).json()
+    assert summary["own_key"] is True and summary["model"] == "groq:openai/gpt-oss-20b"
+    assert '"done"' in seen and SENTINEL not in seen
+    store = main._bus.store
+    await store.flush()
+    stored = "".join(x.model_dump_json() for x in [*store.events[run_id], *store.runs.values()])
+    assert '"done"' in stored and SENTINEL not in stored and SENTINEL not in caplog.text
+
+
+async def test_provider_error_with_key_is_redacted(
+    client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    import openai
+
+    from aegis.agent import LLMAgent
+    from tests.test_llm import FakeClient
+
+    def leak() -> openai.BadRequestError:
+        req = httpx.Request("POST", "https://x")
+        res = httpx.Response(400, request=req)
+        return openai.BadRequestError(f"Invalid API key {SENTINEL}", response=res, body=None)
+
+    def factory(router: main.OwnKeyRouter) -> LLMAgent:
+        router._clients = {"groq": FakeClient([leak() for _ in range(9)])}  # type: ignore[assignment]
+        return LLMAgent(router)
+
+    monkeypatch.setattr(main, "agent_factory", factory)
+    caplog.set_level("DEBUG")
+    _, seen = await _run_own(client)
+    assert "[redacted]" in seen and SENTINEL not in seen and SENTINEL not in caplog.text
