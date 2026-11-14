@@ -58,6 +58,62 @@
   pointer-events: none;
 }
 
+.subtitleWrapper {
+  position: absolute;
+  top: calc(100% - var(--inset-y) + 24px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(90vw, 760px);
+  text-align: center;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+.subtitle {
+  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: clamp(14px, 1.8vw, 19px);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  line-height: 1.5;
+  text-transform: uppercase;
+  display: inline-block;
+  cursor: default;
+}
+
+.subtitleRevealed {
+  color: rgb(252 248 216 / 90%);
+  text-shadow: 0 0 16px rgba(217, 84, 30, 0.25);
+  transition: color 0.3s ease;
+}
+
+.subtitleEncrypted {
+  color: #d9541e;
+  opacity: 0.85;
+}
+
+@media (max-width: 640px) {
+  .subtitleWrapper {
+    top: calc(100% - var(--inset-y) + 16px);
+    max-width: 92vw;
+  }
+
+  .subtitle {
+    font-size: clamp(12px, 3.4vw, 14px);
+    letter-spacing: 0.05em;
+  }
+}
+
+@media (max-height: 560px) {
+  .subtitleWrapper {
+    top: calc(100% - var(--inset-y) + 10px);
+  }
+
+  .subtitle {
+    font-size: 12px;
+  }
+}
+
 .frame {
   position: absolute;
   inset: var(--edge-y) var(--edge-x);

@@ -9,6 +9,7 @@ import { signalConsoleEntry } from "@/lib/landing/phases";
 import styles from "./landing.module.css";
 
 const Galaxy = dynamic(() => import("@/components/reactbits/Galaxy"), { ssr: false });
+const DecryptedText = dynamic(() => import("@/components/reactbits/DecryptedText"), { ssr: false });
 
 const WORD = "AEGIS";
 const WEIGHT = 600;
@@ -168,6 +169,20 @@ export function LandingExperience() {
             clickKick
             guides={false}
           />
+          <div className={styles.subtitleWrapper}>
+            <DecryptedText
+              text="Protect your agents like never before"
+              animateOn="inViewHover"
+              revealDirection="center"
+              speed={40}
+              maxIterations={15}
+              sequential={true}
+              scrambleColor="#d9541e"
+              className={styles.subtitleRevealed}
+              encryptedClassName={styles.subtitleEncrypted}
+              parentClassName={styles.subtitle}
+            />
+          </div>
         </div>
         <div className={styles.frame} aria-hidden="true">
           <span ref={readout} className={styles.readout} />

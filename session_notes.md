@@ -22,6 +22,26 @@ Template:
 
 ## Log
 
+### 2026-11-15 · Dev B · Antigravity · integrate DecryptedText subtitle on landing
+- Added `<DecryptedText />` component from React Bits in `web/components/reactbits/DecryptedText.tsx` using `motion`.
+- Placed "Protect your agents like never before" directly below the AEGIS wordmark on the landing page in Geist Mono font with responsive sizing and Aegis orange decrypt flicker.
+- Verified TypeScript, ESLint, 18 Node unit tests, and frozen-lockfile installation pass cleanly.
+
+### 2026-11-14 - Codex - Sybil document summary
+- Read SYBIL_CONSENSUS_CONTEXT.md and summarized the proposal for the user.
+- No implementation or scope changes. The extension remains a discussion idea.
+- Open decisions include the track, graph data, attack assumptions and evaluation.
+
+### 2026-11-14 - Codex - global skill cleanup
+- Found 2,960 shared skill folders; the install log records a large Antigravity skills bundle installed October 31 and updated November 6.
+- User requested keeping official Codex skills and only Caveman, Caveman Commit, Ponytail, Karpathy Guidelines, Matt Pocock's skills, shadcn, Improve and Impeccable.
+- Removed 2,961 unwanted skill folders. Verified 46 requested skills (39 from Matt Pocock), all five built-in skills, and an empty shared skill folder. Official plugin skills were left intact; no application code changed.
+
+### 2026-11-14 - Dev B - Codex side conversation - website trust concept
+- Saved the website trust, fake recommendation network and judge playground discussion in [SYBIL_CONSENSUS_CONTEXT.md](SYBIL_CONSENSUS_CONTEXT.md).
+- Included the suggested algorithm, research and product links, limitations, pitch ideas and open questions in simple words.
+- Reference only: no feature implementation, track change or expansion of the active brief was approved or started.
+
 ### 2026-11-14 · Dev B · Antigravity · restore original centered AEGIS landing
 - Restored original landing layout: centered 'AEGIS' TechText wordmark over the dynamic Galaxy starfield, with expanding inspection frame on scroll.
 - Removed DitherVeil component, shield image asset, and `ogl` dependency.
