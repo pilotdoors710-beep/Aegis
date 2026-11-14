@@ -155,20 +155,22 @@ export function LandingExperience() {
         </div>
         <div className={styles.ground} aria-hidden="true" />
         <div ref={mark} className={styles.mark}>
-          <TechText
-            text={WORD}
-            fontWeight={WEIGHT}
-            fontSize={fontSize}
-            letterSpacing={TRACKING}
-            reveal="letter"
-            dashLength={5}
-            dashGap={3}
-            strokeWidth={1.5}
-            specks={15}
-            intro="none"
-            clickKick
-            guides={false}
-          />
+          <div className={styles.wordmarkZoom}>
+            <TechText
+              text={WORD}
+              fontWeight={WEIGHT}
+              fontSize={fontSize}
+              letterSpacing={TRACKING}
+              reveal="letter"
+              dashLength={5}
+              dashGap={3}
+              strokeWidth={1.5}
+              specks={15}
+              intro="none"
+              clickKick
+              guides={false}
+            />
+          </div>
           <div className={styles.subtitleWrapper}>
             <DecryptedText
               text="Protect your agents like never before"

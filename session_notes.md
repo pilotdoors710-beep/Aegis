@@ -22,6 +22,12 @@ Template:
 
 ## Log
 
+### 2026-11-15 · Dev B · Antigravity · smooth page load zoom-in animation for AEGIS wordmark
+- Added ultra-smooth cinematic zoom-in entrance animation for the 'AEGIS' wordmark on page load (`scale(0.68)` with soft optical blur to `scale(1)` via `cubic-bezier(0.16, 1, 0.3, 1)` over 1.4s).
+- Coordinated entrance with `<DecryptedText />` subtitle floating in smoothly and decrypting below it.
+- Added reduced-motion fallbacks for accessibility.
+- Verified TypeScript, ESLint, and 18 Node unit tests pass.
+
 ### 2026-11-15 · Dev B · Antigravity · integrate DecryptedText subtitle on landing
 - Added `<DecryptedText />` component from React Bits in `web/components/reactbits/DecryptedText.tsx` using `motion`.
 - Placed "Protect your agents like never before" directly below the AEGIS wordmark on the landing page in Geist Mono font with responsive sizing and Aegis orange decrypt flicker.
