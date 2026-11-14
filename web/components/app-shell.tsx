@@ -19,19 +19,20 @@ const SPARKS = ["#d9541e", "#f3eee3"];
 
 function Menu({ pathname }: { pathname: string }) {
   const here = (href: string) => pathname === href || pathname.startsWith(href + "/");
+  const dashboard = pathname === "/console";
   const section = [...pages, ["/health", "Health"] as const].find(([href]) => here(href))?.[1];
-  return <StaggeredMenu
+  return <div id={dashboard ? "console-menu-home" : undefined}><StaggeredMenu
     isFixed
     position="right"
-    colors={["#3a1d12", "#d9541e"]}
-    accentColor="#d9541e"
-    menuButtonColor="#f3eee3"
-    openMenuButtonColor="#f3eee3"
+    colors={dashboard ? ["#2B3D55", "#B8925A"] : ["#3a1d12", "#d9541e"]}
+    accentColor={dashboard ? "#B8925A" : "#d9541e"}
+    menuButtonColor={dashboard ? "#202E42" : "#f3eee3"}
+    openMenuButtonColor={dashboard ? "#202E42" : "#f3eee3"}
     socialsTitle="Also"
     socialItems={also}
     items={pages.map(([link, label]) => ({ label, link, ariaLabel: label, current: here(link) }))}
     logo={<Link href="/console" className="console-brand" aria-label="Aegis console"><ShieldCheck size={22} aria-hidden="true" /><b>AEGIS</b>{section && <span>{section}</span>}</Link>}
-  />;
+  /></div>;
 }
 
 function CurrentMenu() {

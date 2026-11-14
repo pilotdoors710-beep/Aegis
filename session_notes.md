@@ -22,6 +22,18 @@ Template:
 
 ## Log
 
+### 2026-11-14 · Dev B · Codex · navy and pearl dashboard
+- Changed the dashboard to navy #2B3D55, pearl #ECEBEF glass panels and glossy bronze #B8925A buttons. Added reflective edges, a floating menu bar and readable light-panel text.
+- Included the side conversation's local glass refraction on cards and buttons. The entrance, Arena and other tool pages keep their existing themes.
+- Type checking, lint, 13 Node tests and the final isolated production build passed. The preview used the same fonts cached locally because Google's font download failed. Chrome covered desktop/phone layouts, the menu, task details, sample playback and launch-error recovery; fixed the solid-panel contrast fallback found in that check.
+- Final Chrome checks also passed for contrast settings, forced colors, zoom and leaving the dashboard. Theme selection follows the active menu route so Next.js's hidden cached pages do not keep the dashboard colors active.
+
+### 2026-11-14 · Dev B · Codex · dashboard refraction (side conversation)
+- Added real edge refraction to the dashboard cards and launch/sample buttons, using a local copy of the MIT-licensed Liquid Glass engine. No new package or runtime download.
+- Text and native controls stay sharp. Background copies line up on scroll and resize; glass effects clean up when leaving the dashboard or changing accessibility preferences.
+- Passed TypeScript, targeted lint, 13 Node tests, and Chrome checks at desktop and phone sizes. Confirmed visible distortion, keyboard use, no sideways overflow, and cleanup after navigation. Safari and Firefox were not checked.
+- Changes are local for the main session to review and include. This side session did not commit or push. Browser screenshots and the check script are under ignored `web/.next/`.
+
 ### 2026-11-14 · Dev A · Claude Code · React Bits entrance + console revamp (web/, at the user's request)
 - Did: new entrance at `/` (Galaxy background, big "AEGIS" TechText, scroll to enter the console; no slider, no hold, FluxLines and Lightfall removed). Console shell now uses the React Bits Staggered Menu instead of the top links, with a dim star field behind the panels.
 - Did: rebuilt console, run view, outcomes, evidence, lab, scan, stats, runs and health pages with React Bits pieces (StarBorder, SpotlightCard, Counter, ElectricBorder, ClickSpark, AnimatedContent). Presets are grouped (traps, permission pairs, experimental). Same colours as before.
