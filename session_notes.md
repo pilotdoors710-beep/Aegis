@@ -22,6 +22,13 @@ Template:
 
 ## Log
 
+### 2026-11-14 · Dev A · Claude Code · React Bits entrance + console revamp (web/, at the user's request)
+- Did: new entrance at `/` (Galaxy background, big "AEGIS" TechText, scroll to enter the console; no slider, no hold, FluxLines and Lightfall removed). Console shell now uses the React Bits Staggered Menu instead of the top links, with a dim star field behind the panels.
+- Did: rebuilt console, run view, outcomes, evidence, lab, scan, stats, runs and health pages with React Bits pieces (StarBorder, SpotlightCard, Counter, ElectricBorder, ClickSpark, AnimatedContent). Presets are grouped (traps, permission pairs, experimental). Same colours as before.
+- Works now: types, lint, build, 13 Node tests. Live run page fits one 1280×720 screen. Entry works by wheel, keyboard and with reduced motion. Checked in headless Chrome only.
+- Not done: nothing is committed. `verify-landing.py` and `verify-glass.py` still target the old landing/header. Old landing files and `@designcodeio/threeui` are unused but left in place (Dev B has edits there). Brief §8 still says "clicking anywhere enters the console"; it is scroll now.
+- Watch: the sample run's approval dialog only shows for 0.3 s (server sample timing). Check star-field frame rate on the real demo laptop. `.mcp.json` adds the shadcn MCP for Claude Code. Details in web/README.md, design context in PRODUCT.md.
+
 ### 2026-11-14 - Dev B - Codex - FluxLines landing background
 - Replaced the landing background with React Bits FluxLines, using white lines, pointer interaction and click swirl. Kept the hero, artwork, slider and tunnel flow.
 - Added JavaScript, CSS, typed props and the upstream license without installing dependencies. Adjusted dimming so the new background stays visible.

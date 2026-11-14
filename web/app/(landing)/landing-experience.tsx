@@ -1,368 +1,183 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight } from "lucide-react";
-import { SEEN_KEY, signalConsoleEntry, TIMING, animate, type Phase } from "@/lib/landing/phases";
-import { SquareTunnel } from "./square-tunnel";
-import { SliderControl } from "./slider-control";
-import { AegisArtwork } from "./aegis-artwork";
-import { MathScramble } from "@/components/ui/math-scramble";
+import TechText from "@/components/reactbits/TechText";
+import { signalConsoleEntry } from "@/lib/landing/phases";
 import styles from "./landing.module.css";
 
-const FluxLines = dynamic(() => import("@/components/FluxLines"), { ssr: false });
+const Galaxy = dynamic(() => import("@/components/reactbits/Galaxy"), { ssr: false });
 
-type Stage = "loading" | "title" | "quote" | "description" | "ready";
+const WORD = "AEGIS";
+const WEIGHT = 600;
+const TRACKING = 0.14; // em
+const STARS = ["#FCF8D8", "#E8C59E", "#d9541e"];
+const COMMIT_AT = 0.12; // released past this, the scroll finishes on its own
+const ARRIVE_AT = 0.985;
+
+const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
+const span = (value: number, from: number, to: number) => clamp01((value - from) / (to - from));
+const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
 export function LandingExperience() {
   const router = useRouter();
-  const [phase, setPhase] = useState<Phase>("loading");
-  const [stage, setStage] = useState<Stage>("loading");
+  const track = useRef<HTMLElement>(null);
+  const stage = useRef<HTMLDivElement>(null);
+  const mark = useRef<HTMLDivElement>(null);
+  const readout = useRef<HTMLSpanElement>(null);
+  const [fontSize, setFontSize] = useState(256);
+  const [speed, setSpeed] = useState(1);
   const [reduced, setReduced] = useState(false);
-  const [routeSlow, setRouteSlow] = useState(false);
-  const [initialized, setInitialized] = useState(false);
-  const [darkOverlayOpacity, setDarkOverlayOpacity] = useState(0);
-  const [tunnelOpacity, setTunnelOpacity] = useState(0);
-  const [tunnelProgress, setTunnelProgress] = useState(0);
-  const [tunnelPrepared, setTunnelPrepared] = useState(false);
-  const [exitElapsed, setExitElapsed] = useState(-1);
-
-  // Progressive background dimming states
-  const [flowOpacity, setFlowOpacity] = useState(0.85);
-  const [veilOpacity, setVeilOpacity] = useState(0.05);
-  const [flowContrast, setFlowContrast] = useState(1.0);
-
-  const accepted = useRef(false);
-  const navigated = useRef(false);
-  const root = useRef<HTMLElement>(null);
-  const phaseRef = useRef<Phase>("loading");
-  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
-
-  const changePhase = useCallback((value: Phase) => {
-    phaseRef.current = value;
-    setPhase(value);
-  }, []);
-
-  const navigate = useCallback(() => {
-    if (navigated.current) return;
-    navigated.current = true;
-    accepted.current = true;
-    changePhase("entering");
-    signalConsoleEntry();
-    router.replace("/console");
-    timers.current.push(setTimeout(() => setRouteSlow(true), 2000));
-  }, [changePhase, router]);
 
   useEffect(() => {
-    let mounted = true;
-    try { sessionStorage.removeItem(SEEN_KEY); } catch {}
-    const params = new URLSearchParams(location.search);
-    if (params.get("intro") === "skip") {
-      navigate();
-      return;
-    }
+    const trackEl = track.current, stageEl = stage.current, markEl = mark.current;
+    if (!trackEl || !stageEl || !markEl) return;
+    const motion = matchMedia("(prefers-reduced-motion: reduce)");
+    const probe = document.createElement("canvas").getContext("2d");
+    let frame = 0, idle: ReturnType<typeof setTimeout> | undefined, lastY = 0, direction = 1, arrived = false;
+    let start = { w: 0, h: 0 };
+
     router.prefetch("/console");
+    history.scrollRestoration = "manual";
+    window.scrollTo(0, 0);
 
-    const queryMotion = matchMedia("(prefers-reduced-motion: reduce)");
+    const travel = () => trackEl.offsetHeight - window.innerHeight;
 
-    queueMicrotask(() => {
-      if (!mounted) return;
-      setInitialized(true);
-      const isRed = queryMotion.matches;
-      setReduced(isRed);
-      if (isRed) {
-        changePhase("ready");
-        setStage("ready");
-        setFlowOpacity(0.65);
-        setVeilOpacity(0.15);
-        setFlowContrast(1.0);
-        setTunnelPrepared(true);
-      } else {
-        // 0–800ms: AEGIS rises through clipped mask; FluxLines ~85% opacity, 5% veil
-        changePhase("title");
-        setStage("title");
-        setFlowOpacity(0.85);
-        setVeilOpacity(0.05);
-        setFlowContrast(1.0);
-        setTunnelPrepared(true);
+    // Same fit TechText uses, so the frame starts exactly on the wordmark's ink.
+    const measure = () => {
+      const width = stageEl.clientWidth, height = stageEl.clientHeight;
+      const wanted = Math.max(64, Math.round(width * 0.2));
+      setFontSize(wanted);
+      if (!probe) return;
+      const family = getComputedStyle(markEl).fontFamily || "sans-serif";
+      const ink = (size: number) => {
+        probe.font = `${WEIGHT} ${size}px ${family}`;
+        probe.letterSpacing = `${TRACKING * size}px`;
+        const m = probe.measureText(WORD);
+        return { w: m.actualBoundingBoxLeft + m.actualBoundingBoxRight, h: m.actualBoundingBoxAscent + m.actualBoundingBoxDescent };
+      };
+      const full = ink(wanted);
+      const size = wanted * Math.min(1, (width * 0.9) / Math.max(full.w, 1), (height * 0.66) / Math.max(full.h, 1));
+      const fitted = ink(size);
+      const pad = Math.max(14, size * 0.14);
+      start = { w: fitted.w + pad * 2, h: fitted.h + pad * 2 };
+      stageEl.style.setProperty("--inset-x", `${Math.max(0, (width - start.w) / 2)}px`);
+      stageEl.style.setProperty("--inset-y", `${Math.max(0, (height - start.h) / 2)}px`);
+      draw();
+    };
 
-        // 700–1,400ms: Quote fades and rises, orange rule expands; FluxLines ~75% opacity, 10% veil
-        timers.current.push(
-          setTimeout(() => {
-            if (!mounted || phaseRef.current === "exiting" || phaseRef.current === "entering") return;
-            changePhase("quote");
-            setStage("quote");
-            setFlowOpacity(0.75);
-            setVeilOpacity(0.10);
-            setFlowContrast(1.0);
-          }, TIMING.quoteStart)
-        );
-
-        // 1,300–2,100ms: Description fades upward as a complete block; FluxLines ~65% opacity, 15% veil
-        timers.current.push(
-          setTimeout(() => {
-            if (!mounted || phaseRef.current === "exiting" || phaseRef.current === "entering") return;
-            changePhase("description");
-            setStage("description");
-            setFlowOpacity(0.65);
-            setVeilOpacity(0.15);
-            setFlowContrast(1.0);
-          }, TIMING.descStart)
-        );
-
-        // 2,050–2,550ms: SLIDE TO ENTER label and slider appear; slider becomes interactive
-        timers.current.push(
-          setTimeout(() => {
-            if (!mounted || phaseRef.current === "exiting" || phaseRef.current === "entering") return;
-            changePhase("ready");
-            setStage("ready");
-          }, TIMING.controlStart)
-        );
+    const draw = () => {
+      frame = 0;
+      const max = travel();
+      const p = motion.matches || max <= 0 ? 0 : clamp01(window.scrollY / max);
+      const t = ease(span(p, 0.02, 0.86));
+      const set = (name: string, value: number) => stageEl.style.setProperty(name, value.toFixed(4));
+      set("--t", t);
+      set("--mark", span(p, 0.05, 0.55));
+      set("--sky", 1 - span(p, 0.6, 0.95));
+      set("--ground", span(p, 0.3, 0.85));
+      set("--hint", 1 - span(p, 0, 0.07));
+      set("--frame", span(p, 0, 0.05) * (1 - span(p, 0.92, 1)));
+      stageEl.toggleAttribute("data-scrolling", p > 0.01);
+      if (readout.current) {
+        const w = Math.round(start.w + (stageEl.clientWidth - start.w) * t);
+        const h = Math.round(start.h + (stageEl.clientHeight - start.h) * t);
+        readout.current.textContent = `${WORD}  ${w} × ${h}`;
       }
-    });
-
-    const updateMotion = () => {
-      const isRed = queryMotion.matches;
-      setReduced(isRed);
-      if (isRed) {
-        changePhase("ready");
-        setStage("ready");
-        setFlowOpacity(0.65);
-        setVeilOpacity(0.15);
-        setFlowContrast(1.0);
-        setTunnelPrepared(true);
+      setSpeed(1 + Math.round(ease(span(p, 0, 0.8)) * 26) / 2);
+      if (p >= ARRIVE_AT && !arrived) {
+        arrived = true;
+        signalConsoleEntry();
+        router.replace("/console");
       }
     };
-    queryMotion.addEventListener("change", updateMotion);
 
-    const pendingTimers = timers.current;
+    // A scroll that stops part-way finishes itself, or returns if it was barely started.
+    const settle = () => {
+      const max = travel();
+      if (arrived || motion.matches || max <= 0) return;
+      const p = window.scrollY / max;
+      if (p <= 0.001 || p >= ARRIVE_AT) return;
+      window.scrollTo({ top: direction > 0 && p > COMMIT_AT ? max : 0, behavior: "smooth" });
+    };
+
+    const onScroll = () => {
+      if (window.scrollY !== lastY) direction = window.scrollY > lastY ? 1 : -1;
+      lastY = window.scrollY;
+      if (!frame) frame = requestAnimationFrame(draw);
+      clearTimeout(idle);
+      idle = setTimeout(settle, 140);
+    };
+    const onMotion = () => { setReduced(motion.matches); window.scrollTo(0, 0); measure(); };
+
+    setReduced(motion.matches);
+    measure();
+    document.fonts?.ready.then(measure, measure);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", measure, { passive: true });
+    motion.addEventListener("change", onMotion);
     return () => {
-      mounted = false;
-      queryMotion.removeEventListener("change", updateMotion);
-      pendingTimers.forEach(clearTimeout);
+      cancelAnimationFrame(frame);
+      clearTimeout(idle);
+      history.scrollRestoration = "auto";
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", measure);
+      motion.removeEventListener("change", onMotion);
     };
-  }, [changePhase, navigate, router]);
+  }, [router]);
 
-  // Handle slide completion: trigger right artwork explosion, frame transition, and navigate
-  const handleSliderCommit = useCallback(() => {
-    if (accepted.current) return;
-    accepted.current = true;
-
-    // 5-second recovery timeout
-    timers.current.push(setTimeout(() => navigate(), TIMING.recovery));
-
-    changePhase("exiting");
-    setTunnelPrepared(true);
-
-    if (reduced) {
-      if (root.current) {
-        const animation = root.current.animate([{ opacity: 1 }, { opacity: 0 }], {
-          duration: 150,
-          fill: "forwards",
-        });
-        animation.finished.then(() => navigate()).catch(() => navigate());
-      } else {
-        navigate();
-      }
-      return;
-    }
-
-    // Shared exit timeline:
-    // 0–400ms: hero text fades out on the left; artwork on the right explodes outwards (0–650ms)
-    // 400ms: square frames begin fading in
-    // 400–850ms: crossfade into dark tunnel
-    // 400–1,800ms: frame flight continues through tunnel
-    // 1,800ms: complete tunnel and navigate to /console
-    const stopExit = animate(TIMING.exitTotal, (p) => {
-      const t = p * TIMING.exitTotal;
-      setExitElapsed(t);
-
-      if (t >= TIMING.crossfadeStart) {
-        const fade = Math.min(1, (t - TIMING.crossfadeStart) / (TIMING.crossfadeEnd - TIMING.crossfadeStart));
-        setDarkOverlayOpacity(fade);
-        setTunnelOpacity(fade);
-      } else {
-        setDarkOverlayOpacity(0);
-        setTunnelOpacity(0);
-      }
-
-      if (t >= TIMING.crossfadeStart) {
-        const flight = Math.min(1, (t - TIMING.crossfadeStart) / (TIMING.exitTotal - TIMING.crossfadeStart));
-        setTunnelProgress(flight);
-      } else {
-        setTunnelProgress(0);
-      }
-    }, () => {
-      navigate();
-    });
-
-    timers.current.push(stopExit as unknown as ReturnType<typeof setTimeout>);
-  }, [changePhase, navigate, reduced]);
+  const enter = (event: MouseEvent<HTMLAnchorElement>) => {
+    signalConsoleEntry();
+    const el = track.current;
+    if (reduced || !el || event.metaKey || event.ctrlKey || event.shiftKey) return;
+    event.preventDefault();
+    window.scrollTo({ top: el.offsetHeight - window.innerHeight, behavior: "smooth" });
+  };
 
   return (
-    <main
-      ref={root}
-      className={styles.landing}
-      data-phase={phase}
-      data-stage={stage}
-      data-reduced={reduced}
-      data-initialized={initialized}
-    >
-      {/* React Bits FluxLines background with progressive dimming */}
-      <div
-        className={styles.sceneWrapper}
-        style={{
-          opacity: flowOpacity,
-          filter: `contrast(${flowContrast})`,
-          transition: reduced ? "none" : "opacity 600ms ease, filter 600ms ease",
-        }}
-        aria-hidden="true"
-      >
-        <FluxLines
-          colors={['#ffffff', '#ffffff', '#ffffff']}
-          glow={2}
-          rimWidth={0.2}
-          lineWidth={1}
-          flowDirection="down"
-          mouseInteraction={!reduced && phase !== "exiting" && phase !== "entering"}
-          clickSwirl={!reduced && phase !== "exiting" && phase !== "entering"}
-          paused={reduced || phase === "exiting" || phase === "entering"}
-          intro={!reduced}
-          dpr={1.5}
-        />
-      </div>
-
-      {/* Neutral veil for progressive dimming: #7C7D75 */}
-      <div
-        className={styles.veil}
-        style={{
-          opacity: veilOpacity,
-          transition: reduced ? "none" : "opacity 600ms ease",
-        }}
-        aria-hidden="true"
-      />
-
-      {/* Dark background overlay for crossfading to dark tunnel */}
-      <div
-        className={styles.darkOverlay}
-        style={{
-          opacity: darkOverlayOpacity,
-          visibility: darkOverlayOpacity > 0 ? "visible" : "hidden",
-        }}
-        aria-hidden="true"
-      />
-
-      {/* 3D square-frame tunnel layer */}
-      <SquareTunnel
-        prepared={tunnelPrepared && !reduced}
-        opacity={tunnelOpacity}
-        progress={tunnelProgress}
-        onContextLost={() => { if (accepted.current) navigate(); }}
-      />
-
-      {/* Two-column composition: hero text on left, actual big dithered artwork on right */}
-      <div className={styles.composition} data-stage={stage}>
-        {/* Left column: Centered/left-aligned cinematic in-viewport hero composition */}
-        <div className={styles.hero} data-stage={stage}>
-          {/* 1. AEGIS as single h1 rising through clipped mask */}
-          <div className={styles.titleMask}>
-            <h1 className={styles.title}>AEGIS</h1>
-          </div>
-
-          {/* 2. COMMIT BEFORE CODE quote and expanding orange rule */}
-          <div className={styles.quoteBlock}>
-            <p className={styles.quote}>COMMIT BEFORE CODE</p>
-            <div className={styles.orangeRule} aria-hidden="true" />
-          </div>
-
-          {/* 3. Cinematic description copy block with MathScramble on hover */}
-          <div className={styles.descriptionBlock}>
-            <p className={styles.description}>
-              “A runtime shield between autonomous agents and the live web—stopping deception before it becomes a commitment.”
-            </p>
-            <div className={styles.mathScrambleLayer} aria-hidden="true">
-              <MathScramble
-                lines={[
-                  "“A runtime shield between autonomous agents",
-                  "and the live web—stopping deception",
-                  "before it becomes a commitment.”",
-                ]}
-                highlight={["autonomous agents", "runtime shield", "commitment"]}
-                color="transparent"
-                highlightColor="transparent"
-                background="transparent"
-                colors={["#DD700B", "#FCF8D8", "#E8C59E", "#A86442", "#5E2C1D", "#D9DADF"]}
-                font='var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-                highlightFont='var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-                fontSize={15}
-                autoplay={false}
-                cursor={false}
-                radius={0.8}
-                speed={1}
-                boxed={0.25}
-                style={{ width: "100%", height: "100%", minHeight: "unset" }}
-              />
-            </div>
-          </div>
-
-          {/* 4. Labeled slide-to-enter control */}
-          <div className={styles.controlBlock}>
-            <span className={styles.sliderLabel}>SLIDE TO ENTER</span>
-            <SliderControl
-              disabled={phase !== "ready"}
-              onCommit={handleSliderCommit}
-            />
-          </div>
-        </div>
-
-        {/* Right column: The big dithered art that explodes on commit */}
-        <div className={styles.artworkWrapper}>
-          <AegisArtwork
-            phase={phase}
-            reduced={reduced}
-            exitElapsed={exitElapsed}
+    <main ref={track} className={styles.landing} data-reduced={reduced}>
+      <div ref={stage} className={styles.stage}>
+        <div className={styles.sky} aria-hidden="true">
+          <Galaxy
+            starColors={STARS}
+            starSpeed={0.5}
+            speed={speed}
+            density={1.1}
+            glowIntensity={0.35}
+            twinkleIntensity={0.35}
+            rotationSpeed={0.04}
+            clickWarp={false}
+            dpr={1.5}
           />
         </div>
-      </div>
-
-      {/* Fallback recovery control: icon-only */}
-      {routeSlow && (
-        <a className={styles.recovery} href="/console" aria-label="Open console">
-          <ArrowRight size={22} />
-        </a>
-      )}
-
-      {/* Noscript accessible fallback */}
-      <noscript>
-        <div className={styles.composition} data-stage="ready">
-          <div className={styles.hero} data-stage="ready">
-            <div className={styles.titleMask}>
-              <h1 className={styles.title}>AEGIS</h1>
-            </div>
-            <div className={styles.quoteBlock}>
-              <p className={styles.quote}>COMMIT BEFORE CODE</p>
-              <div className={styles.orangeRule} />
-            </div>
-            <p className={styles.description}>
-              “A runtime shield between autonomous agents and the live web—stopping deception before it becomes a commitment.”
-            </p>
-            <a className={styles.noscriptLink} href="/console">
-              Open console
-            </a>
-          </div>
-          <div className={styles.artworkWrapper}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/landing/aegis-dithered.png"
-              width="960"
-              height="960"
-              alt="Dithered Aegis shield"
-              className={styles.artworkImg}
-            />
-          </div>
+        <div className={styles.ground} aria-hidden="true" />
+        <div ref={mark} className={styles.mark}>
+          <TechText
+            text={WORD}
+            fontWeight={WEIGHT}
+            fontSize={fontSize}
+            letterSpacing={TRACKING}
+            reveal="letter"
+            dashLength={5}
+            dashGap={3}
+            strokeWidth={1.5}
+            specks={15}
+            intro="none"
+            clickKick
+            guides={false}
+          />
         </div>
-      </noscript>
+        <div className={styles.frame} aria-hidden="true">
+          <span ref={readout} className={styles.readout} />
+          <i /><i /><i /><i />
+        </div>
+        <Link href="/console" className={styles.hint} onClick={enter}>
+          {reduced ? "Enter console" : "Scroll to enter"}
+          <span className={styles.tick} aria-hidden="true" />
+        </Link>
+      </div>
     </main>
   );
 }

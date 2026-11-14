@@ -32,5 +32,5 @@ function Live({ runId, queue }: { runId: string; queue: number }) {
 }
 
 export function RunSession({ runId, replay, queue }: { runId: string; replay: boolean; queue: number }) {
-  return <><div className="section-heading"><h1>{replay ? "Run replay" : "Live run"}</h1><Link href="/runs">Run history</Link></div>{replay && <strong className="badge">REPLAY · Stored activity</strong>}{replay ? <Replay runId={runId} /> : <Live runId={runId} queue={queue} />}</>;
+  return <><div className="section-heading run-head"><h1>{replay ? "Run replay" : "Live run"}{replay && <strong className="badge">REPLAY · Stored activity</strong>}</h1><Link href="/runs">Run history</Link></div>{replay ? <Replay runId={runId} /> : <Live runId={runId} queue={queue} />}</>;
 }

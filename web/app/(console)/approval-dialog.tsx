@@ -36,8 +36,8 @@ export function ApprovalDialog({ ask, sample, connected }: { ask: AskEvent; samp
   const action = ask.payload.action;
   const cloaked = ask.payload.reason === "cloaked_checkout";
   return <dialog ref={dialog} className={`approval-dialog${cloaked ? " approval-wide" : ""}`} aria-labelledby="approval-title" aria-describedby="approval-context" onCancel={(event) => event.preventDefault()}>
-    <p className="eyebrow">{sample ? "SAMPLE APPROVAL" : "ACTION PAUSED"}</p>
     <h2 id="approval-title">{cloaked ? "The agent was shown a different checkout" : "Review the agent’s next action"}</h2>
+    <p className="approval-state"><strong className="chip chip-ask">ASK</strong><strong className="badge">{sample ? "SAMPLE APPROVAL" : "Action paused"}</strong></p>
     <p id="approval-context">{sample ? "Recorded sample: these controls cannot grant permission. The sample will continue on its own." : "The agent is waiting. Your response applies to this action; the server checks the page again before execution."}</p>
     <dl className="approval-action"><div><dt>Reason</dt><dd>{ask.payload.reason.replaceAll("_", " ")}</dd></div><div><dt>Action</dt><dd>{action ? `${action.type} ${action.text || action.url || action.target_id || ""}` : "No executable action supplied"}</dd></div></dl>
     {action?.rationale && <p>{action.rationale}</p>}

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { ScanSearch } from "lucide-react";
 import { api, type Schema } from "@/lib/api";
 
 type Report = Schema["ScanReport"];
@@ -38,8 +37,9 @@ export default function ScanPage() {
   const label = (id: string) => report?.findings.find((f) => f.element_id === id)?.trap_type ?? "";
 
   return <>
-    <div className="console-intro"><div><p className="eyebrow">SCAN ANY URL · READ-ONLY · NO AI MODEL</p><h1>What would an agent walk into here?</h1>
-      <p>Aegis opens the page once in a throwaway browser, without clicking anything, and runs the same fast checks that guard every agent action: hidden instructions to AI, fake close buttons, invisible overlays and pressure tactics. Only public websites can be scanned.</p></div><ScanSearch className="intro-shield" size={56} /></div>
+    <header className="page-head"><h1>What would an agent walk into here?</h1>
+      <p className="lede">Aegis opens the page once in a throwaway browser, without clicking anything, and runs the same fast checks that guard every agent action: hidden instructions to AI, fake close buttons, invisible overlays and pressure tactics. Only public websites can be scanned.</p>
+      <ul className="facts"><li>Read-only</li><li>No AI model</li><li>Public pages only</li></ul></header>
 
     <form className="console-card scan-form" onSubmit={(e) => { e.preventDefault(); void scan(); }}>
       <label htmlFor="scan-url">Page address</label>
@@ -54,10 +54,10 @@ export default function ScanPage() {
     {error && <p role="alert" className="error-message">{error}</p>}
     {report && <section aria-live="polite">
       <div className={`console-card lab-verdict ${report.findings.length ? "" : "good"}`}>
-        <p className="eyebrow">{report.element_count} ELEMENTS · CHECKS {report.detector_ms} MS · SCAN {(report.elapsed_ms / 1000).toFixed(1)} S{report.blocked_requests ? ` · ${report.blocked_requests} REQUESTS BLOCKED` : ""}</p>
         <h2>{report.findings.length ? `${report.findings.length} thing${report.findings.length > 1 ? "s" : ""} an agent could be tricked by` : "Nothing an agent would be tricked by"}</h2>
         <p>{report.title || report.final_url}</p>
         {report.final_url !== report.url && <p>Redirected to {report.final_url}</p>}
+        <ul className="facts"><li>{report.element_count} elements</li><li>Checks {report.detector_ms} ms</li><li>Scan {(report.elapsed_ms / 1000).toFixed(1)} s</li>{report.blocked_requests > 0 && <li>{report.blocked_requests} requests blocked</li>}</ul>
       </div>
       <div className="scan-result">
         <article className="agent-pane">

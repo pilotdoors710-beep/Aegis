@@ -20,8 +20,8 @@ function shieldedOutcome(run: Schema["RunSummary"]) {
 function PairSummary({ run, label }: { run: Schema["RunSummary"]; label: string }) {
   const outcome = shieldedOutcome(run);
   return <article className="permission-pair-card">
-    <span className="eyebrow">{label}</span>
     <h3>{permissionLabel(run.ledger)}</h3>
+    <strong className="badge">{label}</strong>
     <p>{run.task}</p>
     <dl>
       <div><dt>Add-ons</dt><dd>{run.ledger?.allow_addons ? "Permitted" : "Not permitted"}</dd></div>
@@ -73,8 +73,8 @@ export function PermissionPair({ summary, finished }: { summary: Schema["RunSumm
 
   return <section className="permission-pair-section" aria-labelledby="permission-pair-title">
     <div className="section-heading">
-      <div><span className="eyebrow">FRESH PERMISSION LEDGER</span><h2 id="permission-pair-title">Change permission, then start a new run</h2></div>
-      <span>The completed run is never edited.</span>
+      <h2 id="permission-pair-title">Change permission, then start a new run</h2>
+      <span>A fresh ledger is written for the new run. The completed run is never edited.</span>
     </div>
     {pairPreset && <div className="permission-pair-actions">
       <button className="primary-button" disabled={launching} onClick={launchPair}>

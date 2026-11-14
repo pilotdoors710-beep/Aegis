@@ -128,20 +128,7 @@
     @apply font-sans;
   }
 }
-/* ThreeUI FlowField shader frame */
-.shader-frame {
-  position: fixed;
-  inset: 0;
-  z-index: 1;
-  width: 100vw;
-  height: 100svh;
-  pointer-events: none;
-  overflow: hidden;
-  mix-blend-mode: screen;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .shader-frame {
-    display: none;
-  }
+/* The console's ground. The entrance fades into it, so both routes share one definition. */
+:root {
+  --aegis-ground: radial-gradient(ellipse at 95% 0%, rgb(217 84 30 / 11%), transparent 42rem), radial-gradient(ellipse at 5% 28rem, rgb(243 238 227 / 5%), transparent 38rem), #111111;
 }

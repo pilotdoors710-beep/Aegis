@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { FlaskConical } from "lucide-react";
 import { api, type Schema } from "@/lib/api";
 
 type Lab = Schema["LabRequest"];
@@ -60,8 +59,9 @@ export default function LabPage() {
   const actions = report?.branches.reduce((n, b) => n + b.disposable_actions, 0) ?? 0;
 
   return <>
-    <div className="console-intro"><div><p className="eyebrow">TRAP LAB · R2 DISPOSABLE TRIALS · EXPERIMENTAL</p><h1>You write the trick. Aegis reads the receipts.</h1>
-      <p>Write any checkbox label and secretly choose what it really does. Aegis never sees your choice. It places a simulated order in two throwaway copies of the checkout, one with the box each way, and compares both receipts with the user&apos;s permission. No AI model is involved in the trial.</p></div><FlaskConical className="intro-shield" size={56} /></div>
+    <header className="page-head"><h1>You write the trick. Aegis reads the receipts.</h1>
+      <p className="lede">Write any checkbox label and secretly choose what it really does. Aegis never sees your choice. It places a simulated order in two throwaway copies of the checkout, one with the box each way, and compares both receipts with the user&apos;s permission. No AI model is involved in the trial.</p>
+      <ul className="facts"><li>Experimental</li><li>Disposable consent trials</li><li>Arena only</li><li>No AI model</li></ul></header>
 
     <form className="lab-form" onSubmit={(e) => { e.preventDefault(); void test(); }}>
       <section className="console-card">
@@ -93,8 +93,8 @@ export default function LabPage() {
     {error && <p role="alert" className="error-message">Trial failed: {error}</p>}
     {report && <section aria-live="polite">
       <div className={`console-card lab-verdict ${report.status === "resolved" || report.status === "both_ok" ? "good" : ""}`}>
-        <p className="eyebrow">VERDICT · {actions} DISPOSABLE ACTIONS · {report.elapsed_ms} MS · NO LLM CALLS{report.original_unchanged ? " · ORIGINAL CHECKOUT UNCHANGED" : ""}</p>
         <h2>{headline(report)}</h2>
+        <ul className="facts"><li>{actions} disposable actions</li><li>{report.elapsed_ms} ms</li><li>No LLM calls</li>{report.original_unchanged && <li>Original checkout unchanged</li>}</ul>
         <p>{report.reason.replace(/\b[a-z_]+:/g, "")}</p>
         {report.control_label && <p>Label tested: “{report.control_label}”</p>}
       </div>

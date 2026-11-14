@@ -36,6 +36,8 @@ export const TIMING = {
 export const SEEN_KEY = "aegis:intro-seen:v1";
 let focusOnEntry = false;
 export function signalConsoleEntry() { focusOnEntry = true; }
+/** True while the visitor is arriving from the entrance; the console shell reads it to rise into place. */
+export function arrivedFromEntrance() { return focusOnEntry; }
 export function consumeConsoleEntry() {
   const value = focusOnEntry;
   focusOnEntry = false;

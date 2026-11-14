@@ -2,9 +2,8 @@ Aegis Shield Console and static Aurora Home arena. Scope and contracts are defin
 
 Set `NEXT_PUBLIC_API_URL` using `.env.example`, then run `pnpm dev`. The browser connects directly to FastAPI; its CORS configuration must allow the web origin.
 
-- `/`: animated entrance on every direct visit or refresh. The completed slider enters `/console`.
+- `/`: entrance on every direct visit or refresh. Scrolling (or the "Scroll to enter" link, or Enter on it) enters `/console`.
 - `/console`: server-provided demo presets, live launch requests, and a separately labelled sample stream. Use this direct URL for stage demos.
-- `/?intro=play`: replay the entrance; `/?intro=skip`: bypass it.
 - `/runs`: stored run list, with an unavailable state while persistence returns HTTP 501.
 - `/runs/<id>`: live comparison, queue position at launch, screenshots, step counters, verdict evidence, and the permission ledger.
 - `/runs/<id>?replay=1`: stored-event replay with previous/next steps and a slider; always marked REPLAY.
@@ -34,7 +33,7 @@ Day 3 console and arena:
 
 Checks: `pnpm typecheck`, `pnpm lint`, `pnpm build`, and `node --test lib/events.test.mjs lib/run-evidence.test.mjs lib/verify-day1.test.mjs`. Generated `lib/api-types.ts` must come from the server OpenAPI; never edit it manually.
 
-Landing entrance (13 Nov — Hero Redesign):
+Landing entrance (13 Nov — Hero Redesign). Superseded on 14 Nov by the React Bits entrance described at the end of this file; kept for the unused artwork, slider and tunnel files that are still in the tree:
 
 - Centered, cinematic hero composed entirely in-viewport (100svh, non-scrolling) over the animated ThreeUI FlowField background:
   1. `AEGIS` title: single `h1` in Roboto Slab (#FCF8D8), rising through a clipped mask and sharpening from blur (0–800ms).
@@ -94,11 +93,15 @@ Main application glass theme (13 Nov):
 Verification note (14 Nov): lint, type checking, production build and 13 Node tests passed. The Chrome glass checks passed on the development server (the zoom/fallback test passed after its fix). A final production-browser repeat and approval integration repeat could not finish because concurrent work replaced shared `.next` artifacts; repeat these against an uncontended build. No live backend run was started.
 
 
-FluxLines landing background (14 Nov):
+React Bits entrance and console (14 Nov):
 
-- The landing background now uses the JavaScript + CSS [React Bits FluxLines component](https://github.com/DavidHDev/react-bits/tree/main/src/content/Backgrounds/FluxLines), replacing the mounted ThreeUI scene. The hero, slider, shield artwork and square-tunnel transition retain their existing flow. No dependencies were added.
-- Local source, CSS, TypeScript prop declarations and upstream license are in `components/FluxLines.*`. The upstream MIT + Commons Clause notice is preserved in `components/FluxLines.LICENSE.md`. Local changes move settings synchronization into an effect for React 19, release shaders on failed setup, respond to motion-preference changes, and stop drawing on context loss.
-- White lines use glow 2, rim width 0.2, line width 1 and downward flow, with mouse interaction and click swirl enabled. DPR is capped at 1.5 for this full-screen background. Background opacity steps from 85% to 75% to 65%; the veil rises from 5% to 15%. Motion and interactions pause during exit and reduced motion. Hidden/offscreen rendering suspends, and WebGL failure leaves the dark backdrop and entrance controls available.
-- To check the background, start the production web server on port 3100 and run `python web/lib/verify-flux.py` from the repository root with the existing Python Playwright environment and Chrome. `LANDING_WEB_URL` overrides the target. It checks rendering, pointer interaction, mobile resize, reduced-motion changes, context loss, WebGL fallback and navigation. Screenshots go to ignored `web/.next/flux-verification/`.
+- Components come from the [React Bits](https://reactbits.dev) shadcn registry (`@react-bits` in `components.json`) and live in `components/reactbits/` with the upstream MIT + Commons Clause notice in `components/reactbits/LICENSE.md`. Add one with `npx shadcn@latest add @react-bits/<Name>-TS-CSS`. FluxLines, Lightfall and the pasted TechText were removed.
+- New dependency: `gsap`, required by the React Bits StaggeredMenu and AnimatedContent.
+- Entrance (`/`): Galaxy background, TechText "AEGIS" wordmark in Geist 600 with wide tracking. Scrolling grows a frame from the wordmark to the viewport edges and fades into the console ground, then routes to `/console`. A scroll released early returns to the top; past 12% it finishes on its own. Reduced motion shows a plain "Enter console" link and no scroll track.
+- Shell (`components/app-shell.tsx`): StaggeredMenu replaces the nav links (Console, Trap Lab, Scan, Runs, Stats; Health and Arena under "Also"), a dimmed Galaxy sits behind the panels, ClickSpark wraps the content.
+- Console: main demo panel (StarBorder) with live launch and the labelled sample run; presets grouped as single traps, permission pairs and experimental trials (SpotlightCard).
+- Run view: Counter for steps and totals, ElectricBorder around the protected browser while the latest verdict is BLOCK, REROUTE or ASK and around a recurring charge only one side took on, decision chips, a feed that follows the newest event, evidence shown as a permission → evidence → decision → correction → recheck chain. At 1280×720 the live run page fits one screen.
+- Local changes to vendored components: Galaxy no longer calls `loseContext()` on cleanup (React dev remounts on the same canvas got a dead context); StaggeredMenu uses `next/link`, marks the current page, takes a `logo` node, closes on Escape, is inert while closed and respects reduced motion. `react-hooks/refs` is off for `components/reactbits/**` in `eslint.config.mjs`.
+- Not updated: `lib/verify-landing.py` and `lib/verify-glass.py` were written for the previous landing and header and will need new selectors. The old landing files (`slider-control`, `aegis-artwork`, `square-tunnel`, `scene`, `lib/landing/*` renderers, `public/landing/*`) and `@designcodeio/threeui` are no longer used by the entrance.
 
-FluxLines verification: production build/TypeScript, lint, 13 existing Node tests and all three Chrome FluxLines checks passed. Desktop and mobile screenshots were reviewed. A tunnel setup failure now leaves the landing controls available until the user commits entry. Firefox, Safari and physical-device GPU performance were not verified.
+Verification (14 Nov): TypeScript, lint, production build and the 13 Node tests pass. Headless Chrome (software GL) screenshots reviewed at 1280×720 and 390×844 for every route, the open menu, a finished sample run and the approval dialog; wheel, keyboard and reduced-motion entry all reach `/console`; no horizontal overflow at 390. Real-GPU frame rate, Safari, Firefox and a live (non-sample) run were not checked.
