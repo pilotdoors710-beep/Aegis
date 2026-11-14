@@ -22,6 +22,12 @@ Template:
 
 ## Log
 
+### 2026-11-15 · Codex · Sybil continuation and download repair
+- Rebuilt the official Common Crawl WebGraph tool jar with the checksum verified JDK 21 and Maven.
+- Fixed the importer to resume when Common Crawl confirms a shorter byte range than requested. Added a regression test; 44 targeted tests pass.
+- The pinned source transfer is running again; about 2.18 GB of 9.06 GB is saved. Graph extraction has not started.
+- Next: finish and verify the source transfer, run extraction and artifact checks, then scenario APIs, editor and agent integration. Stages 1–3 remain incomplete.
+
 ### 2026-11-15 · Codex · Sybil artifact preparation checkpoint
 - Added a WebGraph binary bridge, pinned graph preparation command and strict artifact loader.
 - Loader checks file hashes, graph direction, curated anchors, degrees and recomputed clean normalization. Seven artifact tests are included.

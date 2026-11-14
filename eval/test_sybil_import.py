@@ -14,7 +14,9 @@ spec.loader.exec_module(module)
 
 def test_preflight_budget_free_space_and_resume(tmp_path):
     (tmp_path / "graph").write_bytes(b"1234")
-    with patch.object(module.shutil, "disk_usage", return_value=type("Usage", (), {"free": 50})()):
+    with patch.object(
+        module.shutil, "disk_usage", return_value=type("Usage", (), {"free": 50})()
+    ):
         report = module.storage_check({"graph": 10, "labels": 20}, tmp_path, 60, 25)
         assert report["required_bytes"] == 55
         assert report["additional_bytes"] == 51
@@ -29,9 +31,10 @@ def test_unconfirmed_resume_preserves_file(tmp_path):
     response = io.BytesIO(b"5678")
     response.status = 200
     response.headers = {}
-    with patch.object(module, "urlopen", return_value=response):
-        with pytest.raises(ValueError, match="resume range"):
-            module.download("https://example.test/graph", target, 8)
+    with patch.object(module, "urlopen", return_value=response), pytest.raises(
+        ValueError, match="resume range"
+    ):
+        module.download("https://example.test/graph", target, 8)
     assert target.read_bytes() == b"1234"
 
 
@@ -45,7 +48,9 @@ def test_confirmed_resume_and_completed_hash(tmp_path):
         digest = module.download("https://example.test/graph", target, 8)
     assert target.read_bytes() == b"12345678"
     assert digest == module.hashlib.sha256(b"12345678").hexdigest()
-    with patch.object(module, "urlopen", side_effect=AssertionError("No duplicate download")):
+    with patch.object(
+        module, "urlopen", side_effect=AssertionError("No duplicate download")
+    ):
         assert module.download("https://example.test/graph", target, 8) == digest
 
 
@@ -55,9 +60,29 @@ def test_bounded_range_requests(tmp_path):
         response.status = 206
         response.headers = {"Content-Range": f"bytes {start}-{start + 3}/8"}
     with patch.object(module, "urlopen", side_effect=[first, second]) as request:
-        module.download("https://example.test/graph", tmp_path / "graph", 8, block_size=4)
+        module.download(
+            "https://example.test/graph", tmp_path / "graph", 8, block_size=4
+        )
     assert [call.args[0].get_header("Range") for call in request.call_args_list] == [
         "bytes=0-3",
+        "bytes=4-7",
+    ]
+    assert (tmp_path / "graph").read_bytes() == b"12345678"
+
+
+def test_short_confirmed_range_resumes_at_actual_server_end(tmp_path):
+    responses = []
+    for start, body in [(0, b"1234"), (4, b"5678")]:
+        response = io.BytesIO(body)
+        response.status = 206
+        response.headers = {"Content-Range": f"bytes {start}-{start + 3}/8"}
+        responses.append(response)
+    with patch.object(module, "urlopen", side_effect=responses) as request:
+        module.download(
+            "https://example.test/graph", tmp_path / "graph", 8, block_size=8
+        )
+    assert [call.args[0].get_header("Range") for call in request.call_args_list] == [
+        "bytes=0-7",
         "bytes=4-7",
     ]
     assert (tmp_path / "graph").read_bytes() == b"12345678"

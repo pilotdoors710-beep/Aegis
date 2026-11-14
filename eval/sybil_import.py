@@ -30,10 +30,14 @@ FILES = tuple(
 GIB = 1024**3
 
 
-def storage_check(sizes: dict[str, int], directory: Path, budget: int, reserve: int) -> dict:
+def storage_check(
+    sizes: dict[str, int], directory: Path, budget: int, reserve: int
+) -> dict:
     """Source sizes are exact; derived-file reserve is a declared planning allowance."""
     if budget <= 0 or reserve < 0 or any(size <= 0 for size in sizes.values()):
-        raise ValueError("Positive source sizes/budget and nonnegative reserve required")
+        raise ValueError(
+            "Positive source sizes/budget and nonnegative reserve required"
+        )
     existing = sum(
         min((directory / name).stat().st_size, size)
         for name, size in sizes.items()
@@ -62,7 +66,9 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def download(url: str, path: Path, size: int, block_size: int = 16 * 1024 * 1024) -> str:
+def download(
+    url: str, path: Path, size: int, block_size: int = 16 * 1024 * 1024
+) -> str:
     """Resume only when the server confirms the exact requested byte range."""
     offset = path.stat().st_size if path.exists() else 0
     if offset > size:
@@ -73,21 +79,26 @@ def download(url: str, path: Path, size: int, block_size: int = 16 * 1024 * 1024
         end = min(offset + block_size, size) - 1
         request = Request(url, headers={"Range": f"bytes={offset}-{end}"})
         with urlopen(request, timeout=60) as response:
-            full_response = offset == 0 and end == size - 1 and response.status == 200
-            if not full_response and (
+            content_range = response.headers.get("Content-Range", "")
+            parts = content_range.removeprefix("bytes ").replace("/", "-").split("-")
+            if (
                 response.status != 206
-                or response.headers.get("Content-Range") != f"bytes {offset}-{end}/{size}"
+                or len(parts) != 3
+                or int(parts[0]) != offset
+                or int(parts[1]) > end
+                or int(parts[2]) != size
             ):
                 raise ValueError(f"{path.name}: server did not confirm resume range")
+            response_end = int(parts[1]) + 1
             with path.open("ab" if offset else "wb") as target:
                 received = offset
                 while chunk := response.read(1024 * 1024):
                     received += len(chunk)
-                    if received > end + 1:
+                    if received > response_end:
                         raise ValueError(f"{path.name}: response exceeds declared size")
                     target.write(chunk)
         offset = path.stat().st_size
-        if offset != end + 1:
+        if offset != received or offset <= int(parts[0]):
             raise ValueError(f"{path.name}: incomplete transfer; rerun to resume")
         print(f"{path.name}: {offset:,} / {size:,} bytes", flush=True)
     return sha256(path)
@@ -131,7 +142,9 @@ def main() -> None:
         "stage": "download_preflight",
         "extraction_ready": False,
     }
-    (directory / "preflight.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+    (directory / "preflight.json").write_text(
+        json.dumps(report, indent=2), encoding="utf-8"
+    )
     print(json.dumps(report, indent=2))
     if not report["storage"]["can_download"]:
         raise SystemExit(
@@ -148,10 +161,17 @@ def main() -> None:
                 except (TimeoutError, URLError, ConnectionError) as error:
                     if attempt == 4:
                         raise
-                    print(f"Transfer interrupted ({error}); resuming in 2 seconds", flush=True)
+                    print(
+                        f"Transfer interrupted ({error}); resuming in 2 seconds",
+                        flush=True,
+                    )
                     time.sleep(2)
-            (directory / "sha256.json").write_text(json.dumps(hashes, indent=2), encoding="utf-8")
-        print("Downloads complete. WebGraph extraction and artifact validation are still required.")
+            (directory / "sha256.json").write_text(
+                json.dumps(hashes, indent=2), encoding="utf-8"
+            )
+        print(
+            "Downloads complete. WebGraph extraction and artifact validation are still required."
+        )
 
 
 if __name__ == "__main__":
