@@ -71,7 +71,15 @@ def main() -> None:
 
     srv = ROOT / "server"
     ops = [CommitOperationAdd("README.md", README.encode())]
-    for name in ["Dockerfile", "pyproject.toml", "uv.lock", ".python-version"]:
+    dockerfile = (srv / "Dockerfile").read_text(encoding="utf-8")
+    artifact = srv / "data" / "sybil"
+    if (artifact / "manifest.json").is_file():
+        dockerfile += "\nCOPY data/sybil /app/data/sybil\n"
+        for file in sorted(artifact.rglob("*")):
+            if file.is_file():
+                ops.append(CommitOperationAdd(str(file.relative_to(srv)), str(file)))
+    ops.append(CommitOperationAdd("Dockerfile", dockerfile.encode()))
+    for name in ["pyproject.toml", "uv.lock", ".python-version"]:
         if (srv / name).exists():
             ops.append(CommitOperationAdd(name, str(srv / name)))
     for d in ["aegis", "api"]:

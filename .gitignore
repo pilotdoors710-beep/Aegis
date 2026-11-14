@@ -4,5 +4,6 @@
 node_modules/
 .tools/
 .sybil-data/
+/server/data/sybil/
 eval/__pycache__/
 

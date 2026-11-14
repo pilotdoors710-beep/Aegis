@@ -3,6 +3,10 @@ services:
     build: ../server
     restart: unless-stopped
     env_file: ../.env
+    environment:
+      SYBIL_DATA_DIR: /app/data/sybil
+    volumes:
+      - ../server/data/sybil:/app/data/sybil:ro
     shm_size: "1gb"          # Chromium needs more than the 64MB default /dev/shm
     expose: ["8000"]
   caddy:

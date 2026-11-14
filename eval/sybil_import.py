@@ -9,6 +9,7 @@ import hashlib
 import json
 import shutil
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib.error import URLError
@@ -153,22 +154,29 @@ def main() -> None:
         )
     if args.download:
         hashes = {}
-        for name, size in sizes.items():
-            for attempt in range(5):
+        def fetch(name: str, size: int) -> tuple[str, str]:
+            for attempt in range(50):
                 try:
-                    hashes[name] = download(BASE + name, directory / name, size)
-                    break
+                    return name, download(BASE + name, directory / name, size)
                 except (TimeoutError, URLError, ConnectionError) as error:
-                    if attempt == 4:
+                    if attempt == 49:
                         raise
+                    delay = min(30, 2 * (attempt + 1))
                     print(
-                        f"Transfer interrupted ({error}); resuming in 2 seconds",
+                        f"Transfer interrupted ({error}); resuming in {delay} seconds",
                         flush=True,
                     )
-                    time.sleep(2)
-            (directory / "sha256.json").write_text(
-                json.dumps(hashes, indent=2), encoding="utf-8"
-            )
+                    time.sleep(delay)
+            raise RuntimeError(f"{name}: retry limit exhausted")
+
+        with ThreadPoolExecutor(max_workers=3) as workers:
+            futures = [workers.submit(fetch, name, size) for name, size in sizes.items()]
+            for future in as_completed(futures):
+                name, digest = future.result()
+                hashes[name] = digest
+                (directory / "sha256.json").write_text(
+                    json.dumps(hashes, indent=2), encoding="utf-8"
+                )
         print(
             "Downloads complete. WebGraph extraction and artifact validation are still required."
         )

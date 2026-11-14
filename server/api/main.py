@@ -12,6 +12,8 @@ import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from functools import lru_cache
+from pathlib import Path
 from urllib.parse import urlencode, urlsplit
 
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -60,6 +62,7 @@ from aegis.schemas import (
 )
 from aegis.security import ScanGuard, arena_origin, install_guard, validate_scan_url, validate_url
 from aegis.snapshot import screenshot_b64, take_snapshot
+from aegis.sybil_dataset import load_dataset
 from aegis.trials import run_trials
 
 log = logging.getLogger("aegis.api")
@@ -103,16 +106,32 @@ app.add_middleware(
 async def sybil_datasets() -> list[SybilDatasetStatus]:
     if not settings.sybil_enabled:
         raise HTTPException(404, "Sybil Playground is disabled")
-    return [
-        SybilDatasetStatus(
+    try:
+        dataset = _load_sybil_dataset(str(settings.sybil_data_dir.resolve()))
+    except (OSError, ValueError):
+        return [SybilDatasetStatus(
             release="cc-main-2026-aug-sep-oct",
             source_nodes=134979706,
             source_edges=1817202146,
-            reason="Real graph extraction, artifact validation and performance gates are pending. "
-            "Download preflight alone does not make a dataset ready.",
+            reason="Shared graph artifact is missing or failed validation.",
             source_url="https://index.commoncrawl.org/graphinfo.json",
-        )
-    ]
+        )]
+    return [SybilDatasetStatus(
+        release=dataset.manifest.release,
+        status="available",
+        source_nodes=dataset.manifest.source_counts.nodes,
+        source_edges=dataset.manifest.source_counts.arcs,
+        imported_nodes=dataset.manifest.nodes,
+        imported_edges=dataset.manifest.edges,
+        observation_date=dataset.manifest.created_at.date().isoformat(),
+        reason=f"Validated shared artifact {dataset.manifest.id[:12]}",
+        source_url=dataset.manifest.source_url,
+    )]
+
+
+@lru_cache(maxsize=2)
+def _load_sybil_dataset(directory: str):
+    return load_dataset(Path(directory))
 
 
 @app.get("/healthz")

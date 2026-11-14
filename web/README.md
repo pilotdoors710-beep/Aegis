@@ -6,6 +6,13 @@ unless `SYBIL_ENABLED=true` is set on the web server before build and on FastAPI
 Keep this false publicly until the real-data assessment and paired-run release gates pass.
 The preview has no invented background, scores, scenario edits or agent runs.
 
+The raw Common Crawl files stay local in ignored `.sybil-data/source/`. After extraction, place
+the validated four-file artifact in ignored `server/data/sybil/`. Local Compose mounts that folder
+read-only; `deploy/hf_deploy.py` includes it in the shared backend image. Collaborators then use the
+same hosted graph and do not download the 9 GB source archive. The readiness endpoint validates
+the artifact before reporting its imported counts. The feature stays disabled until its release
+gates pass.
+
 From the repo root, `python eval/sybil_import.py --directory .sybil-data/source` checks pinned
 Common Crawl metadata and storage without downloading graph files. Default budget is 60 GiB,
 including a declared 20 GiB derived-file allowance (not a measured requirement). Add

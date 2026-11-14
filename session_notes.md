@@ -22,6 +22,12 @@ Template:
 
 ## Log
 
+### 2026-11-15 · Codex · Share Sybil artifact with backend
+- Made dataset readiness load and validate the shared backend artifact; added a read-only local Compose mount and hosted image packaging.
+- Made the importer resume three files in parallel and retry longer across network outages.
+- Backend Sybil tests pass (50); Ruff, generated types and frontend checks pass.
+- Source download is still running after repeated Common Crawl DNS/timeouts; about 3.6 GB of 9.1 GB is present. Extraction and hosted artifact upload are next.
+
 ### 2026-11-15 · Dev B · Antigravity · spring entrance motion for elements below AEGIS
 - Added spring motion animations (`motion/react`) for all elements below 'AEGIS' right after the wordmark zooms in.
 - Staggered entrances: display headline springs up from the bottom at 0.85s (`stiffness: 80, damping: 14`), followed by the description paragraph at 1.0s, and the scroll hint at 1.18s.

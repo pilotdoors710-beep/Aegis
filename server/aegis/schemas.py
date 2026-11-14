@@ -16,7 +16,7 @@ class SybilDatasetStatus(BaseModel):
     """Readiness is separate from the eventual validated artifact manifest."""
 
     release: str
-    status: Literal["unavailable"] = "unavailable"
+    status: Literal["available", "unavailable"] = "unavailable"
     source_nodes: int
     source_edges: int
     imported_nodes: int = 0

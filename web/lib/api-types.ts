@@ -1147,9 +1147,9 @@ export interface components {
             /**
              * Status
              * @default unavailable
-             * @constant
+             * @enum {string}
              */
-            status: "unavailable";
+            status: "available" | "unavailable";
             /** Source Nodes */
             source_nodes: number;
             /** Source Edges */

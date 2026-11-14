@@ -55,6 +55,7 @@ class Settings(BaseSettings):
     r2_enabled: bool = False
     # Sybil stays off until the public real-data + paired-run release gate passes.
     sybil_enabled: bool = False
+    sybil_data_dir: Path = Path("/app/data/sybil")
 
     @property
     def cors_origin_list(self) -> list[str]:
