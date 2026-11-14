@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type MouseEvent } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { motion } from "motion/react";
 import TechText from "@/components/reactbits/TechText";
 import { signalConsoleEntry } from "@/lib/landing/phases";
 import styles from "./landing.module.css";
@@ -21,6 +22,13 @@ const ARRIVE_AT = 0.985;
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 const span = (value: number, from: number, to: number) => clamp01((value - from) / (to - from));
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+
+const springTransition = {
+  type: "spring" as const,
+  stiffness: 80,
+  damping: 14,
+  mass: 0.9,
+};
 
 export function LandingExperience() {
   const router = useRouter();
@@ -174,31 +182,59 @@ export function LandingExperience() {
             </div>
           </div>
           <div className={styles.subtitleWrapper}>
-            <DecryptedText
-              text="PROTECT YOUR AGENTS LIKE NEVER BEFORE"
-              animateOn="inViewHover"
-              revealDirection="center"
-              speed={40}
-              maxIterations={15}
-              sequential={true}
-              scrambleColor="#d9541e"
-              className={styles.subtitleRevealed}
-              encryptedClassName={styles.subtitleEncrypted}
-              parentClassName={styles.displaySubtitle}
-            />
-            <p className={styles.heroDescription}>
+            <motion.div
+              className={styles.headlineMotion}
+              initial={reduced ? false : { opacity: 0, y: 48 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                ...springTransition,
+                delay: 0.85,
+              }}
+            >
+              <DecryptedText
+                text="PROTECT YOUR AGENTS LIKE NEVER BEFORE"
+                animateOn="inViewHover"
+                revealDirection="center"
+                speed={40}
+                maxIterations={15}
+                sequential={true}
+                scrambleColor="#d9541e"
+                className={styles.subtitleRevealed}
+                encryptedClassName={styles.subtitleEncrypted}
+                parentClassName={styles.displaySubtitle}
+              />
+            </motion.div>
+            <motion.p
+              className={styles.heroDescription}
+              initial={reduced ? false : { opacity: 0, y: 44 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                ...springTransition,
+                delay: 1.0,
+              }}
+            >
               You gave your AI a card and told it to browse the web—but the internet is full of traps waiting to trick it. Aegis acts as a real-time bodyguard over your agent’s shoulder, catching sneaky subscriptions, killing deceptive checkouts, and verifying the receipt before a single dollar leaves your wallet.
-            </p>
+            </motion.p>
           </div>
         </div>
         <div className={styles.frame} aria-hidden="true">
           <span ref={readout} className={styles.readout} />
           <i /><i /><i /><i />
         </div>
-        <Link href="/console" className={styles.hint} onClick={enter}>
-          {reduced ? "Enter console" : "Scroll to enter"}
-          <span className={styles.tick} aria-hidden="true" />
-        </Link>
+        <motion.div
+          className={styles.hintWrapper}
+          initial={reduced ? false : { opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            ...springTransition,
+            delay: 1.18,
+          }}
+        >
+          <Link href="/console" className={styles.hint} onClick={enter}>
+            {reduced ? "Enter console" : "Scroll to enter"}
+            <span className={styles.tick} aria-hidden="true" />
+          </Link>
+        </motion.div>
       </div>
     </main>
   );

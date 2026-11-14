@@ -22,6 +22,13 @@ Template:
 
 ## Log
 
+### 2026-11-15 · Dev B · Antigravity · spring entrance motion for elements below AEGIS
+- Added spring motion animations (`motion/react`) for all elements below 'AEGIS' right after the wordmark zooms in.
+- Staggered entrances: display headline springs up from the bottom at 0.85s (`stiffness: 80, damping: 14`), followed by the description paragraph at 1.0s, and the scroll hint at 1.18s.
+- Switched subtitle wrapper to CSS `translate` to eliminate transform collisions with Motion.
+- Added reduced-motion fallbacks for all spring elements.
+- Verified TypeScript and 18 Node unit tests pass.
+
 ### 2026-11-15 · Codex · Sybil continuation and download repair
 - Rebuilt the official Common Crawl WebGraph tool jar with the checksum verified JDK 21 and Maven.
 - Fixed the importer to resume when Common Crawl confirms a shorter byte range than requested. Added a regression test; 44 targeted tests pass.
