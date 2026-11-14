@@ -26,8 +26,8 @@ function Menu({ pathname }: { pathname: string }) {
     position="right"
     colors={dashboard ? ["#2B3D55", "#B8925A"] : ["#3a1d12", "#d9541e"]}
     accentColor={dashboard ? "#B8925A" : "#d9541e"}
-    menuButtonColor={dashboard ? "#202E42" : "#f3eee3"}
-    openMenuButtonColor={dashboard ? "#202E42" : "#f3eee3"}
+    menuButtonColor={dashboard ? "#142033" : "#f3eee3"}
+    openMenuButtonColor={dashboard ? "#142033" : "#f3eee3"}
     socialsTitle="Also"
     socialItems={also}
     items={pages.map(([link, label]) => ({ label, link, ariaLabel: label, current: here(link) }))}

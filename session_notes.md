@@ -22,6 +22,18 @@ Template:
 
 ## Log
 
+### 2026-11-14 - Dev B - Codex - clear glass dashboard implementation
+- Replaced opaque pearl panes with transparent pearl glass over navy and bronze ribbons. Added full-surface refraction to navigation, cards, labels, controls, sample panels and approval dialogs.
+- Kept text, screenshots and controls sharp. Added stable decoration mounts and off-screen cleanup; fixed menu positioning and React portal text warnings found during review.
+- Web types, lint, 13 Node tests and the isolated production build passed. Chrome checks cover layouts, sample approval, interactions, contrast preferences, zoom, lower-page controls and cleanup when leaving the dashboard. Optical screenshots confirm displacement on the real ribbons and 4.88:1 metadata contrast in the sampled panel interior.
+- Production verification uses an isolated copy and the same fonts cached locally because the shared build is locked and Google's font downloader is unavailable. Firefox and WebKit executables are not installed; those browser checks remain unverified.
+
+### 2026-11-14 · Dev B · Codex · full-panel refraction correction
+- Changed the glass optics to a full dome across panels, buttons and small controls. The background now bends through the interior, with no broad flat centre or edge-only cutout.
+- Kept text and native click targets outside the filter. Preserved the existing full-surface layer, dynamic dashboard coverage and accessibility fallbacks.
+- TypeScript, targeted lint and whitespace checks passed. Checked four interior points in the actual displacement map; all now bend where the old settings were flat. This small adjustment has not had a new browser or production-build run.
+- Saved locally for the main session; no commit or push from this side conversation.
+
 ### 2026-11-14 · Dev A · Claude Code · loose ends + E6 browser-use drop-in
 - Fixed: the sample run's approval dialog now stays up 4 s (the server holds the pending ask). `verify-landing.py` was rewritten for the scroll entrance, and `verify-glass.py` now targets the Staggered Menu header. Both pass (14 + 4 checks) on bundled Chromium; `BROWSER_CHANNEL=chrome` uses installed Chrome.
 - Did E6: `server/aegis/wrap.py` `AegisTools` for **browser-use 0.13.14** (1.0 can't be gated: its model writes Python against raw CDP). Every action goes through the detectors, the audit and the approval gate. `evaluate`/`upload_file` are removed, and the run ends after an approved commitment. It runs in a separate uv env (pins conflict with our lock); the command is in `eval/browser_use_demo.py`. 5 tests in `tests/test_wrap.py`, skipped in normal CI.

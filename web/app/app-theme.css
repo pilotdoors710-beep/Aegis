@@ -352,139 +352,71 @@
   .app-theme .highlight-layer rect { stroke: Mark; fill: transparent; }
 }
 
-/* The dashboard's navy, pearl and bronze glass. Route-scoped so the entrance and
-   sibling tools retain their own appearance, including after client navigation. */
+/* Dashboard material: a shared optical scene under clear pearl glass. */
 .app-theme:has(#console-menu-home) {
-  --background: #2B3D55;
-  --foreground: #ECEBEF;
-  --muted-foreground: #d1d6df;
-  --primary: #B8925A;
-  --primary-foreground: #202e42;
-  --ring: #B8925A;
-  --border: rgb(236 235 239 / 24%);
-  --input: #a2aaba;
-  --warm: #e2c496;
-  --dense: #e1e2e8;
-  --panel: linear-gradient(120deg, rgb(255 255 255 / 48%), transparent 38%, rgb(255 255 255 / 20%) 100%), rgb(236 235 239 / 88%);
-  --edge: inset 0 1px 0 rgb(255 255 255 / 95%), inset 1px 0 0 rgb(255 255 255 / 55%), inset 0 -1px 0 rgb(255 255 255 / 35%), 0 12px 32px -16px rgb(8 20 38 / 48%);
-  background: #2B3D55;
-  scrollbar-color: #B8925A #2B3D55;
+  --background: #2B3D55; --foreground: #ECEBEF; --muted-foreground: #e0e4eb;
+  --primary: #B8925A; --primary-foreground: #142033; --ring: #e3c594;
+  --border: rgb(236 235 239 / 24%); --input: #a9b7c9;
+  --danger: #ffc2bc; --ok: #c0e8c9; --warm: #f2d4a6;
+  --panel: rgb(236 235 239 / 16%); --dense: rgb(43 61 85 / 22%);
+  --edge: inset 0 1px 0 rgb(255 255 255 / 30%), 0 12px 32px -16px rgb(8 20 38 / 45%);
+  background: #2B3D55; scrollbar-color: #B8925A #2B3D55;
 }
-:root:has(#console-menu-home) { background: #2B3D55; scrollbar-color: #B8925A #2B3D55; }
-.app-theme:has(#console-menu-home) ::selection { background: #B8925A; color: #172437; }
-
-/* Static light behind the frost gives the material depth without a moving backdrop. */
+:root:has(#console-menu-home) { background: #2B3D55; }
 .app-theme:has(#console-menu-home) .console-sky {
   background:
-    radial-gradient(ellipse at 92% 8%, rgb(184 146 90 / 20%), transparent 36%),
-    radial-gradient(ellipse at 0% 44%, rgb(236 235 239 / 13%), transparent 42%);
+    radial-gradient(ellipse 65% 18% at 82% 23%, rgb(184 146 90 / 15%), transparent 75%),
+    repeating-radial-gradient(ellipse 85vw 48vh at 125% 30%, transparent 0 45px, rgb(236 235 239 / 12%) 47px 54px, transparent 65px 100px),
+    repeating-radial-gradient(ellipse 75vw 70vh at -30% 85%, transparent 0 70px, rgb(184 146 90 / 15%) 74px 82px, transparent 94px 145px), #2B3D55;
 }
 .app-theme:has(#console-menu-home) .console-sky > * { display: none; }
-.app-theme:has(#console-menu-home) .console-sky::before,
-.app-theme:has(#console-menu-home) .console-sky::after {
-  content: ""; position: absolute; width: 78vw; height: 72vw;
-  border: 1px solid rgb(236 235 239 / 9%); border-radius: 50%;
-  box-shadow: inset 16px 12px 52px rgb(236 235 239 / 3%), 0 0 52px rgb(236 235 239 / 3%);
-  transform: rotate(-24deg); pointer-events: none;
-}
-.app-theme:has(#console-menu-home) .console-sky::before { left: 44%; top: -48vw; }
-.app-theme:has(#console-menu-home) .console-sky::after { left: -55%; top: 32vh; }
 .app-theme:has(#console-menu-home) .console-content { padding-top: calc(var(--bar) + 56px); }
-.app-theme:has(#console-menu-home) .page-head { margin-bottom: 32px; }
-.app-theme:has(#console-menu-home) #console-heading { font-weight: 600; letter-spacing: -.045em; }
-.app-theme:has(#console-menu-home) .lede { color: #d1d6df; }
-
-/* Floating chrome: navy glass above the page, pearl glass inside the menu. */
-.app-theme:has(#console-menu-home) .staggered-menu-header {
-  top: 12px; left: 20px; width: calc(100% - 40px); height: var(--bar);
-  padding-inline: max(20px, calc((100vw - 1440px) / 2 + 20px));
-  border: 1px solid rgb(236 235 239 / 27%); border-radius: 24px;
-  background: linear-gradient(135deg, rgb(236 235 239 / 13%), transparent 65%), rgb(43 61 85 / 76%);
-  backdrop-filter: blur(28px) saturate(150%); -webkit-backdrop-filter: blur(28px) saturate(150%);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 20%), 0 8px 24px rgb(12 25 44 / 15%);
+.app-theme:has(#console-menu-home) #console-heading { letter-spacing: -.045em; }
+/* Explicit stacking keeps the filtered artwork behind crisp, interactive content. */
+.app-theme:has(#console-menu-home) :is(.featured-run,.spotlight-card,.staggered-menu-header,.staggered-menu-panel,.console-card,.agent-pane,.sample-banner,.outcome-card,.permission-pair-section,.permission-pair-card,.ledger-panel,.event-feed,.evidence-card,.approval-dialog,.approval-buttons,.audit-check,.two-view,.outcome-recurring,.replay-controls,.badge,.chip,.task-line > span,.inspect-button) {
+  isolation: isolate;
+  --foreground: #ECEBEF; --muted-foreground: #e0e4eb;
+  color: var(--foreground); color-scheme: dark;
+  background: var(--panel); border: 1px solid rgb(236 235 239 / 25%);
+  box-shadow: var(--edge);
+  backdrop-filter: blur(8px) saturate(115%); -webkit-backdrop-filter: blur(8px) saturate(115%);
 }
-.app-theme:has(#console-menu-home) .staggered-menu-wrapper[data-open] .staggered-menu-header {
-  background: rgb(43 61 85 / 96%); border-color: rgb(236 235 239 / 27%);
-}
-.app-theme:has(#console-menu-home) .staggered-menu-panel {
-  --foreground: #202e42; --muted-foreground: #4c5a6d; --border: rgb(43 61 85 / 18%); --warm: #75532d;
-  background: rgb(236 235 239 / 94%); border-radius: 28px 0 0 28px;
-  box-shadow: inset 1px 0 0 #fff, -24px 0 80px rgb(12 25 44 / 24%);
-  backdrop-filter: blur(36px) saturate(140%); -webkit-backdrop-filter: blur(36px) saturate(140%);
-}
-.app-theme:has(#console-menu-home) .sm-toggle {
-  padding: 0 18px; border: 1px solid rgb(255 255 255 / 50%); border-radius: 999px;
-  background: linear-gradient(180deg, rgb(255 255 255 / 32%), transparent 60%), #B8925A;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 65%), 0 4px 12px rgb(9 22 40 / 16%);
-}
-
-/* Each pearl surface owns its ink tokens, so metadata stays legible on the frost. */
-.app-theme:has(#console-menu-home) :where(.console-card,.agent-pane,.sample-banner,.permission-pair-section,.outcome-card,.table-scroll,.spotlight-card,.featured-run,.approval-dialog) {
-  --background: #ECEBEF;
-  --foreground: #202e42;
-  --muted-foreground: #4c5a6d;
-  --border: rgb(43 61 85 / 18%);
-  --input: #7b8799;
-  --danger: #a12d2d; --ok: #286040; --warm: #75532d;
-  color: var(--foreground); color-scheme: light;
-  background: var(--panel); border: 1px solid rgb(255 255 255 / 65%);
-  border-radius: 24px; box-shadow: var(--edge);
-  backdrop-filter: blur(30px) saturate(145%); -webkit-backdrop-filter: blur(30px) saturate(145%);
-}
-.app-theme:has(#console-menu-home) .featured-run {
-  position: relative; padding: 32px; border-radius: 28px;
-  background: linear-gradient(115deg, rgb(255 255 255 / 55%), transparent 45%, rgb(184 146 90 / 10%)), rgb(236 235 239 / 91%);
-  box-shadow: var(--edge), 0 24px 56px -24px rgb(8 20 38 / 55%);
-}
-.app-theme:has(#console-menu-home) .featured-run::after {
-  content: ""; position: absolute; inset: 5px; border-radius: 23px;
-  border: 1px solid rgb(255 255 255 / 45%); border-bottom-color: rgb(43 61 85 / 6%);
-  pointer-events: none;
-}
-.app-theme:has(#console-menu-home) .featured-text h2 { font-size: 1.5rem; letter-spacing: -.025em; }
+.app-theme:has(#console-menu-home) :is(.featured-run,.spotlight-card,.console-card,.agent-pane,.outcome-card,.permission-pair-section,.approval-dialog) { border-radius: 24px; }
+.app-theme:has(#console-menu-home) .featured-run { padding: 32px; border-radius: 28px; }
+.app-theme:has(#console-menu-home) .featured-run::before { box-shadow: none; }
+.app-theme:has(#console-menu-home) .star-border__light { opacity: .25; }
+.app-theme:has(#console-menu-home) :is(.spotlight-card__border,.spotlight-card__edge) { opacity: .25; }
 .app-theme:has(#console-menu-home) .spotlight-card { padding: 20px 24px; }
-.app-theme:has(#console-menu-home) .spotlight-card__border { background: linear-gradient(135deg, #ffffffb3, transparent 45%, #ffffff70); }
 .app-theme:has(#console-menu-home) .preset-list { gap: 12px; }
 .app-theme:has(#console-menu-home) .preset-pair { gap: 16px; margin-bottom: 16px; }
-.app-theme:has(#console-menu-home) .preset-row details summary { text-decoration-color: #8c7553; }
-.app-theme:has(#console-menu-home) .preset-placeholder span:not(.muted-label) { background: rgb(43 61 85 / 12%); }
-
-/* Bronze under a clear coat: highlights sit at the rim, leaving labels crisp. */
-.app-theme:has(#console-menu-home) :where(.primary-button,.secondary-button,.approval-buttons button,.replay-controls button) {
-  position: relative; isolation: isolate; font-weight: 600;
-  color: #202e42; border-color: rgb(255 255 255 / 58%);
-  background: linear-gradient(180deg, rgb(255 255 255 / 30%), transparent 55%, rgb(83 53 22 / 9%)), #B8925A;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 85%), inset 0 -1px 1px rgb(90 59 26 / 20%), 0 4px 10px rgb(29 42 62 / 13%);
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-  transition: transform 140ms ease, box-shadow 180ms ease, background-color 180ms ease;
+/* Nested evidence is tinted navy, never a solid pale rectangle. */
+.app-theme:has(#console-menu-home) :is(.ledger-panel,.event-feed,.permission-pair-card,.approval-buttons,.audit-check,.two-view,.outcome-recurring) { background: var(--dense); }
+.app-theme:has(#console-menu-home) .staggered-menu-header {
+  position: absolute; top: 12px; left: 20px; width: calc(100% - 40px); height: var(--bar);
+  padding-inline: max(20px, calc((100vw - 1440px) / 2 + 20px)); border-radius: 24px;
 }
-.app-theme:has(#console-menu-home) :where(.primary-button,.secondary-button,.approval-buttons button,.replay-controls button)::before {
-  content: ""; position: absolute; z-index: -1; inset: 3px 8px 48%;
-  border-radius: 999px; background: linear-gradient(180deg, rgb(255 255 255 / 28%), transparent);
-  pointer-events: none;
+.app-theme:has(#console-menu-home) .staggered-menu-wrapper[data-open] .staggered-menu-header { background: rgb(43 61 85 / 25%); border-color: rgb(236 235 239 / 25%); }
+.app-theme:has(#console-menu-home) .staggered-menu-panel { position: absolute; border-radius: 28px 0 0 28px; background: rgb(43 61 85 / 38%); }
+.app-theme:has(#console-menu-home) .approval-dialog { position: fixed; background: rgb(43 61 85 / 40%); }
+.app-theme:has(#console-menu-home) .approval-dialog::backdrop { background: rgb(12 24 42 / 65%); backdrop-filter: blur(6px); }
+.app-theme:has(#console-menu-home) .approval-buttons { position: sticky; }
+.app-theme:has(#console-menu-home) :is(.primary-button,.secondary-button,.approval-buttons button,.replay-controls button,.sm-toggle) {
+  position: relative; isolation: isolate; border: 1px solid rgb(255 255 255 / 35%); border-radius: 999px;
+  background: rgb(184 146 90 / 78%); color: #142033; font-weight: 600;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 35%), 0 4px 12px rgb(8 20 38 / 20%);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  transition: transform 140ms ease, background-color 180ms ease;
 }
-.app-theme:has(#console-menu-home) :where(.primary-button,.secondary-button,.approval-buttons button,.replay-controls button):not(:disabled):hover {
-  color: #172437; background-color: #c7a46f; border-color: #fff;
-  box-shadow: inset 0 1px 0 #fff, inset 0 -1px 1px rgb(90 59 26 / 20%), 0 6px 16px rgb(29 42 62 / 22%);
-  transform: translateY(-1px);
-}
-.app-theme:has(#console-menu-home) :where(.primary-button,.secondary-button,.approval-buttons button,.replay-controls button):not(:disabled):active { transform: scale(.975); }
-.app-theme:has(#console-menu-home) .secondary-button { background: linear-gradient(180deg, rgb(255 255 255 / 18%), transparent 65%), rgb(184 146 90 / 70%); }
-.app-theme:has(#console-menu-home) .badge { color: inherit; border-color: rgb(43 61 85 / 22%); background: rgb(43 61 85 / 5%); }
-.app-theme:has(#console-menu-home) .chip { border-radius: 999px; padding: 5px 8px; }
-.app-theme:has(#console-menu-home) :focus-visible { outline-color: #6d491d; }
-.app-theme:has(#console-menu-home) .console-brand:focus-visible { outline-color: #ECEBEF; }
-
-/* The inline sample inherits the same material; dense evidence remains opaque. */
-.app-theme:has(#console-menu-home) :where(.ledger-panel,.event-feed,.permission-pair-card,.lab-receipt,.replay-controls) { color: #202e42; background: var(--dense); }
-.app-theme:has(#console-menu-home) :where(.outcome-recurring,.different-commitment,.inspect-button,.audit-check,.two-view) { background: rgb(43 61 85 / 6%); }
-.app-theme:has(#console-menu-home) .outcome-recurring-only { background: rgb(161 45 45 / 7%); }
+.app-theme:has(#console-menu-home) [data-glass-layer="control"] { opacity: .16; }
+.app-theme:has(#console-menu-home) :is(.primary-button,.secondary-button,.approval-buttons button,.replay-controls button,.sm-toggle):not(:disabled):hover { background: rgb(184 146 90 / 90%); color: #142033; }
+.app-theme:has(#console-menu-home) .sm-toggle { padding-inline: 18px; }
+.app-theme:has(#console-menu-home) :is(.badge,.chip,.task-line > span) { border-radius: 999px; background: rgb(43 61 85 / 20%); }
+.app-theme:has(#console-menu-home) .chip-ask { background: rgb(236 235 239 / 20%); color: #ECEBEF; }
+.app-theme:has(#console-menu-home) :is(.different-commitment,.inspect-button) { background: rgb(184 146 90 / 12%); }
+.app-theme:has(#console-menu-home) .outcome-recurring-only { border-color: var(--danger); }
 .app-theme:has(#console-menu-home) .browser-frame { background: #2B3D55; color: #ECEBEF; }
-.app-theme:has(#console-menu-home) .approval-dialog { background: #ECEBEF; }
-.app-theme:has(#console-menu-home) .approval-buttons { background: #ECEBEF; }
-.app-theme:has(#console-menu-home) .approval-dialog::backdrop { background: rgb(16 28 45 / 70%); backdrop-filter: blur(8px); }
-.app-theme:has(#console-menu-home) .skip-content { background: #ECEBEF; color: #202e42; }
-
+.app-theme:has(#console-menu-home) .preset-placeholder span:not(.muted-label) { background: rgb(236 235 239 / 16%); }
+.app-theme:has(#console-menu-home) :focus-visible { outline-color: #f2d4a6; }
 @media (max-width: 800px) {
   .app-theme:has(#console-menu-home) .console-content { padding-top: calc(var(--bar) + 44px); }
   .app-theme:has(#console-menu-home) .staggered-menu-header { left: 12px; width: calc(100% - 24px); padding-inline: 16px; border-radius: 20px; }
@@ -493,33 +425,20 @@
   .app-theme:has(#console-menu-home) .featured-run { padding: 24px; }
   .app-theme:has(#console-menu-home) .spotlight-card { padding: 20px; }
 }
-@media (prefers-reduced-motion: reduce) {
-  .app-theme:has(#console-menu-home) :where(button,a):hover,
-  .app-theme:has(#console-menu-home) :where(button,a):active { transform: none; }
-}
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
-  .app-theme:has(#console-menu-home) { --panel: #ECEBEF; --dense: #ECEBEF; background: #2B3D55; }
-  .app-theme:has(#console-menu-home) :is(.featured-run,.staggered-menu-panel) { background: #ECEBEF; }
-  .app-theme:has(#console-menu-home) .staggered-menu-header { background: #2B3D55; }
-  .app-theme:has(#console-menu-home) .secondary-button { background: #B8925A; }
-  .app-theme:has(#console-menu-home) :where(.spotlight-card__light,.spotlight-card__edge,.star-border__light) { display: none; }
+  .app-theme:has(#console-menu-home) { --panel: #ECEBEF; --dense: #ECEBEF; --danger: #a12d2d; --ok: #286040; --warm: #75532d; }
+  .app-theme:has(#console-menu-home) :is(.featured-run,.spotlight-card,.staggered-menu-header,.staggered-menu-panel,.console-card,.agent-pane,.sample-banner,.outcome-card,.permission-pair-section,.permission-pair-card,.ledger-panel,.event-feed,.evidence-card,.approval-dialog,.approval-buttons,.audit-check,.two-view,.outcome-recurring,.replay-controls,.badge,.chip,.task-line > span) { --foreground: #202e42; --muted-foreground: #4c5a6d; background: #ECEBEF; color: #202e42; }
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .app-theme:has(#console-menu-home) { --panel: #ECEBEF; }
-  .app-theme:has(#console-menu-home) :is(.featured-run,.staggered-menu-panel) { background: #ECEBEF; }
-  .app-theme:has(#console-menu-home) .staggered-menu-header { background: #2B3D55; }
+  .app-theme:has(#console-menu-home) { --panel: rgb(43 61 85 / 90%); --dense: rgb(43 61 85 / 95%); }
 }
 @media (forced-colors: active) {
-  .app-theme:has(#console-menu-home),
-  .app-theme:has(#console-menu-home) :where(.console-card,.agent-pane,.sample-banner,.permission-pair-section,.outcome-card,.table-scroll,.spotlight-card,.featured-run,.approval-dialog,.staggered-menu-panel) {
-    --foreground: CanvasText; --muted-foreground: CanvasText; --border: CanvasText; --input: ButtonText;
-    --primary: Highlight; --primary-foreground: HighlightText; --panel: Canvas; --dense: Canvas;
-    --danger: CanvasText; --ok: CanvasText; --warm: CanvasText;
-    background: Canvas; color: CanvasText; border-color: CanvasText; box-shadow: none;
-  }
-  .app-theme:has(#console-menu-home) :where(button,a,.ledger-panel,.event-feed,.permission-pair-card,.replay-controls,.approval-buttons,.browser-frame,.staggered-menu-header,.badge) { background: Canvas; color: CanvasText; border-color: ButtonText; box-shadow: none; }
-  .app-theme:has(#console-menu-home) :where(button,a):hover { background: Highlight; color: HighlightText; }
-  .app-theme:has(#console-menu-home) :focus-visible { outline-color: Highlight; }
-  .app-theme:has(#console-menu-home) :where(button,.featured-run)::before,
-  .app-theme:has(#console-menu-home) .featured-run::after { display: none; }
+  .app-theme:has(#console-menu-home) * { color: CanvasText; border-color: CanvasText; box-shadow: none; }
+  .app-theme:has(#console-menu-home) :is(button,a,.featured-run,.spotlight-card,.approval-dialog,.staggered-menu-panel,.staggered-menu-header,.ledger-panel,.event-feed,.badge,.chip) { background: Canvas; color: CanvasText; }
 }
+
+/* Do not change positioning of the fixed menu, native dialog or sticky footer. */
+.app-theme:has(#console-menu-home) :where(.console-card,.agent-pane,.sample-banner,.outcome-card,.permission-pair-section,.permission-pair-card,.ledger-panel,.event-feed,.evidence-card,.audit-check,.two-view,.outcome-recurring,.replay-controls,.badge,.chip,.task-line > span,.inspect-button) { position: relative; }
+.app-theme:has(#console-menu-home) [data-glass-layer] { margin: 0; padding: 0; border: 0; }
+
+.app-theme [data-glass-mount] { display: contents !important; }

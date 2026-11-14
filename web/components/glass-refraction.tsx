@@ -1,119 +1,129 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { createGlass } from "@/lib/liquid-glass-engine";
 import styles from "./glass-refraction.module.css";
 
-// One scheduled placement pass for every glass edge, even during rapid scrolling.
+type Material = "panel" | "control" | "compact";
+const optics = {
+  // A full dome bends the background across the entire surface. The optical
+  // centre has zero displacement by symmetry, rather than a broad flat region.
+  panel: { refraction: 28, bezel: 1, curvature: 2.5, blur: .8, specular: .3 },
+  control: { refraction: 9, bezel: 1, curvature: 2.5, blur: .3, specular: .4 },
+  compact: { refraction: 5, bezel: 1, curvature: 2.5, blur: .2, specular: .25 },
+};
 const placements = new Set<() => void>();
-let placementFrame = 0;
-function schedulePlacement() {
-  if (placementFrame) return;
-  placementFrame = requestAnimationFrame(() => {
-    placementFrame = 0;
-    for (const place of placements) place();
-  });
+let frame = 0;
+function schedule() {
+  if (frame) return;
+  frame = requestAnimationFrame(() => { frame = 0; placements.forEach(place => place()); });
 }
-function followBackdrop(place: () => void) {
+function follow(place: () => void) {
   if (!placements.size) {
-    window.addEventListener("scroll", schedulePlacement, { passive: true, capture: true });
-    window.addEventListener("resize", schedulePlacement, { passive: true });
-    document.addEventListener("toggle", schedulePlacement, true);
+    window.addEventListener("scroll", schedule, true);
+    window.addEventListener("resize", schedule);
+    document.addEventListener("toggle", schedule, true);
   }
   placements.add(place);
-  schedulePlacement();
   return () => {
     placements.delete(place);
     if (placements.size) return;
-    window.removeEventListener("scroll", schedulePlacement, true);
-    window.removeEventListener("resize", schedulePlacement);
-    document.removeEventListener("toggle", schedulePlacement, true);
-    cancelAnimationFrame(placementFrame);
-    placementFrame = 0;
+    window.removeEventListener("scroll", schedule, true);
+    window.removeEventListener("resize", schedule);
+    document.removeEventListener("toggle", schedule, true);
+    cancelAnimationFrame(frame); frame = 0;
   };
 }
 
-/** A shape-specific refractive rim over an aligned copy of the known backdrop.
- *  Uses CSS filter (not an SVG backdrop-filter), including WebKit/Gecko fixes.
- *  Text, click targets and accessibility semantics are never copied or filtered.
- */
-export function GlassRefraction({ control = false }: { control?: boolean }) {
-  const layerRef = useRef<HTMLSpanElement>(null);
+/** Only the decorative, aligned scene is filtered; content and hit targets stay native. */
+export function GlassRefraction({ variant = "panel", list = false }: { variant?: Material; list?: boolean }) {
+  const layerRef = useRef<HTMLElement>(null);
   const surfaceRef = useRef<HTMLSpanElement>(null);
-
   useEffect(() => {
-    const layer = layerRef.current;
-    const surface = surfaceRef.current;
-    const host = layer?.parentElement;
-    if (!layer || !surface || !host) return;
-
+    const layer = layerRef.current, surface = surfaceRef.current;
+    const host = layer?.parentElement?.parentElement;
+    const sky = host?.closest(".app-theme")?.querySelector<HTMLElement>(".console-sky");
+    if (!layer || !surface || !host || !sky) return;
     const preference = matchMedia("(prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active)");
+    let visible = false;
     let stop: (() => void) | undefined;
     const configure = () => {
-      stop?.();
-      stop = undefined;
-      if (preference.matches) return;
-
-      const sky = host.closest(".app-theme")?.querySelector<HTMLElement>(".console-sky");
-      const panel = control ? host.closest<HTMLElement>(".featured-run, .spotlight-card") : null;
-      const source = panel ?? sky;
-      if (!source) return;
-
-      // Clone only the empty sky element: its CSS gradients/rings are the known
-      // backdrop. Never clone WebGL canvases, page text, inputs or event handlers.
-      const scene = panel ? document.createElement("span") : source.cloneNode(false) as HTMLElement;
-      scene.classList.add(styles.scene);
-      scene.setAttribute("aria-hidden", "true");
-      Object.assign(scene.style, {
-        position: "absolute", zIndex: "0", margin: "0", transform: "none",
-        backgroundColor: panel ? "#ECEBEF" : "#2B3D55",
-      });
-      if (panel) scene.style.backgroundImage = getComputedStyle(panel).backgroundImage;
+      stop?.(); stop = undefined;
+      if (!visible || preference.matches) return;
+      const scene = document.createElement("span");
+      scene.className = styles.scene;
+      // Same viewport-sized, static artwork as the page. Never duplicate live DOM.
+      scene.style.background = getComputedStyle(sky).background;
       surface.append(scene);
-
+      let viewport = "";
       const place = () => {
-        const bounds = surface.getBoundingClientRect();
-        const backdrop = source.getBoundingClientRect();
-        Object.assign(scene.style, {
-          left: `${backdrop.left - bounds.left}px`, top: `${backdrop.top - bounds.top}px`,
-          width: `${backdrop.width}px`, height: `${backdrop.height}px`,
-        });
+        const size = `${innerWidth}x${innerHeight}`;
+        if (size !== viewport) { scene.style.background = getComputedStyle(sky).background; viewport = size; }
+        const rect = surface.getBoundingClientRect();
+        Object.assign(scene.style, { left: `${-rect.left}px`, top: `${-rect.top}px`, width: `${innerWidth}px`, height: `${innerHeight}px` });
       };
       place();
-
       try {
         const glass = createGlass(surface, {
-          fit: true, clip: true,
-          radius: parseFloat(getComputedStyle(host).borderTopLeftRadius) || 24,
-          refraction: control ? 6 : 22,
-          bezel: control ? .6 : .28,
-          curvature: 4, chroma: .1, blur: control ? 0 : .35,
-          specular: control ? .7 : .55, specularWidth: 1.5, mapScale: 1,
+          fit: true, clip: true, radius: parseFloat(getComputedStyle(host).borderTopLeftRadius) || 12,
+          ...optics[variant], chroma: .12, mapScale: innerWidth < 600 ? .75 : 1,
         });
         layer.dataset.refraction = "active";
-        const unfollow = followBackdrop(place);
-        const observer = new ResizeObserver(schedulePlacement);
-        observer.observe(source);
-        observer.observe(host);
+        const unfollow = follow(place);
+        const resize = new ResizeObserver(schedule); resize.observe(host);
         stop = () => {
-          observer.disconnect();
-          unfollow();
-          glass.destroy();
-          scene.remove();
-          delete layer.dataset.refraction;
+          unfollow(); resize.disconnect();
+          glass.destroy(); scene.remove(); delete layer.dataset.refraction;
         };
-      } catch {
-        // Decoration is optional: a graphics failure retains the frosted CSS UI.
-        scene.remove();
-      }
+      } catch { scene.remove(); }
     };
-    configure();
+    const observer = new IntersectionObserver(entries => { visible = entries[0].isIntersecting; configure(); });
+    observer.observe(host);
     preference.addEventListener("change", configure);
-    return () => {
-      preference.removeEventListener("change", configure);
-      stop?.();
-    };
-  }, [control]);
+    return () => { observer.disconnect(); preference.removeEventListener("change", configure); stop?.(); };
+  }, [variant]);
+  const Tag = list ? "li" : "span";
+  return <Tag ref={layerRef as React.Ref<HTMLLIElement & HTMLSpanElement>} className={styles.layer} data-glass-layer={variant} aria-hidden="true"><span ref={surfaceRef} className={styles.surface} /></Tag>;
+}
 
-  return <span ref={layerRef} className={`${styles.layer}${control ? ` ${styles.control}` : ""}`} aria-hidden="true"><span ref={surfaceRef} className={styles.surface} /></span>;
+const targets = ".featured-run,.spotlight-card,.staggered-menu-header,.staggered-menu-panel,.console-card,.agent-pane,.sample-banner,.outcome-card,.permission-pair-section,.permission-pair-card,.ledger-panel,.event-feed,.evidence-card,.approval-dialog,.approval-buttons,.audit-check,.two-view,.outcome-recurring,.replay-controls,.primary-button,.secondary-button,.approval-buttons button,.inspect-button,.badge,.chip,.task-line > span,.sm-toggle";
+
+/** Covers dynamic sample and dialog surfaces as well as the initial preset grid. */
+export function DashboardGlass() {
+  const [hosts, setHosts] = useState<{ element: HTMLElement; mount: HTMLElement; key: string }[]>([]);
+  useEffect(() => {
+    const root = document.querySelector(".app-theme");
+    if (!root) return;
+    let pending = 0;
+    let sequence = 0;
+    const mounts = new Map<HTMLElement, { mount: HTMLElement; key: string }>();
+    const collect = () => {
+      pending = 0;
+      const next = Array.from(root.querySelectorAll<HTMLElement>(targets), element => {
+        let entry = mounts.get(element);
+        if (!entry || entry.mount.parentElement !== element) {
+          const mount = document.createElement(element.tagName === "OL" ? "li" : "span");
+          mount.dataset.glassMount = "";
+          mount.setAttribute("aria-hidden", "true");
+          element.append(mount);
+          entry = { mount, key: String(sequence++) };
+          mounts.set(element, entry);
+        }
+        return { element, ...entry };
+      });
+      for (const [element, { mount }] of mounts) if (!root.contains(element)) { mount.remove(); mounts.delete(element); }
+      setHosts(previous => previous.length === next.length && previous.every((host, i) => host.element === next[i].element && host.mount === next[i].mount) ? previous : next);
+    };
+    const observer = new MutationObserver(records => {
+      if (records.some(record => record.type === "attributes" && !(record.target as Element).closest?.("[data-glass-layer]"))) schedule();
+      if (records.every(record => (record.target as Element).closest?.("[data-glass-layer]"))) return;
+      if (!records.some(record => record.type === "childList")) return;
+      if (!pending) pending = requestAnimationFrame(collect);
+    });
+    observer.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "data-open"] });
+    collect();
+    return () => { observer.disconnect(); cancelAnimationFrame(pending); mounts.forEach(({ mount }) => mount.remove()); };
+  }, []);
+  return hosts.map(({ element: host, mount, key }) => createPortal(<GlassRefraction variant={host.matches("button,.primary-button,.secondary-button") ? "control" : host.matches(".badge,.chip,.task-line > span") ? "compact" : "panel"} />, mount, key));
 }
