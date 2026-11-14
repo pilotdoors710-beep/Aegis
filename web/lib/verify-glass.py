@@ -18,7 +18,7 @@ class GlassChecks(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.pw = sync_playwright().start()
-        cls.browser = cls.pw.chromium.launch(channel='chrome')
+        cls.browser = cls.pw.chromium.launch(channel=os.environ.get('BROWSER_CHANNEL'))
         OUTPUT.mkdir(parents=True, exist_ok=True)
         summary, events = sample_run()
         cls.summary = summary.model_dump(mode='json')
@@ -54,11 +54,12 @@ class GlassChecks(unittest.TestCase):
     def test_responsive_routes_and_current_navigation(self):
         for width, height in [(1280,720),(1440,900),(768,1024),(390,844)]:
             self.page.set_viewport_size({'width':width,'height':height})
-            for route in ['/console','/runs','/lab','/stats','/health','/runs/sample?replay=1']:
+            for route, section in [('/console','Console'),('/runs','Runs'),('/lab','Trap Lab'),('/scan','Scan'),('/stats','Stats'),('/health','Health'),('/runs/sample?replay=1','Runs')]:
                 self.visit(route)
                 self.assertLessEqual(self.page.evaluate('document.documentElement.scrollWidth'), width)
-                active = self.page.locator('nav [aria-current="page"]')
-                self.assertEqual(active.count(), 1)
+                self.assertEqual(self.page.locator('.console-brand span').inner_text(), section)
+                # Health lives under "Also" in the menu, so it has no current-page item.
+                self.assertEqual(self.page.locator('#staggered-menu-panel nav [aria-current="page"]').count(), 0 if section == 'Health' else 1)
                 self.page.screenshot(path=str(OUTPUT / f'{width}-{route.split("?")[0].strip("/").replace("/","-")}.png'), full_page=True)
 
     def test_replay_geometry_and_safety_highlights(self):
@@ -80,7 +81,8 @@ class GlassChecks(unittest.TestCase):
     def test_material_preferences_and_theme_isolation(self):
         self.visit('/console')
         self.page.emulate_media(reduced_motion='reduce', contrast='more')
-        self.assertEqual(self.page.locator('.console-card').first.evaluate('e=>getComputedStyle(e).backdropFilter'), 'none')
+        self.assertEqual(self.page.locator('.staggered-menu-header').evaluate('e=>getComputedStyle(e).backdropFilter'), 'none')
+        self.assertFalse(self.page.locator('.console-sky').is_visible())
         self.page.emulate_media(forced_colors='active')
         self.page.keyboard.press('Tab')
         self.assertTrue(self.page.locator(':focus-visible').count()>0)
@@ -99,7 +101,8 @@ class GlassChecks(unittest.TestCase):
           try { const walk = rules => { for (const rule of rules) { if (rule.conditionText?.includes('backdrop-filter') && rule.conditionText.includes('not')) {
             const style=document.createElement('style'); style.textContent=Array.from(rule.cssRules,r=>r.cssText).join(''); document.head.append(style);
           } else if (rule.cssRules) walk(rule.cssRules); }}; walk(sheet.cssRules); } catch {} }}''')
-        self.assertEqual(self.page.locator('.console-card').first.evaluate('e=>getComputedStyle(e).backgroundColor'),'rgb(25, 25, 25)')
+        self.page.wait_for_timeout(400)  # header eases background-color over 200ms
+        self.assertEqual(self.page.locator('.staggered-menu-header').evaluate('e=>getComputedStyle(e).backgroundColor'),'rgb(25, 25, 25)')
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

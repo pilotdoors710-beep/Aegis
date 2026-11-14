@@ -64,6 +64,7 @@ log = logging.getLogger("aegis.api")
 # One shared Chromium per process (brief §3); contexts are created per run side.
 _browser: Browser | None = None
 SAMPLE_FRAME_DELAY_S = 0.3
+SAMPLE_ASK_HOLD_S = 4.0  # keep the sample's pending approval dialog readable
 
 
 @asynccontextmanager
@@ -414,6 +415,8 @@ async def stream_run(run_id: str, request: Request) -> EventSourceResponse:
         for i, ev in enumerate(events, start=1):
             await asyncio.sleep(SAMPLE_FRAME_DELAY_S)
             yield {"event": ev.kind, "id": str(i), "data": ev.model_dump_json()}
+            if ev.kind == "ask" and ev.payload.status == "pending":
+                await asyncio.sleep(SAMPLE_ASK_HOLD_S)
 
     return EventSourceResponse(gen(), ping=15)
 

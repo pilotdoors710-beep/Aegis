@@ -65,6 +65,7 @@ def test_routes_declared(client: TestClient) -> None:
 
 def test_sample_stream_framing(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(main, "SAMPLE_FRAME_DELAY_S", 0)
+    monkeypatch.setattr(main, "SAMPLE_ASK_HOLD_S", 0)
     names: list[str] = []
     with client.stream("GET", "/runs/sample/stream") as r:
         for line in r.iter_lines():
