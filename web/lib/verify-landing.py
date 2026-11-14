@@ -261,6 +261,7 @@ class LandingChecks(unittest.TestCase):
 
         self.page.route("**/runs", create)
         self.page.goto(BASE + "/console")
+        self.page.get_by_role("button", name="Launch live run").wait_for()  # presets fetched = hydrated
         self.page.get_by_text("Use your own API key").click()
         self.page.get_by_label("Provider").select_option("gemini")
         self.page.get_by_label("API key").fill(key)
