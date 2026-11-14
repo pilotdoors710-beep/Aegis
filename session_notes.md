@@ -22,6 +22,14 @@ Template:
 
 ## Log
 
+### 2026-11-15 · Codex · Sybil scenario engine and extraction progress
+- Added immutable scenario edits, canonical revision hashes, Challenge budgets/refunds, cooperation/compromise rules and seeded attack generation. Research settings reach the pure scorer without ownership labels.
+- Added deterministic bounded incoming/outgoing neighborhood selection with original outdegrees, extraction depths and edge limits. All 41 targeted Sybil tests pass.
+- Started the real Common Crawl download; 1,092,616,192 bytes are retained so far. Added verified byte-range transfers and bounded resume retries after timeouts.
+- Cloned official Common Crawl tooling into ignored .tools storage. JDK/Maven setup is not complete: Adoptium API returned 403 and the GitHub API retry hit DNS failure.
+- Another session temporarily stashed these changes while committing landing work. Restored only Sybil files from exact stash hashes and saved an ignored backup under .sybil-data/source-checkpoint. Do not pop or drop the shared stashes blindly.
+- Next: finish download/toolchain, connect the extractor to WebGraph, validate artifacts and benchmarks, then scenario/assessment persistence/APIs, editor and two-shop agent integration. The user's stage-3/push goal remains active.
+
 ### 2026-11-15 · Dev B · Antigravity · broaden AEGIS wordmark and lower subtitle block
 - Broadened 'AEGIS' wordmark horizontally with extended letter tracking (`TRACKING = 0.38`), bold weight (`700`), and horizontal glyph expansion (`scaleX(1.12)`).
 - Synchronized inspection frame width measurement and dynamic scroll transitions with the broadened wordmark.

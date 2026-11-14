@@ -7,7 +7,7 @@ commit as any change here.
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
 
 # --- Enumerations ---------------------------------------------------------------------------
 
@@ -24,6 +24,79 @@ class SybilDatasetStatus(BaseModel):
     observation_date: str | None = None
     reason: str
     source_url: str
+
+
+class SybilLink(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    source: str = Field(min_length=1, max_length=128)
+    target: str = Field(min_length=1, max_length=128)
+
+
+class SybilRecommendation(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    website: str = Field(min_length=1, max_length=128)
+    shop: Literal["A", "B"]
+
+
+class SybilWeights(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid", allow_inf_nan=False)
+    base: float = Field(default=0.4, ge=0, le=1)
+    breadth: float = Field(default=0.2, ge=0, le=1)
+    withdrawal: float = Field(default=0.2, ge=0, le=1)
+    connection: float = Field(default=0.2, ge=0, le=1)
+
+    @model_validator(mode="after")
+    def normalized(self):
+        if abs(self.base + self.breadth + self.withdrawal + self.connection - 1) > 1e-12:
+            raise ValueError("Score weights must sum to one")
+        return self
+
+
+class SybilScenarioCreate(BaseModel):
+    """Complete active edit set relative to a dataset, never an imperative edit history."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid", allow_inf_nan=False)
+    dataset_id: str = Field(pattern=r"^[a-zA-Z0-9_-]{1,128}$")
+    mode: Literal["challenge", "research"] = "challenge"
+    injected_nodes: tuple[str, ...] = Field(default=(), max_length=10000)
+    added_links: tuple[SybilLink, ...] = Field(default=(), max_length=150000)
+    removed_links: tuple[SybilLink, ...] = Field(default=(), max_length=150000)
+    recommendations: tuple[SybilRecommendation, ...] = Field(default=(), max_length=120000)
+    removed_recommendations: tuple[SybilRecommendation, ...] = Field(default=(), max_length=120000)
+    compromised: tuple[str, ...] = Field(default=(), max_length=10000)
+    cooperating_links: tuple[SybilLink, ...] = Field(default=(), max_length=150000)
+    anchors: tuple[str, ...] | None = None
+    restart: float = Field(default=0.15, gt=0, lt=1)
+    weights: SybilWeights = Field(default_factory=SybilWeights)
+
+
+class SybilBudget(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    injected_websites: int
+    internal_links: int
+    external_credits: int
+    website_limit: int = 1000
+    internal_link_limit: int = 100000
+    credit_limit: int = 25
+
+
+class SybilScenarioRevision(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    id: str
+    dataset_id: str
+    dataset_hash: str
+    edits: SybilScenarioCreate
+    budget: SybilBudget
+    policy_version: str = "sybil-challenge-v1"
+
+
+class SybilGenerate(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid", allow_inf_nan=False)
+    count: int = Field(default=100, ge=10, le=1000)
+    seed: int = Field(default=1, ge=0, le=2**32 - 1)
+    pattern: Literal["dense", "clusters", "hub", "chain"] = "dense"
+    density: float = Field(default=0.1, ge=0, le=1)
+    target: Literal["A", "B"] = "B"
 
 
 TrapType = Literal[

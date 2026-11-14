@@ -61,12 +61,19 @@ class Config:
     restart: float = 0.15
     tolerance: float = 1e-10
     max_iterations: int = 300
+    weights: tuple[float, float, float, float] = (0.4, 0.2, 0.2, 0.2)
 
     def __post_init__(self):
         if not 0 < self.restart < 1 or not 0 < self.tolerance < 1:
             raise ValueError("Restart and tolerance must lie strictly between zero and one")
         if not 1 <= self.max_iterations <= 300:
             raise ValueError("Iteration cap must be between 1 and 300")
+        if (
+            len(self.weights) != 4
+            or any(not np.isfinite(w) or w < 0 for w in self.weights)
+            or abs(sum(self.weights) - 1) > 1e-12
+        ):
+            raise ValueError("Four finite nonnegative score weights must sum to one")
 
 
 @dataclass(frozen=True)
@@ -177,8 +184,9 @@ def assess(
         breadth = float(np.clip((effective - 1) / (len(anchors) - 1), 0, 1))
         withdrawn = (per_anchor.sum() - per_anchor) / (len(anchors) - 1)
         withdrawal = float(np.clip(withdrawn.min() / mass, 0, 1))
+        supporter_set = set(supporters)
         candidates = sorted(
-            (edge for edge in set(graph.edges) if edge[1] in supporters),
+            (edge for edge in set(graph.edges) if edge[1] in supporter_set),
             key=lambda edge: (
                 -float((1 - config.restart) * trust[edge[0]] * matrix[edge[0], edge[1]]),
                 edge,
@@ -193,7 +201,12 @@ def assess(
                 )
             ratios.append(float(allocation @ removed.mass[supporters]) / mass)
         connection = float(np.clip(min(ratios), 0, 1)) if ratios else 0.0
-        total = 100 * support * (0.4 + 0.2 * breadth + 0.2 * withdrawal + 0.2 * connection)
+        w_base, w_breadth, w_withdrawal, w_connection = config.weights
+        total = (
+            100
+            * support
+            * (w_base + w_breadth * breadth + w_withdrawal * withdrawal + w_connection * connection)
+        )
         scores[shop] = ShopScore(
             len(supporters),
             mass,

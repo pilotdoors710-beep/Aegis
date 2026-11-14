@@ -47,3 +47,17 @@ def test_confirmed_resume_and_completed_hash(tmp_path):
     assert digest == module.hashlib.sha256(b"12345678").hexdigest()
     with patch.object(module, "urlopen", side_effect=AssertionError("No duplicate download")):
         assert module.download("https://example.test/graph", target, 8) == digest
+
+
+def test_bounded_range_requests(tmp_path):
+    first, second = io.BytesIO(b"1234"), io.BytesIO(b"5678")
+    for response, start in [(first, 0), (second, 4)]:
+        response.status = 206
+        response.headers = {"Content-Range": f"bytes {start}-{start + 3}/8"}
+    with patch.object(module, "urlopen", side_effect=[first, second]) as request:
+        module.download("https://example.test/graph", tmp_path / "graph", 8, block_size=4)
+    assert [call.args[0].get_header("Range") for call in request.call_args_list] == [
+        "bytes=0-3",
+        "bytes=4-7",
+    ]
+    assert (tmp_path / "graph").read_bytes() == b"12345678"

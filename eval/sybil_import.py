@@ -8,8 +8,10 @@ import argparse
 import hashlib
 import json
 import shutil
+import time
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 RELEASE = "cc-main-2026-aug-sep-oct"
@@ -60,30 +62,34 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def download(url: str, path: Path, size: int) -> str:
+def download(url: str, path: Path, size: int, block_size: int = 16 * 1024 * 1024) -> str:
     """Resume only when the server confirms the exact requested byte range."""
     offset = path.stat().st_size if path.exists() else 0
     if offset > size:
         raise ValueError(f"{path.name}: existing file exceeds published size")
-    if offset < size:
-        request = Request(url, headers={"Range": f"bytes={offset}-"} if offset else {})
+    if block_size < 1:
+        raise ValueError("Download block size must be positive")
+    while offset < size:
+        end = min(offset + block_size, size) - 1
+        request = Request(url, headers={"Range": f"bytes={offset}-{end}"})
         with urlopen(request, timeout=60) as response:
-            if offset and (
+            full_response = offset == 0 and end == size - 1 and response.status == 200
+            if not full_response and (
                 response.status != 206
-                or response.headers.get("Content-Range") != f"bytes {offset}-{size - 1}/{size}"
+                or response.headers.get("Content-Range") != f"bytes {offset}-{end}/{size}"
             ):
                 raise ValueError(f"{path.name}: server did not confirm resume range")
-            if not offset and response.status != 200:
-                raise ValueError(f"{path.name}: unexpected download response")
             with path.open("ab" if offset else "wb") as target:
                 received = offset
                 while chunk := response.read(1024 * 1024):
                     received += len(chunk)
-                    if received > size:
+                    if received > end + 1:
                         raise ValueError(f"{path.name}: response exceeds declared size")
                     target.write(chunk)
-        if path.stat().st_size != size:
+        offset = path.stat().st_size
+        if offset != end + 1:
             raise ValueError(f"{path.name}: incomplete transfer; rerun to resume")
+        print(f"{path.name}: {offset:,} / {size:,} bytes", flush=True)
     return sha256(path)
 
 
@@ -114,7 +120,10 @@ def main() -> None:
         "observed_at": datetime.now(UTC).isoformat(),
         "files": sizes,
         "storage": storage_check(
-            sizes, directory, int(args.budget_gib * GIB), int(args.derived_reserve_gib * GIB)
+            sizes,
+            directory,
+            int(args.budget_gib * GIB),
+            int(args.derived_reserve_gib * GIB),
         ),
         "source": MANIFEST_URL,
         "terms": "https://commoncrawl.org/terms-of-use",
@@ -130,10 +139,18 @@ def main() -> None:
             f"bytes; additional {report['storage']['additional_bytes']} bytes"
         )
     if args.download:
-        hashes = {
-            name: download(BASE + name, directory / name, size) for name, size in sizes.items()
-        }
-        (directory / "sha256.json").write_text(json.dumps(hashes, indent=2), encoding="utf-8")
+        hashes = {}
+        for name, size in sizes.items():
+            for attempt in range(5):
+                try:
+                    hashes[name] = download(BASE + name, directory / name, size)
+                    break
+                except (TimeoutError, URLError, ConnectionError) as error:
+                    if attempt == 4:
+                        raise
+                    print(f"Transfer interrupted ({error}); resuming in 2 seconds", flush=True)
+                    time.sleep(2)
+            (directory / "sha256.json").write_text(json.dumps(hashes, indent=2), encoding="utf-8")
         print("Downloads complete. WebGraph extraction and artifact validation are still required.")
 
 
