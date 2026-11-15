@@ -84,7 +84,7 @@
 @property --tilt-y {
   syntax: "<angle>";
   inherits: true;
-  initial-value: 15deg;
+  initial-value: 12deg;
 }
 
 @property --hover-x {
@@ -166,6 +166,8 @@
   height: 72svh;
   opacity: calc(1 - var(--mark));
   pointer-events: none;
+  /* Mirrors the wordmark's lean at half strength (right edge out); flattens with the scroll zoom. */
+  transform: perspective(1300px) rotateX(calc(var(--tilt-x) * (1 - var(--mark)))) rotateY(calc(-6deg * (1 - var(--mark))));
   /* Same dark pool as the copy: keeps light particles readable when bright glass bands pass behind. */
   background: radial-gradient(closest-side, rgb(6 10 16 / 72%), rgb(6 10 16 / 40%) 60%, transparent);
 }
