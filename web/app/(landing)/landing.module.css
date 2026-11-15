@@ -200,18 +200,17 @@
 
 .displaySubtitle,
 .subtitle {
-  font-family: var(--font-coolvetica), sans-serif;
+  font-family: var(--font-landing-script), cursive;
   font-size: clamp(16px, 2.3vw, 24px);
   font-weight: 700;
   letter-spacing: 0.06em;
   line-height: 1.25;
-  text-transform: uppercase;
   display: inline-block;
   cursor: default;
 }
 
 .subtitleRevealed {
-  color: #b8cce4; /* light steel blue */
+  color: #c2a15a;
   text-shadow: 0 1px 2px rgb(8 13 20 / 55%), 0 2px 14px rgb(8 13 20 / 45%);
   transition: color 0.3s ease;
 }

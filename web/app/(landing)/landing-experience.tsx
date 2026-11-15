@@ -21,6 +21,13 @@ const boldFont = localFont({
   display: "block",
 });
 
+const scriptFont = localFont({
+  src: "../../public/landing/fonts/great-vibes/GreatVibes-Regular.ttf",
+  weight: "400",
+  display: "swap",
+  variable: "--font-landing-script",
+});
+
 const WORD = "AEGIS";
 const WEIGHT = 700;
 const TRACKING = 0.38; // em
@@ -210,7 +217,7 @@ export function LandingExperience() {
   };
 
   return (
-    <main ref={track} className={styles.landing} data-reduced={reduced}>
+    <main ref={track} className={`${styles.landing} ${scriptFont.variable}`} data-reduced={reduced}>
       <div ref={stage} className={styles.stage}>
         <div className={styles.sky} aria-hidden="true">
           <GlassFold {...GLASS} speed={0.4 * speed} noise={0.1} />
