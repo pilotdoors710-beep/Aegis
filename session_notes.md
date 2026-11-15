@@ -22,6 +22,11 @@ Template:
 
 ## Log
 
+### 2026-11-15 · Dev A · Claude Code · R2 go/no-go recorded
+- Reran the R2 gate tests: 12/12 pass, both copies ≈0.9 s.
+- Wrote the decision down as GO in `eval/README.md` (gate table, cost, limits).
+- R2 study (I vs I+R2) still not run, so there is no effectiveness claim yet.
+
 ### 2026-11-15 · Dev A · Claude Code · final eval manifest
 - Stopped tracking `graphify-out/` (now ignored).
 - Declared the final eval list (`eval/manifest.json` → `final`, `eval/README.md`): 19 cases × U/F/I + 8 ablation runs = 65 per block, N=2; variant c held out (never run by an agent); R2 study separate.
