@@ -13,8 +13,8 @@ inspection and agent runs remain unfinished.
 
 The raw Common Crawl files stay local in ignored `.sybil-data/source/`. After extraction, place
 the validated four-file artifact in ignored `server/data/sybil/`. Local Compose mounts that folder
-read-only; `deploy/hf_deploy.py` includes it in the shared backend image. Collaborators then use the
-same hosted graph and do not download the 9 GB source archive. The readiness endpoint validates
+read-only. The backend runs only on Dev A's PC, so the artifact must be copied there; nobody else
+needs the 9 GB source archive. The readiness endpoint validates
 the artifact before reporting its imported counts. The feature stays disabled until its release
 gates pass.
 

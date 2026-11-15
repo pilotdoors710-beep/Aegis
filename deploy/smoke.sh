@@ -4,7 +4,7 @@
 # Needs only curl and python3.
 set -uo pipefail
 
-: "${SERVER:?set SERVER, e.g. https://xyz.trycloudflare.com}"
+: "${SERVER:?set SERVER, e.g. https://tequila-sunset.tailaa5d70.ts.net}"
 : "${WEB:?set WEB, e.g. https://aegis-mu-sepia-91.vercel.app}"
 SERVER="${SERVER%/}"
 WEB="${WEB%/}"

@@ -22,6 +22,11 @@ Template:
 
 ## Log
 
+### 2026-11-15 · Dev A · Claude Code · PC-only hosting
+- Backend runs only on Dev A's PC via Tailscale Funnel. Removed the Hugging Face deploy script, Caddy and the Oracle VM steps.
+- `deploy/oracle-setup.md` is now `deploy/pc-setup.md`; brief §3 and `web/README.md` updated to match.
+- Sybil graph artifact was built on Dev B's PC; it must be copied into `server/data/sybil/` here (it is git-ignored).
+
 ### 2026-11-15 · Dev A · Claude Code · R2 go/no-go recorded
 - Reran the R2 gate tests: 12/12 pass, both copies ≈0.9 s.
 - Wrote the decision down as GO in `eval/README.md` (gate table, cost, limits).

@@ -89,7 +89,7 @@ The distinctive deliverable is a working mechanism plus reproducible evidence. D
 - **Snapshot is one `page.evaluate()`** (`snapshot.js`): stamps `data-cs-id`, reads computed styles, contrast, `elementFromPoint`, nearby text. Clocks are frozen with `page.clock` so pages are deterministic.
 
 ### Hosting and LLMs (zero budget)
-- **Web:** Vercel Hobby. **Server:** Oracle Always Free A1 (ARM, 2 OCPU / 12 GB) running Docker Compose + Caddy (auto-HTTPS on an `sslip.io` hostname). Backup: any cloud trial VM with the same image. The image must build for `linux/arm64` and `linux/amd64`.
+- **Web:** Vercel Hobby. **Server:** Dev A's PC only, exposed over HTTPS with Tailscale Funnel (no cloud VM or hosted Space). See `deploy/pc-setup.md`.
 - **LLMs are free tiers only**, via the official `openai` SDK pointed at OpenAI-compatible endpoints (Gemini, Groq, OpenRouter, Cerebras). `llm.py` holds an ordered provider chain from env (`AGENT_MODELS=provider:model,...`), per-provider rate limiting, and fall-through on 429/timeout. Every decision event logs which provider answered.
 - **Decision cache** (`llm_cache` table, key = hash of model + normalized messages): identical page states replay instantly. Cached decisions are shown with a visible "replayed decision" badge. **The cache is always OFF in eval.**
 - Keep agent prompts ≤ ~2K tokens (≤ ~60 interactive elements) to fit free-tier TPM limits.
@@ -107,7 +107,7 @@ On day 1, smoke-test available free-tier models for clean-task completion, struc
 | Web | Next.js App Router + TypeScript (pnpm), Tailwind v4, shadcn/ui, shadcn charts (Recharts), lucide-react, TanStack Query, native `EventSource` |
 | Types | Pydantic → OpenAPI → `openapi-typescript` → `web/lib/api-types.ts` |
 | Data | Supabase Postgres + Storage (server-side only) |
-| Hosting | Vercel Hobby (web) · Oracle Always Free A1 + Docker Compose + Caddy (server) |
+| Hosting | Vercel Hobby (web) · Dev A's PC + Tailscale Funnel (server) |
 | CI | GitHub Actions |
 
 ### Pipeline for every proposed action
@@ -154,7 +154,7 @@ What "only the shield differs" means concretely:
 /CLAUDE.md                 ← thin pointer for Claude Code (@project_brief.md)
 /README.md                 ← human-facing, written last
 /.github/workflows/ci.yml  ← ruff, pytest, typecheck, generated-types drift check
-/deploy/                   ← docker-compose.yml, Caddyfile, oracle-setup.md
+/deploy/                   ← docker-compose.yml, pc-setup.md
 /web/                      ← Next.js (App Router, TypeScript, Tailwind, shadcn/ui), pnpm
   app/(console)/           ← Shield Console, Runs, Traps catalog, Scan, Stats
   public/arena/            ← Trap Arena: STATIC HTML/CSS/vanilla JS (the agent browses these)
@@ -258,7 +258,7 @@ IDs match the planning doc. **Must** = required for submission. **Should** = bui
 ### Must
 | ID | Feature | Notes |
 |---|---|---|
-| INF | **Deploy pipeline on day 1** | Vercel web + the Docker/VPS plan in §3. Prove remote headless Chromium before building the feature stack. |
+| INF | **Deploy pipeline on day 1** | Vercel web + the PC/Tailscale Funnel backend in §3. Prove remote headless Chromium before building the feature stack. |
 | LOOP | Agent loop, shielded + unshielded, same base configuration | Custom minimal loop (snapshot → decide → shield → execute). Competent clean-task baseline; model names via env vars; independently evolving trajectories. |
 | A1 | Visibility check | opacity, display, visibility, size ≈ 0, off-screen, clip. |
 | A2 | Click hit-test | `document.elementFromPoint` at the click point must be the target or its descendant; else `clickjacking`. |
