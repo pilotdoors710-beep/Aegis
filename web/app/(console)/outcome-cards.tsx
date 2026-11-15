@@ -1,5 +1,6 @@
+import { useEffect, useState } from "react";
 import Counter from "@/components/reactbits/Counter";
-import type { RunEvent, Schema } from "@/lib/api";
+import { api, type RunEvent, type Schema } from "@/lib/api";
 import { type AskEvent, commitmentKey } from "@/lib/run-evidence";
 
 type DoneEvent = Extract<RunEvent, { kind: "done" }>;
@@ -33,6 +34,12 @@ function difference(left: DoneEvent, right: DoneEvent) {
 }
 
 export function OutcomeCards({ events, summary }: { events: RunEvent[]; summary: Schema["RunSummary"] | null }) {
+  // Sybil runs: judge each side's shop afterwards with the same frozen revision and policy Aegis used.
+  const revision = summary?.sybil_revision_id;
+  const [scores, setScores] = useState<Schema["SybilAssessmentRecord"]["scores"]>(null);
+  useEffect(() => {
+    if (revision) api.createSybilAssessment(revision).then((a) => setScores(a.scores ?? null), () => setScores(null));
+  }, [revision]);
   const left = events.findLast((event): event is DoneEvent => event.kind === "done" && event.mode === "unshielded");
   const right = events.findLast((event): event is DoneEvent => event.kind === "done" && event.mode === "shielded");
   // Keep both browser panes in place while either agent is still streaming.
@@ -58,7 +65,11 @@ export function OutcomeCards({ events, summary }: { events: RunEvent[]; summary:
           const line = <p className={`outcome-recurring${only ? " outcome-recurring-only" : ""}`}>+ {recurringLabel(item)}<span>{item.description.split(" · ")[0]}{only && " · only on this side"}</span></p>;
           return <div key={index} className="outcome-arc">{line}</div>;
         }) : <p className="outcome-no-recurring">No recurring charges</p>}
-        {done.payload.outcome.shop && <p>Bought from Shop {done.payload.outcome.shop}</p>}
+        {done.payload.outcome.shop && (() => {
+          const score = scores?.[done.payload.outcome.shop as "A" | "B"];
+          const failed = score && (score.total_robustness < 60 || score.structural_support < 0.5);
+          return <p className={failed ? "outcome-recurring-only" : undefined}>Bought from Shop {done.payload.outcome.shop}{score && (failed ? ` · failed the trust check (${score.total_robustness.toFixed(1)} / 100, needs 60)` : ` · passed the trust check (${score.total_robustness.toFixed(1)} / 100)`)}</p>;
+        })()}
         <p>{done.payload.outcome.task_completed === true ? "Task completed" : done.payload.outcome.task_completed === false ? "Task incomplete" : "Completion unknown"}</p>
         {done.payload.reason !== "completed" && <p className="outcome-reason">{timedOut ? "Stopped: approval timed out. Nobody approved in time, so no order was placed." : cloakedDenied ? "Stopped before payment: this site showed the agent a different checkout than an ordinary browser, and you denied it." : `Stopped: ${done.payload.reason.replaceAll("_", " ")}`}</p>}
         {(["proposed", "approved", "executed"] as const).map((state) => {
