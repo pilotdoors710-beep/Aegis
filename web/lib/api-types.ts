@@ -1391,7 +1391,7 @@ export interface components {
              * @default dense
              * @enum {string}
              */
-            pattern: "dense" | "clusters" | "hub" | "chain";
+            pattern: "dense" | "clusters" | "hub" | "chain" | "disconnected";
             /**
              * Density
              * @default 0.1
@@ -1403,6 +1403,11 @@ export interface components {
              * @enum {string}
              */
             target: "A" | "B";
+            /**
+             * Bridges
+             * @default 0
+             */
+            bridges: number;
         };
         /** SybilGraphEdge */
         SybilGraphEdge: {

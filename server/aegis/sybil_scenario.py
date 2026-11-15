@@ -211,7 +211,9 @@ def apply(base: BaseGraph, edits: SybilScenarioCreate) -> AppliedScenario:
     )
 
 
-def generate(dataset_id: str, config: SybilGenerate) -> SybilScenarioCreate:
+def generate(
+    dataset_id: str, config: SybilGenerate, base: BaseGraph | None = None
+) -> SybilScenarioCreate:
     """Bounded deterministic generation; rejection never silently clips dense attacks."""
     rng = random.Random(config.seed)
     nodes = tuple(f"sim:{config.seed}-{i}" for i in range(config.count))
@@ -235,9 +237,31 @@ def generate(dataset_id: str, config: SybilGenerate) -> SybilScenarioCreate:
                     raise ValueError(
                         "Generated attack exceeds 100,000 internal links; lower density"
                     )
+    cooperating = []
+    if config.bridges > 0 and base is not None:
+        anchors = set(base.anchors)
+        has_incoming = {v for _, v in base.graph.edges}
+        candidates = [
+            base.ids[i]
+            for i in range(len(base.ids))
+            if base.ids[i] not in anchors and i in has_incoming
+        ]
+        candidates.sort(key=lambda nid: (-base.graph.original_outdegree[base.index[nid]], nid))
+        if len(candidates) < config.bridges:
+            extra = [
+                base.ids[i]
+                for i in range(len(base.ids))
+                if base.ids[i] not in anchors and base.ids[i] not in candidates
+            ]
+            candidates.extend(extra)
+        for source in candidates[: config.bridges]:
+            bridge = SybilLink(source=source, target=nodes[0])
+            links.append(bridge)
+            cooperating.append(bridge)
     return SybilScenarioCreate(
         dataset_id=dataset_id,
         injected_nodes=nodes,
         added_links=tuple(links),
         recommendations=tuple(SybilRecommendation(website=v, shop=config.target) for v in nodes),
+        cooperating_links=tuple(cooperating),
     )

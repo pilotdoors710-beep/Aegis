@@ -194,19 +194,77 @@ export function SybilGraph({
       ctx.translate(width / 2 + x, height / 2 + y);
       ctx.scale(k, k);
       const lineScale = 1 / Math.max(k, 0.5);
-      for (const kind of ["observed", "simulated", "rec"] as const) {
-        ctx.beginPath();
-        for (const l of s.links) {
-          if (l.kind !== kind) continue;
+      // 1. Observed edges
+      ctx.beginPath();
+      for (const l of s.links) {
+        if (l.kind === "observed") {
           ctx.moveTo(l.source.x!, l.source.y!);
           ctx.lineTo(l.target.x!, l.target.y!);
         }
-        ctx.setLineDash(kind === "observed" ? [] : kind === "simulated" ? [5, 4] : [2, 4]);
-        ctx.strokeStyle = kind === "observed" ? palette.fg : kind === "simulated" ? "#d97745" : "#e8c59e";
-        ctx.globalAlpha = kind === "observed" ? 0.14 : 0.8;
-        ctx.lineWidth = (kind === "rec" ? 1.5 : 1) * lineScale;
-        ctx.stroke();
       }
+      ctx.setLineDash([]);
+      ctx.strokeStyle = palette.fg;
+      ctx.globalAlpha = 0.14;
+      ctx.lineWidth = 1 * lineScale;
+      ctx.stroke();
+
+      // 2. Simulated attack cluster edges (internal)
+      ctx.beginPath();
+      for (const l of s.links) {
+        if (l.kind === "simulated" && l.source.kind === "simulated" && l.target.kind === "simulated") {
+          ctx.moveTo(l.source.x!, l.source.y!);
+          ctx.lineTo(l.target.x!, l.target.y!);
+        }
+      }
+      ctx.setLineDash([5, 4]);
+      ctx.strokeStyle = "#d97745";
+      ctx.globalAlpha = 0.8;
+      ctx.lineWidth = 1 * lineScale;
+      ctx.stroke();
+
+      // 3. Bridge links (cooperating real-web domains into attack cluster)
+      ctx.beginPath();
+      for (const l of s.links) {
+        if (
+          l.kind === "simulated" &&
+          (l.source.kind === "observed" || l.target.kind === "observed")
+        ) {
+          ctx.moveTo(l.source.x!, l.source.y!);
+          ctx.lineTo(l.target.x!, l.target.y!);
+        }
+      }
+      ctx.setLineDash([4, 3]);
+      ctx.strokeStyle = "#38bdf8";
+      ctx.globalAlpha = 1.0;
+      ctx.lineWidth = 2 * lineScale;
+      ctx.stroke();
+
+      // 4. Recommendation links: Shop A (emerald) vs Shop B (coral/red)
+      ctx.beginPath();
+      for (const l of s.links) {
+        if (l.kind === "rec" && l.target.id === "shop:A") {
+          ctx.moveTo(l.source.x!, l.source.y!);
+          ctx.lineTo(l.target.x!, l.target.y!);
+        }
+      }
+      ctx.setLineDash([3, 3]);
+      ctx.strokeStyle = "#10b981";
+      ctx.globalAlpha = 0.9;
+      ctx.lineWidth = 1.5 * lineScale;
+      ctx.stroke();
+
+      ctx.beginPath();
+      for (const l of s.links) {
+        if (l.kind === "rec" && l.target.id === "shop:B") {
+          ctx.moveTo(l.source.x!, l.source.y!);
+          ctx.lineTo(l.target.x!, l.target.y!);
+        }
+      }
+      ctx.setLineDash([2, 4]);
+      ctx.strokeStyle = "#ef4444";
+      ctx.globalAlpha = 0.9;
+      ctx.lineWidth = 1.5 * lineScale;
+      ctx.stroke();
       ctx.setLineDash([]);
       ctx.globalAlpha = 1;
       const sel = s.selectedEdge;
@@ -236,10 +294,11 @@ export function SybilGraph({
           ctx.lineWidth = 2 * lineScale;
           ctx.stroke();
         } else if (n.kind === "shop") {
+          const isShopA = n.id === "shop:A";
           ctx.roundRect(n.x! - r * 1.6, n.y! - r, r * 3.2, r * 2, 4);
-          ctx.fillStyle = "#4a2414";
+          ctx.fillStyle = isShopA ? "#064e3b" : "#4a2414";
           ctx.fill();
-          ctx.strokeStyle = "#d9541e";
+          ctx.strokeStyle = isShopA ? "#10b981" : "#ef4444";
           ctx.lineWidth = 1.5 * lineScale;
           ctx.stroke();
           ctx.fillStyle = palette.fg;
@@ -491,7 +550,7 @@ export function SybilGraph({
         </button>
       </div>
       <p className={styles.graphLegend}>
-        ◇ trusted anchor · ● real website · <span>●</span> simulated website · ▭ shop · scroll to zoom, drag to pan
+        ◇ trusted anchor · ● real website · <span>●</span> attack cluster · <span style={{ color: "#38bdf8" }}>---</span> bridge link · <span style={{ color: "#10b981" }}>Shop A</span> · <span style={{ color: "#ef4444" }}>Shop B</span> · scroll to zoom, drag to pan
       </p>
     </div>
   );

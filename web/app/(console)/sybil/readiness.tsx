@@ -30,12 +30,20 @@ function NodeInspector({
   recommendations,
   outgoingCount,
   incomingCount,
+  isBridged,
+  canBridge,
+  busy,
+  onToggleBridge,
   onClose,
 }: {
   node: GraphNode;
   recommendations: Schema["SybilRecommendation"][];
   outgoingCount: number;
   incomingCount: number;
+  isBridged?: boolean;
+  canBridge?: boolean;
+  busy?: boolean;
+  onToggleBridge?: (nodeId: string) => void;
   onClose: () => void;
 }) {
   return (
@@ -82,6 +90,23 @@ function NodeInspector({
           </dd>
         </div>
       </dl>
+      {node.provenance === "observed" && !node.anchor && onToggleBridge && (
+        <div style={{ marginTop: "var(--s2)", paddingTop: "var(--s2)", borderTop: "1px solid var(--line)" }}>
+          <button
+            className={isBridged ? "secondary-button" : "primary-button"}
+            disabled={busy || (!isBridged && !canBridge)}
+            onClick={() => onToggleBridge(node.id)}
+            style={{ width: "100%" }}
+          >
+            {isBridged ? "Disconnect real-web bridge (-2 credits)" : "Bridge to attack (+2 credits)"}
+          </button>
+          <p style={{ color: "var(--muted)", fontSize: "0.75rem", marginTop: "var(--s1)" }}>
+            {isBridged
+              ? "This real website has a cooperating link pointing into the attack cluster (costs 2 credits)."
+              : "Creates a cooperating link from this real website into the attack cluster (costs 2 credits)."}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -207,6 +232,7 @@ export function SybilReadiness() {
     "disconnected" | "dense" | "clusters" | "hub" | "chain"
   >("disconnected");
   const [density, setDensity] = useState(0.1);
+  const [bridges, setBridges] = useState(0);
   const [revision, setRevision] = useState<Revision | null>(null);
   const [view, setView] = useState<GraphView | null>(null);
   const [assessment, setAssessment] = useState<Assessment | null>(null);
@@ -329,31 +355,53 @@ export function SybilReadiness() {
     setError(null);
     setAssessment(null);
     try {
-      const nodes = Array.from({ length: count }, (_, i) => `sim:judge-${i}`);
-      const next =
-        pattern === "disconnected"
-          ? await api.createSybilScenario({
-              dataset_id: dataset.dataset_id,
-              mode: "challenge",
-              injected_nodes: nodes,
-              added_links: [],
-              removed_links: [],
-              removed_recommendations: [],
-              compromised: [],
-              cooperating_links: [],
-              restart: 0.15,
-              recommendations: nodes.map((website) => ({ website, shop: target })),
-            })
-          : await api.generateSybilScenario(dataset.dataset_id, {
-              count,
-              seed: 1,
-              pattern,
-              density,
-              target,
-            });
+      const next = await api.generateSybilScenario(dataset.dataset_id, {
+        count,
+        seed: 1,
+        pattern,
+        density,
+        target,
+        bridges,
+      });
       await showRevision(next);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Scenario creation failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function toggleBridge(nodeId: string) {
+    if (!revision) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const isBridged = revision.edits.cooperating_links.some((l) => l.source === nodeId);
+      const targetNode = revision.edits.injected_nodes[0] || "sim:1-0";
+      let updatedCoop: Schema["SybilLink"][];
+      let updatedAdded: Schema["SybilLink"][];
+
+      if (isBridged) {
+        updatedCoop = revision.edits.cooperating_links.filter((l) => l.source !== nodeId);
+        updatedAdded = revision.edits.added_links.filter(
+          (l) => !(l.source === nodeId && l.target === targetNode),
+        );
+      } else {
+        const bridge = { source: nodeId, target: targetNode };
+        updatedCoop = [...revision.edits.cooperating_links, bridge];
+        updatedAdded = [...revision.edits.added_links, bridge];
+      }
+
+      const nextEdits: Schema["SybilScenarioCreate"] = {
+        ...revision.edits,
+        cooperating_links: updatedCoop,
+        added_links: updatedAdded,
+      };
+
+      const next = await api.createSybilScenario(nextEdits);
+      await showRevision(next);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Toggling bridge failed.");
     } finally {
       setBusy(false);
     }
@@ -549,6 +597,21 @@ export function SybilReadiness() {
                 showValue
               />
             </label>
+            <label>
+              Real-web bridge links ({bridges * 2} / 25 credits)
+              <input
+                type="range"
+                min="0"
+                max="12"
+                step="1"
+                value={bridges}
+                onChange={(event) => setBridges(Number(event.target.value))}
+                disabled={!ready || busy}
+              />
+              <span>
+                {bridges} {bridges === 1 ? "bridge" : "bridges"} ({bridges * 2} credits)
+              </span>
+            </label>
             <button className="primary-button" disabled={!ready || busy}>
               {busy ? "Creating…" : "Create revision"}
             </button>
@@ -612,6 +675,10 @@ export function SybilReadiness() {
               recommendations={nodeRecommendations}
               outgoingCount={outgoingCount}
               incomingCount={incomingCount}
+              isBridged={revision?.edits.cooperating_links.some((l) => l.source === selectedNode.id)}
+              canBridge={(revision?.budget.external_credits ?? 0) + 2 <= 25}
+              busy={busy}
+              onToggleBridge={toggleBridge}
               onClose={() => setSelectedNodeId(null)}
             />
           ) : selectedEdge ? (

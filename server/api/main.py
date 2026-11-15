@@ -212,7 +212,7 @@ async def generate_sybil_scenario(dataset_id: str, body: SybilGenerate):
     if dataset.base.dataset_id != dataset_id:
         raise HTTPException(404, "Sybil dataset not found")
     try:
-        revision = _sybil.create(dataset, generate(dataset_id, body)).revision
+        revision = _sybil.create(dataset, generate(dataset_id, body, dataset.base)).revision
     except ValueError as error:
         raise HTTPException(422, str(error)) from error
     try:

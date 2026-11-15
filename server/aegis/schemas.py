@@ -95,9 +95,10 @@ class SybilGenerate(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid", allow_inf_nan=False)
     count: int = Field(default=100, ge=10, le=1000)
     seed: int = Field(default=1, ge=0, le=2**32 - 1)
-    pattern: Literal["dense", "clusters", "hub", "chain"] = "dense"
+    pattern: Literal["dense", "clusters", "hub", "chain", "disconnected"] = "dense"
     density: float = Field(default=0.1, ge=0, le=1)
     target: Literal["A", "B"] = "B"
+    bridges: int = Field(default=0, ge=0, le=12)
 
 
 class SybilExtractionParameters(BaseModel):

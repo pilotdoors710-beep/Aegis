@@ -166,3 +166,11 @@ def test_research_settings_reach_engine_without_ownership(base):
     score = assess_scenario(base, scenario).scores["A"]
     assert score.total == pytest.approx(100 * score.support)
     assert assess_scenario(base, scenario).scores["B"].total == 0
+
+
+def test_generation_with_bridges(base):
+    config = SybilGenerate(count=10, seed=1, pattern="dense", bridges=2)
+    attack = generate("test", config, base)
+    scenario = apply(base, attack)
+    assert scenario.revision.budget.external_credits == 4
+    assert len(scenario.revision.edits.cooperating_links) == 2
