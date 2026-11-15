@@ -22,6 +22,12 @@ Template:
 
 ## Log
 
+### 2026-11-15 · Dev A · Claude Code · Sybil scores actually work
+- Both shops scored 0.0 because no real website recommended either. Added a fixed baseline: 12 real sites recommend Shop A (93.0), 1 real site recommends Shop B (44.8). 300 fake sites for B: count 301, score still 44.8.
+- Arena shop cards now show the frozen revision's real counts (`recs=A:12,B:301`) instead of hardcoded 12/50. "Purchased from Shop X" is no longer an add-on.
+- Compare now runs right under the scores on /sybil; runs link back via `/sybil?revision=...`; outcome cards say which shop each side bought from. Keyboard graph table removed (user asked).
+- Old Sybil revisions now return 409 (scored before the baseline). `test_enabled_preview_does_not_claim_imported_data` fails on a PC with real data (was already failing).
+
 ### 2026-11-15 · Dev A · Claude Code · Sybil page UI
 - Removed the big Sybil header; scores + Compare now sit right under the graph; the JSON editor is folded into "Advanced" at the bottom.
 - Graph is now a canvas with spring physics (d3-force): scroll/buttons to zoom, drag to pan or move sites, Full screen, Fit, Reset layout (glides sites back to where they were before the first drag). Export is PNG now.
