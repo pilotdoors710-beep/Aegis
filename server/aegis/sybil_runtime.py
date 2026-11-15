@@ -5,6 +5,7 @@ import hashlib
 import logging
 import math
 import multiprocessing
+import time
 from collections import Counter
 from collections.abc import Awaitable, Callable
 from concurrent.futures import ProcessPoolExecutor
@@ -13,12 +14,16 @@ from pathlib import Path
 
 from aegis.schemas import (
     SybilAssessmentRecord,
+    SybilCounterfactualResult,
     SybilGraphEdge,
+    SybilGraphEvidence,
     SybilGraphNode,
     SybilGraphView,
     SybilLink,
     SybilRecommendation,
     SybilScenarioCreate,
+    SybilScoreDelta,
+    SybilShopEvidence,
     SybilShopScore,
 )
 from aegis.sybil import FORMULA_VERSION
@@ -80,6 +85,82 @@ def calculate_assessment(directory: str, edits_json: str) -> dict:
 
 def assessment_identity(revision_id: str) -> str:
     return hashlib.sha256(f"{FORMULA_VERSION}:{revision_id}".encode()).hexdigest()
+
+
+def graph_evidence(assessment: SybilAssessmentRecord) -> SybilGraphEvidence:
+    if assessment.status != "complete" or assessment.scores is None:
+        raise ValueError("A complete converged assessment is required for graph evidence")
+    return SybilGraphEvidence(
+        revision_id=assessment.revision_id,
+        assessment_id=assessment.id,
+        shops={
+            shop: SybilShopEvidence(
+                recommendation_count=score.recommendation_count,
+                structural_support=score.structural_support,
+                anchor_breadth=score.anchor_breadth,
+                anchor_withdrawal_resilience=score.anchor_withdrawal_resilience,
+                tested_connection_resilience=score.tested_connection_resilience,
+                total_robustness=score.total_robustness,
+                policy_passed=(
+                    score.total_robustness >= 60 and score.structural_support >= 0.5
+                ),
+            )
+            for shop, score in assessment.scores.items()
+        },
+    )
+
+
+def calculate_counterfactual(
+    directory: str,
+    baseline_json: str,
+    counterfactual_json: str,
+    baseline_assessment_json: str | None = None,
+) -> dict:
+    """Process-pool entrypoint for revision-correct score and rank deltas."""
+    started = time.perf_counter()
+    before = (
+        SybilAssessmentRecord.model_validate_json(baseline_assessment_json).model_dump(mode="json")
+        if baseline_assessment_json
+        else calculate_assessment(directory, baseline_json)
+    )
+    after = calculate_assessment(directory, counterfactual_json)
+    before_scores, after_scores = before.get("scores"), after.get("scores")
+    elapsed_ms = (time.perf_counter() - started) * 1000
+    if before_scores is None or after_scores is None:
+        return SybilCounterfactualResult(
+            baseline_revision_id=before["revision_id"],
+            counterfactual_revision_id=after["revision_id"],
+            status="unavailable",
+            elapsed_ms=elapsed_ms,
+            reason="Both revisions must converge before deltas are available.",
+        ).model_dump(mode="json")
+
+    def rank(scores: dict, shop: str) -> int:
+        total = scores[shop]["total_robustness"]
+        return 1 + sum(score["total_robustness"] > total for score in scores.values())
+
+    deltas = {}
+    for shop in ("A", "B"):
+        old, new = before_scores[shop], after_scores[shop]
+        deltas[shop] = SybilScoreDelta(
+            trust_weighted_support=new["trust_weighted_support"]
+            - old["trust_weighted_support"],
+            structural_support=new["structural_support"] - old["structural_support"],
+            anchor_breadth=new["anchor_breadth"] - old["anchor_breadth"],
+            anchor_withdrawal_resilience=new["anchor_withdrawal_resilience"]
+            - old["anchor_withdrawal_resilience"],
+            tested_connection_resilience=new["tested_connection_resilience"]
+            - old["tested_connection_resilience"],
+            total_robustness=new["total_robustness"] - old["total_robustness"],
+            rank=rank(after_scores, shop) - rank(before_scores, shop),
+        )
+    return SybilCounterfactualResult(
+        baseline_revision_id=before["revision_id"],
+        counterfactual_revision_id=after["revision_id"],
+        status="complete",
+        elapsed_ms=elapsed_ms,
+        deltas=deltas,
+    ).model_dump(mode="json")
 
 
 class SybilRuntime:
@@ -186,6 +267,43 @@ class SybilRuntime:
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)
         return record
+
+    async def counterfactual(
+        self, directory: str, baseline: AppliedScenario, proposed: AppliedScenario
+    ) -> SybilCounterfactualResult:
+        if self._executor is None:
+            self._executor = ProcessPoolExecutor(
+                max_workers=1, mp_context=multiprocessing.get_context("spawn")
+            )
+        async with self._worker_slot:
+            assert self._executor is not None
+            started = time.perf_counter()
+            try:
+                baseline_assessment = self.assessments.get(
+                    assessment_identity(baseline.revision.id)
+                )
+                raw = await asyncio.get_running_loop().run_in_executor(
+                    self._executor,
+                    calculate_counterfactual,
+                    directory,
+                    baseline.revision.edits.model_dump_json(),
+                    proposed.revision.edits.model_dump_json(),
+                    (
+                        baseline_assessment.model_dump_json()
+                        if baseline_assessment is not None
+                        and baseline_assessment.status == "complete"
+                        else None
+                    ),
+                )
+            except Exception as error:
+                return SybilCounterfactualResult(
+                    baseline_revision_id=baseline.revision.id,
+                    counterfactual_revision_id=proposed.revision.id,
+                    status="unavailable",
+                    elapsed_ms=(time.perf_counter() - started) * 1000,
+                    reason=f"Counterfactual worker failed: {type(error).__name__}",
+                )
+        return SybilCounterfactualResult.model_validate(raw)
 
     async def _run(self, directory: str, scenario: AppliedScenario, assessment_id: str) -> None:
         async with self._worker_slot:

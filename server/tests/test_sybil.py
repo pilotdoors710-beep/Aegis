@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from aegis.sybil import Config, Graph, assess, reference_scale
+from aegis.sybil import Config, Graph, _without_edge_transition, assess, reference_scale
 
 
 def test_direction_sink_deduplication_and_dense_reference():
@@ -44,6 +44,19 @@ def test_anchor_decomposition_withdrawal_and_connection_intervention():
     assert score.tested_edges == ((2, 3),)
     assert graph.edges == ((0, 2), (1, 2), (2, 3))
     assert 0 <= score.total <= 100
+
+
+@pytest.mark.parametrize(
+    ("graph", "edge"),
+    [
+        (Graph(3, ((0, 1),), (1, 0, 0)), (0, 1)),
+        (Graph(3, ((0, 1), (0, 2)), (3, 0, 0)), (0, 1)),
+    ],
+)
+def test_fast_edge_removal_matches_graph_rebuild(graph, edge):
+    expected = graph.without(edge).transition().toarray()
+    actual = _without_edge_transition(graph.transition(), graph, edge).toarray()
+    np.testing.assert_allclose(actual, expected)
 
 
 def test_single_anchor_dependence_and_frozen_normalization():

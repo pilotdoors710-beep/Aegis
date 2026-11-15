@@ -39,6 +39,14 @@
 .anchorNode { fill: var(--bg); stroke: #e8c59e; stroke-width: 2; }
 .nodeTable { width: 100%; text-align: left; }
 .nodeTable summary { cursor: pointer; }
+.editor { display: grid; gap: var(--s3); padding: var(--s4) 0; border-top: 1px solid var(--line); }
+.editorHead { display: flex; justify-content: space-between; gap: var(--s3); align-items: start; }
+.editorHead p { color: var(--muted); font-size: .875rem; margin-top: var(--s1); }
+.actions { display: flex; flex-wrap: wrap; gap: var(--s1); }
+.jsonLabel { display: grid; gap: var(--s1); color: var(--muted); font-size: .82rem; }
+.jsonLabel textarea { width: 100%; min-height: 220px; resize: vertical; border: 1px solid var(--line); padding: var(--s2); background: var(--bg); color: var(--fg); font: .78rem/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.delta { border-left: 3px solid var(--accent); padding-left: var(--s2); }
+.delta p + p { margin-top: var(--s1); }
 .tableScroll { max-height: 280px; overflow: auto; margin-top: var(--s1); }
 .tableScroll table { width: 100%; border-collapse: collapse; font-size: .78rem; }
 .tableScroll th, .tableScroll td { padding: var(--s1); border-bottom: 1px solid var(--line); text-align: left; }
@@ -49,4 +57,4 @@
   .workspace > section + section { border-top: 1px solid var(--line); }
   .empty { min-height: 260px; }
 }
-@media (max-width: 600px) { .comparison { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .comparison { grid-template-columns: 1fr; } .editorHead { flex-direction: column; } }

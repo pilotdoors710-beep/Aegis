@@ -207,6 +207,52 @@ class SybilAssessmentRecord(BaseModel):
     reason: str | None = None
 
 
+class SybilScoreDelta(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid", allow_inf_nan=False)
+    trust_weighted_support: float
+    structural_support: float
+    anchor_breadth: float
+    anchor_withdrawal_resilience: float
+    tested_connection_resilience: float
+    total_robustness: float
+    rank: int = Field(ge=-1, le=1)
+
+
+class SybilCounterfactualResult(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid", allow_inf_nan=False)
+    baseline_revision_id: str = Field(pattern=r"^[a-f0-9]{64}$")
+    counterfactual_revision_id: str = Field(pattern=r"^[a-f0-9]{64}$")
+    status: Literal["complete", "unavailable"]
+    elapsed_ms: float = Field(ge=0)
+    deltas: dict[Literal["A", "B"], SybilScoreDelta] | None = None
+    reason: str | None = None
+
+
+class SybilShopEvidence(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid", allow_inf_nan=False)
+    recommendation_count: int = Field(ge=0)
+    structural_support: float = Field(ge=0, le=1)
+    anchor_breadth: float = Field(ge=0, le=1)
+    anchor_withdrawal_resilience: float = Field(ge=0, le=1)
+    tested_connection_resilience: float = Field(ge=0, le=1)
+    total_robustness: float = Field(ge=0, le=100)
+    policy_passed: bool
+
+
+class SybilGraphEvidence(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    revision_id: str = Field(pattern=r"^[a-f0-9]{64}$")
+    assessment_id: str = Field(pattern=r"^[a-f0-9]{64}$")
+    formula_version: Literal["sybil-v1"] = "sybil-v1"
+    minimum_total: float = 60
+    minimum_support: float = 0.5
+    shops: dict[Literal["A", "B"], SybilShopEvidence]
+    disclosure: str = (
+        "A heuristic measure of structural support and tested sensitivity. "
+        "Not a probability that this shop is safe."
+    )
+
+
 TrapType = Literal[
     "hidden_info",
     "preselection",

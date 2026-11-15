@@ -123,6 +123,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sybil/scenarios/{revision_id}/counterfactuals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Sybil Counterfactual */
+        post: operations["create_sybil_counterfactual_sybil_scenarios__revision_id__counterfactuals_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -1295,6 +1312,26 @@ export interface components {
              */
             credit_limit: number;
         };
+        /** SybilCounterfactualResult */
+        SybilCounterfactualResult: {
+            /** Baseline Revision Id */
+            baseline_revision_id: string;
+            /** Counterfactual Revision Id */
+            counterfactual_revision_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "complete" | "unavailable";
+            /** Elapsed Ms */
+            elapsed_ms: number;
+            /** Deltas */
+            deltas?: {
+                [key: string]: components["schemas"]["SybilScoreDelta"];
+            } | null;
+            /** Reason */
+            reason?: string | null;
+        };
         /**
          * SybilDatasetStatus
          * @description Readiness is separate from the eventual validated artifact manifest.
@@ -1508,6 +1545,23 @@ export interface components {
              * @default sybil-challenge-v1
              */
             policy_version: string;
+        };
+        /** SybilScoreDelta */
+        SybilScoreDelta: {
+            /** Trust Weighted Support */
+            trust_weighted_support: number;
+            /** Structural Support */
+            structural_support: number;
+            /** Anchor Breadth */
+            anchor_breadth: number;
+            /** Anchor Withdrawal Resilience */
+            anchor_withdrawal_resilience: number;
+            /** Tested Connection Resilience */
+            tested_connection_resilience: number;
+            /** Total Robustness */
+            total_robustness: number;
+            /** Rank */
+            rank: number;
         };
         /** SybilShopScore */
         SybilShopScore: {
@@ -1959,6 +2013,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SybilAssessmentRecord"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_sybil_counterfactual_sybil_scenarios__revision_id__counterfactuals_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                revision_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SybilScenarioCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SybilCounterfactualResult"];
                 };
             };
             /** @description Validation Error */

@@ -8,6 +8,13 @@ type Dataset = Schema["SybilDatasetStatus"];
 type Revision = Schema["SybilScenarioRevision"];
 type GraphView = Schema["SybilGraphView"];
 type Assessment = Schema["SybilAssessmentRecord"];
+type Counterfactual = Schema["SybilCounterfactualResult"];
+
+function download(name: string, content: string, type: string) {
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  const link = document.createElement("a");
+  link.href = url; link.download = name; link.click(); URL.revokeObjectURL(url);
+}
 
 function GraphPreview({ view }: { view: GraphView }) {
   const plotted = useMemo(() => {
@@ -23,7 +30,7 @@ function GraphPreview({ view }: { view: GraphView }) {
   }, [view.nodes]);
   const shops = { A: { x: 750, y: 105 }, B: { x: 750, y: 245 } };
   return <>
-    <svg className={styles.graph} viewBox="0 0 800 340" role="img" aria-label={`Graph subset with ${view.displayed_nodes} websites and ${view.displayed_edges} links`}>
+    <svg id="sybil-graph" className={styles.graph} viewBox="0 0 800 340" role="img" aria-label={`Graph subset with ${view.displayed_nodes} websites and ${view.displayed_edges} links`}>
       <g className={styles.observedEdges}>{view.edges.slice(0, 1000).map((edge) => {
         const source = plotted.get(edge.source), target = plotted.get(edge.target);
         return source && target ? <line key={`${edge.source}-${edge.target}`} x1={source.px} y1={source.py} x2={target.px} y2={target.py} className={edge.provenance === "simulated" ? styles.simulatedEdge : undefined} /> : null;
@@ -48,6 +55,15 @@ function Score({ shop, assessment }: { shop: "A" | "B"; assessment: Assessment |
   </div>;
 }
 
+function ScoreDeltas({ result }: { result: Counterfactual }) {
+  const deltas = result.deltas;
+  if (!deltas) return null;
+  return <div>{(["A", "B"] as const).map((shop) => {
+    const delta = deltas[shop];
+    return <p key={shop}>Shop {shop}: total {delta.total_robustness.toFixed(1)} · support {(delta.structural_support * 100).toFixed(1)} points · rank {delta.rank > 0 ? "+" : ""}{delta.rank}</p>;
+  })}</div>;
+}
+
 export function SybilReadiness() {
   const [datasets, setDatasets] = useState<Dataset[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +75,10 @@ export function SybilReadiness() {
   const [revision, setRevision] = useState<Revision | null>(null);
   const [view, setView] = useState<GraphView | null>(null);
   const [assessment, setAssessment] = useState<Assessment | null>(null);
+  const [counterfactual, setCounterfactual] = useState<Counterfactual | null>(null);
+  const [draft, setDraft] = useState("");
+  const [history, setHistory] = useState<Revision[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
@@ -78,6 +98,21 @@ export function SybilReadiness() {
   const dataset = datasets?.[0];
   const ready = dataset?.status === "available" && Boolean(dataset.dataset_id);
 
+  async function showRevision(next: Revision, remember = true) {
+    setBusy(true); setError(null); setAssessment(null); setCounterfactual(null);
+    try {
+      const [nextView, job] = await Promise.all([api.sybilView(next.id), api.createSybilAssessment(next.id)]);
+      setRevision(next); setView(nextView); setAssessment(job);
+      setDraft(JSON.stringify(next.edits, null, 2));
+      if (remember) {
+        const nextHistory = [...history.slice(0, historyIndex + 1), next];
+        setHistory(nextHistory); setHistoryIndex(nextHistory.length - 1);
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Revision loading failed.");
+    } finally { setBusy(false); }
+  }
+
   async function createScenario(event: FormEvent) {
     event.preventDefault();
     if (!dataset?.dataset_id) return;
@@ -94,12 +129,53 @@ export function SybilReadiness() {
         : await api.generateSybilScenario(dataset.dataset_id, {
           count, seed: 1, pattern, density, target,
         });
-      setRevision(next);
-      const [nextView, job] = await Promise.all([api.sybilView(next.id), api.createSybilAssessment(next.id)]);
-      setView(nextView); setAssessment(job);
+      await showRevision(next);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Scenario creation failed.");
     } finally { setBusy(false); }
+  }
+
+  function parseDraft() {
+    return JSON.parse(draft) as Schema["SybilScenarioCreate"];
+  }
+
+  async function applyDraft() {
+    setBusy(true); setError(null);
+    try { await showRevision(await api.createSybilScenario(parseDraft())); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "Scenario edit failed."); }
+    finally { setBusy(false); }
+  }
+
+  async function previewDraft() {
+    if (!revision) return;
+    setBusy(true); setError(null); setCounterfactual(null);
+    try { setCounterfactual(await api.sybilCounterfactual(revision.id, parseDraft())); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "Counterfactual failed."); }
+    finally { setBusy(false); }
+  }
+
+  async function moveHistory(nextIndex: number) {
+    const next = history[nextIndex];
+    if (!next) return;
+    await showRevision(next, false); setHistoryIndex(nextIndex);
+  }
+
+  function exportScenario() {
+    if (revision) download(`sybil-${revision.id.slice(0, 12)}.json`, JSON.stringify({ revision, assessment }, null, 2), "application/json");
+  }
+
+  function exportScores() {
+    if (!assessment?.scores) return;
+    const rows = ["shop,total,structural_support,anchor_breadth,anchor_withdrawal,tested_connections,recommendations"];
+    for (const shop of ["A", "B"] as const) { const score = assessment.scores[shop]; rows.push([shop, score.total_robustness, score.structural_support, score.anchor_breadth, score.anchor_withdrawal_resilience, score.tested_connection_resilience, score.recommendation_count].join(",")); }
+    download(`sybil-${revision?.id.slice(0, 12)}-scores.csv`, rows.join("\n"), "text/csv");
+  }
+
+  function exportGraph() {
+    const graph = document.getElementById("sybil-graph");
+    if (!graph) return;
+    const copy = graph.cloneNode(true) as SVGElement; copy.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    download(`sybil-${revision?.id.slice(0, 12)}-graph.svg`, new XMLSerializer().serializeToString(copy), "image/svg+xml");
   }
 
   return <div className={styles.page}>
@@ -111,6 +187,7 @@ export function SybilReadiness() {
       <section className={styles.empty} aria-labelledby="graph-title">{!view ? <><h2 id="graph-title">{ready ? "Create a scenario" : "Real graph unavailable"}</h2><p>{dataset?.reason ?? "Waiting for the dataset service."}</p></> : <><h2 id="graph-title">Topology subset</h2><p>Displaying {view.displayed_nodes.toLocaleString()} of {view.total_nodes.toLocaleString()} nodes and {view.displayed_edges.toLocaleString()} of {view.total_edges.toLocaleString()} links.</p><GraphPreview view={view} /></>}</section>
       <section aria-labelledby="evidence-title"><h2 id="evidence-title">Evidence inspector</h2><p>{assessment?.status === "complete" ? `Converged in ${assessment.iterations} iterations (${assessment.elapsed_ms?.toFixed(0)} ms).` : assessment?.reason ?? "Create a revision to calculate evidence."}</p><details className={styles.formula}><summary>Inspect the score formula</summary><p><code>R = 100S (0.40 + 0.20D + 0.20L + 0.20E)</code></p><dl><dt>S · Structural support</dt><dd>Trust mass normalized with the frozen dataset scale.</dd><dt>D · Anchor breadth</dt><dd>How widely support is distributed across curated anchors.</dd><dt>L · Anchor withdrawal</dt><dd>Support retained without the strongest starting source.</dd><dt>E · Tested connections</dt><dd>Support retained after each of up to five influential links is removed.</dd></dl><p>Formula sybil-v1 · restart 0.15.</p></details></section>
     </div>
+    {revision && <section className={styles.editor} aria-labelledby="editor-title"><div className={styles.editorHead}><div><h2 id="editor-title">Revision editor</h2><p>Advanced mode accepts the complete permitted edit set. The server recalculates budgets and rejects forbidden edits.</p></div><div className={styles.actions}><button className="secondary-button" disabled={busy || historyIndex <= 0} onClick={() => void moveHistory(historyIndex - 1)}>Undo</button><button className="secondary-button" disabled={busy || historyIndex >= history.length - 1} onClick={() => void moveHistory(historyIndex + 1)}>Redo</button><button className="secondary-button" disabled={busy} onClick={() => setDraft(JSON.stringify(revision.edits, null, 2))}>Reset draft</button></div></div><label className={styles.jsonLabel}>Active edit set (JSON)<textarea value={draft} onChange={(event) => setDraft(event.target.value)} spellCheck={false} disabled={busy} /></label><div className={styles.actions}><button className="secondary-button" disabled={busy} onClick={() => void previewDraft()}>Preview score delta</button><button className="primary-button" disabled={busy} onClick={() => void applyDraft()}>Create immutable revision</button><button className="secondary-button" onClick={exportScenario}>Export JSON</button><button className="secondary-button" disabled={!assessment?.scores} onClick={exportScores}>Export score CSV</button><button className="secondary-button" disabled={!view} onClick={exportGraph}>Export graph SVG</button></div>{counterfactual && <div className={styles.delta} aria-live="polite"><p><strong>Counterfactual:</strong> {counterfactual.status} in {counterfactual.elapsed_ms.toFixed(0)} ms</p><ScoreDeltas result={counterfactual} />{counterfactual.reason && <p>{counterfactual.reason}</p>}</div>}</section>}
     <section className={styles.comparison} aria-label="Shop comparison"><Score shop="A" assessment={assessment} /><Score shop="B" assessment={assessment} /><div><button className="primary-button" disabled aria-describedby="comparison-reason" aria-label="Run agent comparison">Compare</button><p id="comparison-reason">Marketplace and frozen-run integration are the next release stage.</p></div></section>
     <p className={styles.disclosure}>A heuristic measure of structural support and tested sensitivity. Not a probability that this shop is safe.</p>
   </div>;

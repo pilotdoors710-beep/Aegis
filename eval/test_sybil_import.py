@@ -28,7 +28,9 @@ def test_preflight_budget_free_space_and_resume(tmp_path):
 def test_metadata_requests_retry_network_failures():
     response = object()
     with (
-        patch.object(module, "urlopen", side_effect=[module.URLError("offline"), response]),
+        patch.object(
+            module, "urlopen", side_effect=[module.URLError("offline"), response]
+        ),
         patch.object(module.time, "sleep") as sleep,
     ):
         assert module.open_with_retry("https://example.test/manifest", 1) is response
@@ -41,8 +43,9 @@ def test_unconfirmed_resume_preserves_file(tmp_path):
     response = io.BytesIO(b"5678")
     response.status = 200
     response.headers = {}
-    with patch.object(module, "urlopen", return_value=response), pytest.raises(
-        ValueError, match="resume range"
+    with (
+        patch.object(module, "urlopen", return_value=response),
+        pytest.raises(ValueError, match="resume range"),
     ):
         module.download("https://example.test/graph", target, 8)
     assert target.read_bytes() == b"1234"
@@ -96,3 +99,27 @@ def test_short_confirmed_range_resumes_at_actual_server_end(tmp_path):
         "bytes=4-7",
     ]
     assert (tmp_path / "graph").read_bytes() == b"12345678"
+
+
+def test_s3_single_part_identity_rejects_self_hashed_corruption(tmp_path):
+    target = tmp_path / "graph"
+    target.write_bytes(b"trusted")
+    etag = module.hashlib.md5(b"trusted").hexdigest()
+    module.verify_s3_etag(target, etag, target.stat().st_size)
+    target.write_bytes(b"corrupt")
+    with pytest.raises(ValueError, match="remote S3 object identity mismatch"):
+        module.verify_s3_etag(target, etag, target.stat().st_size)
+
+
+def test_s3_multipart_identity(tmp_path):
+    target = tmp_path / "graph"
+    part = b"a" * (5 * module.MIB)
+    tail = b"tail"
+    target.write_bytes(part + tail)
+    etag = (
+        module.hashlib.md5(
+            module.hashlib.md5(part).digest() + module.hashlib.md5(tail).digest()
+        ).hexdigest()
+        + "-2"
+    )
+    module.verify_s3_etag(target, etag, target.stat().st_size)

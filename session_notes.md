@@ -25,6 +25,27 @@ Template:
 ### 2026-11-15 · Dev A · Claude Code · rebased UI overhaul onto Codex's Sybil work
 - Rebased "ui overhaul" onto 4 new Codex commits. Kept all new Sybil playground features (scenario form, graph preview, score polling) and restyled them flat to match the overhaul (no cards or icons, `--sN` tokens).
 - Typecheck and lint pass. Pushed to `main`.
+### 2026-11-15 · Codex · Sybil revision editor and counterfactuals
+- Added revision-bound counterfactual score, component and rank deltas through the shared numerical worker.
+- Added arbitrary validated edit JSON, undo/redo/reset, and JSON, score CSV and graph SVG exports to the gated playground.
+- Added bounded graph evidence with the frozen revision and both policy thresholds; shielded agents can receive it in a trusted prompt section while legacy runs stay unchanged.
+- Regenerated API types and expanded the browser check for editing, deltas, history and downloads.
+- Optimized million-edge scenario application from about 2.9 seconds to 0.24 seconds; a warm-baseline real counterfactual measured 1.54 seconds.
+- Checks pass: 223 backend tests (1 skipped), Ruff, 18 web tests, web types, lint, production build and the Chrome Sybil workflow.
+- Next: add the rich graph inspector and evidence contract, then build the frozen two-shop agent integration. The public feature stays disabled.
+
+### 2026-11-15 · Codex · Sybil implementation progress audit
+- Reviewed the current workspace against the staged Sybil plan; no application code changed.
+- Stage 1 is complete locally, Stage 2 is a partial playground, and Stage 3 agent integration has not started.
+- The focused Sybil suite passes: 58 tests in 3.32 seconds using the existing server virtual environment.
+- Next: finish the judge playground, apply the database migration, package and deploy the artifact, then build and verify the two-shop agent comparison.
+
+### 2026-11-15 · Codex · Sybil real-data extraction and benchmark
+- Repaired one corrupt resumed graph file after its remote S3 identity failed, then verified all five Common Crawl source objects and local hashes.
+- Built the full 50,000-node / 1,000,000-edge artifact with the official WebGraph tool and passed strict artifact loading.
+- Added a repeatable real-data benchmark and kept the slow baseline. Sparse transition and edge tests now meet the measured p95 targets without changing the score.
+- Checks pass: 58 focused Sybil tests, Ruff, the five-run benchmark and the full backend suite (219 passed, 1 skipped).
+- Next: package the ignored artifact with the backend, apply the Sybil database migration, then continue agent integration. The public feature stays disabled.
 
 ### 2026-11-16 · Codex · Sybil scenario and assessment slice
 - Added typed immutable scenario, bounded graph-view and assessment APIs with one background numerical process, a queue limit and durable database records.

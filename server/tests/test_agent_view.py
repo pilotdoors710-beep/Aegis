@@ -1,9 +1,36 @@
 from playwright.async_api import Page
 
-from aegis.agent import build_agent_view, render_agent_view
+from aegis.agent import AgentView, build_agent_view, build_messages, render_agent_view
+from aegis.schemas import SybilGraphEvidence, SybilShopEvidence
 from aegis.snapshot import take_snapshot
 
 DETECTOR_ONLY = ("download", "opacity", "contrast_ratio", "occluded_by", "visible", "bbox")
+
+
+def test_graph_evidence_is_separate_from_untrusted_page_content() -> None:
+    score = SybilShopEvidence(
+        recommendation_count=3,
+        structural_support=0.6,
+        anchor_breadth=0.7,
+        anchor_withdrawal_resilience=0.8,
+        tested_connection_resilience=0.9,
+        total_robustness=62,
+        policy_passed=True,
+    )
+    evidence = SybilGraphEvidence(
+        revision_id="a" * 64,
+        assessment_id="b" * 64,
+        shops={"A": score, "B": score.model_copy(update={"policy_passed": False})},
+    )
+    message = build_messages(
+        AgentView(title="Two shops", interactive=[], text_blocks=[], graph_evidence=evidence),
+        "Choose a shop",
+        [],
+    )[1]["content"]
+    trusted, page = message.split("<<<UNTRUSTED PAGE CONTENT", 1)
+    assert "AEGIS GRAPH EVIDENCE" in trusted
+    assert "Shop A: R=62.0" in trusted
+    assert "AEGIS GRAPH EVIDENCE" not in page
 
 
 async def test_agent_view_hides_detector_fields(page: Page, fixture_url: str) -> None:

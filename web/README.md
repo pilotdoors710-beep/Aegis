@@ -1,13 +1,15 @@
 Aegis Shield Console and static Aurora Home arena. Scope and contracts are defined in the root `project_brief.md`.
 
 Sybil implementation, 16 November: the pure backend scoring engine, download preflight,
-artifact validation, immutable scenario/view/assessment endpoints and first editing path are
-implemented. The `/sybil` playground is hidden
+artifact validation, immutable scenario/view/assessment endpoints, revision-bound
+counterfactual deltas and the advanced editing path are implemented. The `/sybil` playground is hidden
 unless `SYBIL_ENABLED=true` is set on the web server before build and on FastAPI before start.
 Keep this false publicly until the real-data assessment and paired-run release gates pass.
 Without a validated artifact it shows an unavailable state and never invents background data or
-scores. With an artifact, the first control adds disconnected simulated recommenders and polls a
-real background assessment. Persistence, full editing patterns and agent runs remain unfinished.
+scores. With an artifact, the controls generate seeded attack patterns, accept arbitrary permitted
+edit sets, poll real background assessments, preserve local undo/redo history and export revision,
+score and graph files. Persistence is coded but its production migration is not applied. Rich graph
+inspection and agent runs remain unfinished.
 
 The raw Common Crawl files stay local in ignored `.sybil-data/source/`. After extraction, place
 the validated four-file artifact in ignored `server/data/sybil/`. Local Compose mounts that folder
@@ -19,21 +21,25 @@ gates pass.
 From the repo root, `python eval/sybil_import.py --directory .sybil-data/source` checks pinned
 Common Crawl metadata and storage without downloading graph files. Default budget is 60 GiB,
 including a declared 20 GiB derived-file allowance (not a measured requirement). Add
-`--download` only to fetch/resume the source files and record local SHA-256 hashes. WebGraph
-extraction, dataset artifacts, numerical worker, persistence, editor and agent integration
-remain subsequent work; a completed download is not a usable scoring dataset.
+`--download` only to fetch/resume the source files, verify their remote S3 identities and record
+local SHA-256 hashes. `eval/sybil_prepare.py` then builds the official WebGraph offsets and the
+validated artifact. The completed local artifact uses the target 50,000-node / 1,000,000-edge
+tier; a completed download alone is not a usable scoring dataset.
 
 Measured metadata preflight on 15 November: the five source files total 9,061,322,465 bytes.
 Including the 20 GiB allowance requires 30,536,158,945 bytes, below the 60 GiB budget and
-76,682,182,656 free bytes observed locally. This measures source download capacity only.
+76,682,182,656 free bytes observed locally. This measures source download capacity only. Run the
+real artifact benchmark with `python eval/sybil_benchmark.py --directory server/data/sybil
+--output eval/results/sybil-real-data/benchmark.json --repeats 5 --enforce-targets`.
 
 For the readiness UI browser check, start the web with `SYBIL_ENABLED=true` on port 3103,
 then from `server/` run `uv run python ../web/lib/verify-sybil.py`. It uses installed Chrome
 and typed mocked dataset responses; it does not satisfy the deployed real-graph gate.
 
-Numerical and import tests: from `server/`, run `uv run pytest tests/test_sybil.py
-tests/test_sybil_api.py ../eval/test_sybil_import.py`. NumPy and SciPy are runtime dependencies
-for float64 sparse propagation and sensitivity calculations.
+Numerical, artifact and import tests: from `server/`, run `uv run pytest tests/test_sybil.py
+tests/test_sybil_dataset.py tests/test_sybil_scenario.py tests/test_sybil_api.py
+../eval/test_sybil_import.py ../eval/test_sybil_extract.py`. NumPy and SciPy are runtime
+dependencies for float64 sparse propagation and sensitivity calculations.
 
 Set `NEXT_PUBLIC_API_URL` using `.env.example`, then run `pnpm dev`. The browser connects directly to FastAPI; its CORS configuration must allow the web origin.
 

@@ -58,6 +58,7 @@ from aegis.schemas import (
     ScanReport,
     ScanRequest,
     SybilAssessmentRecord,
+    SybilCounterfactualResult,
     SybilDatasetStatus,
     SybilGenerate,
     SybilGraphView,
@@ -273,6 +274,27 @@ async def get_sybil_assessment(assessment_id: str):
             raise HTTPException(404, "Sybil assessment not found")
         _sybil.remember_assessment(assessment)
     return assessment
+
+
+@app.post(
+    "/sybil/scenarios/{revision_id}/counterfactuals",
+    response_model=SybilCounterfactualResult,
+)
+async def create_sybil_counterfactual(
+    revision_id: str, body: SybilScenarioCreate, request: Request
+):
+    content_length = request.headers.get("content-length", "0")
+    if not content_length.isdigit() or int(content_length) > 2 * 1024 * 1024:
+        raise HTTPException(413, "Sybil edit payload exceeds 2 MiB")
+    dataset = _sybil_dataset()
+    baseline = await _sybil_scenario(revision_id, dataset)
+    try:
+        proposed = _sybil.create(dataset, body)
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from error
+    return await _sybil.counterfactual(
+        str(settings.sybil_data_dir.resolve()), baseline, proposed
+    )
 
 
 @app.get("/healthz")
