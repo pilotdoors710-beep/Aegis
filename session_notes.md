@@ -22,6 +22,11 @@ Template:
 
 ## Log
 
+### 2026-11-15 · Codex · landing paragraph script font
+- Changed the paragraph below "PROTECT YOUR AGENTS LIKE NEVER BEFORE" to a bundled Great Vibes script font matching the requested sample.
+- Kept the paragraph readable on desktop, phone and short screens; the font license is included.
+- Web types, lint, production build, landing viewport checks and the Impeccable design scan pass.
+
 ### 2026-11-15 · Dev A · Claude Code · rebased UI overhaul onto Codex's Sybil work
 - Rebased "ui overhaul" onto 4 new Codex commits. Kept all new Sybil playground features (scenario form, graph preview, score polling) and restyled them flat to match the overhaul (no cards or icons, `--sN` tokens).
 - Typecheck and lint pass. Pushed to `main`.
