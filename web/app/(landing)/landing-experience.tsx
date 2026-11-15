@@ -21,13 +21,6 @@ const boldFont = localFont({
   display: "block",
 });
 
-const scriptFont = localFont({
-  src: "../../public/landing/fonts/great-vibes/GreatVibes-Regular.ttf",
-  weight: "400",
-  display: "swap",
-  variable: "--font-landing-script",
-});
-
 const WORD = "AEGIS";
 const WEIGHT = 700;
 const TRACKING = 0.38; // em
@@ -217,7 +210,7 @@ export function LandingExperience() {
   };
 
   return (
-    <main ref={track} className={`${styles.landing} ${scriptFont.variable}`} data-reduced={reduced}>
+    <main ref={track} className={styles.landing} data-reduced={reduced}>
       <div ref={stage} className={styles.stage}>
         <div className={styles.sky} aria-hidden="true">
           <GlassFold {...GLASS} speed={0.4 * speed} noise={0.1} />
@@ -256,7 +249,7 @@ export function LandingExperience() {
               }}
             >
               <DecryptedText
-                text="PROTECT YOUR AGENTS LIKE NEVER BEFORE"
+                text="𝙋𝙍𝙊𝙏𝙀𝘾𝙏 𝙔𝙊𝙐𝙍 𝘼𝙂𝙀𝙉𝙏𝙎 𝙇𝙄𝙆𝙀 𝙉𝙀𝙑𝙀𝙍 𝘽𝙀𝙁𝙊𝙍𝙀"
                 animateOn="inViewHover"
                 revealDirection="center"
                 speed={40}

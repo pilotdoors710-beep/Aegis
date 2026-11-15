@@ -22,6 +22,10 @@ Template:
 
 ## Log
 
+### 2026-11-15 · Codex · bold italic landing headline
+- Changed the landing headline to the requested sans-serif bold italic lettering.
+- Kept the antique gold color.
+
 ### 2026-11-15 · Codex · double-struck landing paragraph
 - Changed the landing paragraph to match the user's double-struck sample and kept it smaller.
 - Typecheck passes; prior Great Vibes font asset remains bundled from the earlier change.

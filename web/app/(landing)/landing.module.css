@@ -200,9 +200,10 @@
 
 .displaySubtitle,
 .subtitle {
-  font-family: var(--font-landing-script), cursive;
+  font-family: var(--font-coolvetica), sans-serif;
   font-size: clamp(16px, 2.3vw, 24px);
   font-weight: 700;
+  font-style: italic;
   letter-spacing: 0.06em;
   line-height: 1.25;
   display: inline-block;
