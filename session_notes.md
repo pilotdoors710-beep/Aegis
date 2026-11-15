@@ -22,6 +22,11 @@ Template:
 
 ## Log
 
+### 2026-11-16 · Codex · Resume Common Crawl source
+- Retried the transfer from saved byte ranges; the files resumed, but DNS failed during the metadata preflight.
+- Added long bounded retries for manifest and file-size requests, plus a regression test.
+- The source remains incomplete and can be resumed from `.sybil-data/source/`.
+
 ### 2026-11-15 · Codex · Share Sybil artifact with backend
 - Made dataset readiness load and validate the shared backend artifact; added a read-only local Compose mount and hosted image packaging.
 - Made the importer resume three files in parallel and retry longer across network outages.

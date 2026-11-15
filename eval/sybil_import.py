@@ -67,6 +67,19 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def open_with_retry(request: Request, timeout: int):
+    for attempt in range(50):
+        try:
+            return urlopen(request, timeout=timeout)
+        except (TimeoutError, URLError, ConnectionError) as error:
+            if attempt == 49:
+                raise
+            delay = min(30, 2 * (attempt + 1))
+            print(f"Metadata request interrupted ({error}); retrying in {delay}s", flush=True)
+            time.sleep(delay)
+    raise RuntimeError("Metadata retry limit exhausted")
+
+
 def download(
     url: str, path: Path, size: int, block_size: int = 16 * 1024 * 1024
 ) -> str:
@@ -121,11 +134,11 @@ def main() -> None:
         parser.error("Budget must be positive and reserve nonnegative")
     directory = args.directory.resolve()
     directory.mkdir(parents=True, exist_ok=True)
-    with urlopen(MANIFEST_URL, timeout=30) as response:
+    with open_with_retry(MANIFEST_URL, timeout=30) as response:
         release = next(item for item in json.load(response) if item["id"] == RELEASE)
     sizes = {}
     for name in FILES:
-        with urlopen(Request(BASE + name, method="HEAD"), timeout=30) as response:
+        with open_with_retry(Request(BASE + name, method="HEAD"), timeout=30) as response:
             sizes[name] = int(response.headers["Content-Length"])
     report = {
         "release": release,

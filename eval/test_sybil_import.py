@@ -25,6 +25,16 @@ def test_preflight_budget_free_space_and_resume(tmp_path):
         assert module.storage_check({"graph": 10}, tmp_path, 10, 0)["can_download"]
 
 
+def test_metadata_requests_retry_network_failures():
+    response = object()
+    with (
+        patch.object(module, "urlopen", side_effect=[module.URLError("offline"), response]),
+        patch.object(module.time, "sleep") as sleep,
+    ):
+        assert module.open_with_retry("https://example.test/manifest", 1) is response
+    sleep.assert_called_once_with(2)
+
+
 def test_unconfirmed_resume_preserves_file(tmp_path):
     target = tmp_path / "graph"
     target.write_bytes(b"1234")
