@@ -389,3 +389,10 @@
     translate: -50% 0;
   }
 }
+
+.boldItalicHeadline {
+  font-family: var(--font-coolvetica), sans-serif;
+  font-weight: 700;
+  font-style: italic;
+}
+

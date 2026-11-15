@@ -249,14 +249,14 @@ export function LandingExperience() {
               }}
             >
               <DecryptedText
-                text="𝙋𝙍𝙊𝙏𝙀𝘾𝙏 𝙔𝙊𝙐𝙍 𝘼𝙂𝙀𝙉𝙏𝙎 𝙇𝙄𝙆𝙀 𝙉𝙀𝙑𝙀𝙍 𝘽𝙀𝙁𝙊𝙍𝙀"
+                text="PROTECT YOUR AGENT LIKE NEVER BEFORE"
                 animateOn="inViewHover"
                 revealDirection="center"
                 speed={40}
                 maxIterations={15}
                 sequential={true}
                 scrambleColor="#c2a15a"
-                className={styles.subtitleRevealed}
+                className={`${styles.subtitleRevealed} ${styles.boldItalicHeadline}`}
                 encryptedClassName={styles.subtitleEncrypted}
                 parentClassName={styles.displaySubtitle}
               />

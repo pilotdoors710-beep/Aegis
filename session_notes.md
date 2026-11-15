@@ -22,9 +22,10 @@ Template:
 
 ## Log
 
-### 2026-11-15 Â· Codex Â· bold italic landing headline
-- Changed the landing headline to the requested sans-serif bold italic lettering.
-- Kept the antique gold color.
+### 2026-11-15 · Codex · landing headline font
+- Changed the landing headline to plain text with bold italic sans-serif styling.
+- Kept its gold color and reveal effect.
+
 
 ### 2026-11-15 Â· Codex Â· double-struck landing paragraph
 - Changed the landing paragraph to match the user's double-struck sample and kept it smaller.
@@ -525,3 +526,8 @@ Template:
   `deploy/smoke.sh` passes. Keep `uvicorn` running on that PC.
 - Next: Friday's protection checks (A1â€“A5, B5, C1) and the live run API. Still want a cloud VM
   for submission, and sneakier trap variants (only 1/6 baseline traps worked).
+
+### 2026-11-15 · Codex · landing headline font
+- Changed the landing headline to plain text with the requested bold italic sans-serif styling.
+- Kept the existing gold color and reveal effect.
+
