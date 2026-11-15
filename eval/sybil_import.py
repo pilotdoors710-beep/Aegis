@@ -7,6 +7,7 @@ No graph bytes are downloaded unless --download is explicit and preflight passes
 import argparse
 import hashlib
 import json
+import math
 import shutil
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -29,6 +30,7 @@ FILES = tuple(
     )
 )
 GIB = 1024**3
+MIB = 1024**2
 
 
 def storage_check(
@@ -67,6 +69,34 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def verify_s3_etag(path: Path, etag: str, size: int) -> None:
+    """Verify single-part or standard-size multipart S3 object identity."""
+    value = etag.strip('"')
+    _, separator, count_text = value.partition("-")
+    if not separator:
+        part_sizes = (size,)
+    else:
+        count = int(count_text)
+        candidates = (5 * MIB, *(2**power * MIB for power in range(3, 14)))
+        part_sizes = tuple(
+            part for part in candidates if math.ceil(size / part) == count
+        )
+        if len(part_sizes) != 1:
+            raise ValueError(f"Cannot infer S3 multipart size for ETag {etag}")
+    part_size = part_sizes[0]
+    parts = []
+    with path.open("rb") as stream:
+        while chunk := stream.read(part_size):
+            parts.append(hashlib.md5(chunk).digest())
+    actual = (
+        parts[0].hex()
+        if not separator
+        else f"{hashlib.md5(b''.join(parts)).hexdigest()}-{len(parts)}"
+    )
+    if actual != value:
+        raise ValueError(f"{path.name}: remote S3 object identity mismatch")
+
+
 def open_with_retry(request: Request, timeout: int):
     for attempt in range(50):
         try:
@@ -75,13 +105,20 @@ def open_with_retry(request: Request, timeout: int):
             if attempt == 49:
                 raise
             delay = min(30, 2 * (attempt + 1))
-            print(f"Metadata request interrupted ({error}); retrying in {delay}s", flush=True)
+            print(
+                f"Metadata request interrupted ({error}); retrying in {delay}s",
+                flush=True,
+            )
             time.sleep(delay)
     raise RuntimeError("Metadata retry limit exhausted")
 
 
 def download(
-    url: str, path: Path, size: int, block_size: int = 16 * 1024 * 1024
+    url: str,
+    path: Path,
+    size: int,
+    block_size: int = 16 * 1024 * 1024,
+    etag: str | None = None,
 ) -> str:
     """Resume only when the server confirms the exact requested byte range."""
     offset = path.stat().st_size if path.exists() else 0
@@ -115,6 +152,8 @@ def download(
         if offset != received or offset <= int(parts[0]):
             raise ValueError(f"{path.name}: incomplete transfer; rerun to resume")
         print(f"{path.name}: {offset:,} / {size:,} bytes", flush=True)
+    if etag:
+        verify_s3_etag(path, etag, size)
     return sha256(path)
 
 
@@ -137,13 +176,24 @@ def main() -> None:
     with open_with_retry(MANIFEST_URL, timeout=30) as response:
         release = next(item for item in json.load(response) if item["id"] == RELEASE)
     sizes = {}
+    remote_objects = {}
     for name in FILES:
-        with open_with_retry(Request(BASE + name, method="HEAD"), timeout=30) as response:
+        request = Request(
+            BASE + name,
+            method="HEAD",
+            headers={"x-amz-checksum-mode": "ENABLED"},
+        )
+        with open_with_retry(request, timeout=30) as response:
             sizes[name] = int(response.headers["Content-Length"])
+            remote_objects[name] = {
+                "etag": response.headers["ETag"],
+                "checksum_crc64nvme": response.headers.get("x-amz-checksum-crc64nvme"),
+            }
     report = {
         "release": release,
         "observed_at": datetime.now(UTC).isoformat(),
         "files": sizes,
+        "remote_objects": remote_objects,
         "storage": storage_check(
             sizes,
             directory,
@@ -152,7 +202,7 @@ def main() -> None:
         ),
         "source": MANIFEST_URL,
         "terms": "https://commoncrawl.org/terms-of-use",
-        "published_checksums": "Not advertised by the pinned release index; local SHA-256 only",
+        "published_checksums": "S3 ETag verified; CRC64NVME recorded when advertised; local SHA-256 recorded",
         "stage": "download_preflight",
         "extraction_ready": False,
     }
@@ -167,10 +217,16 @@ def main() -> None:
         )
     if args.download:
         hashes = {}
+
         def fetch(name: str, size: int) -> tuple[str, str]:
             for attempt in range(50):
                 try:
-                    return name, download(BASE + name, directory / name, size)
+                    return name, download(
+                        BASE + name,
+                        directory / name,
+                        size,
+                        etag=remote_objects[name]["etag"],
+                    )
                 except (TimeoutError, URLError, ConnectionError) as error:
                     if attempt == 49:
                         raise
@@ -183,7 +239,9 @@ def main() -> None:
             raise RuntimeError(f"{name}: retry limit exhausted")
 
         with ThreadPoolExecutor(max_workers=3) as workers:
-            futures = [workers.submit(fetch, name, size) for name, size in sizes.items()]
+            futures = [
+                workers.submit(fetch, name, size) for name, size in sizes.items()
+            ]
             for future in as_completed(futures):
                 name, digest = future.result()
                 hashes[name] = digest

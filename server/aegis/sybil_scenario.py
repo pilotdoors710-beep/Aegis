@@ -1,11 +1,13 @@
 """Canonical, immutable graph interventions. Ownership ends at the numerical adapter."""
 
 import hashlib
+import heapq
 import json
 import random
 import re
 from collections import Counter
 from dataclasses import dataclass
+from functools import cached_property
 
 from aegis.schemas import (
     SybilBudget,
@@ -28,6 +30,18 @@ class BaseGraph:
     anchors: tuple[str, ...]
     tau: float
     recommendations: tuple[tuple[str, str], ...] = ()
+
+    @cached_property
+    def index(self) -> dict[str, int]:
+        return {value: i for i, value in enumerate(self.ids)}
+
+    @cached_property
+    def edge_set(self) -> frozenset[tuple[int, int]]:
+        return frozenset(self.graph.edges)
+
+    @cached_property
+    def ordered_edges(self) -> tuple[tuple[int, int], ...]:
+        return tuple(sorted(self.edge_set))
 
 
 @dataclass(frozen=True)
@@ -68,7 +82,7 @@ def _recommendations(values):
 def apply(base: BaseGraph, edits: SybilScenarioCreate) -> AppliedScenario:
     if edits.dataset_id != base.dataset_id:
         raise ValueError("Dataset does not match scenario")
-    background = set(base.ids)
+    background = set(base.index)
     injected = set(edits.injected_nodes)
     if len(background) != base.graph.node_count:
         raise ValueError("Dataset IDs must be unique and match graph size")
@@ -77,8 +91,7 @@ def apply(base: BaseGraph, edits: SybilScenarioCreate) -> AppliedScenario:
     if background & injected:
         raise ValueError("Simulated IDs cannot replace background websites")
     ids = (*base.ids, *sorted(injected))
-    index = {v: i for i, v in enumerate(ids)}
-    original_links = {(base.ids[u], base.ids[v]) for u, v in base.graph.edges}
+    index = {**base.index, **{v: i for i, v in enumerate(ids[len(base.ids) :], len(base.ids))}}
     added, removed = _links(edits.added_links), _links(edits.removed_links)
     cooperation = _links(edits.cooperating_links)
     compromised = set(edits.compromised)
@@ -95,10 +108,13 @@ def apply(base: BaseGraph, edits: SybilScenarioCreate) -> AppliedScenario:
         raise ValueError("Unknown recommending website")
     if added & removed or recs & removed_recs:
         raise ValueError("An active edit cannot both add and remove the same relationship")
-    if not removed <= original_links or not removed_recs <= original_recs:
+    added_indices = {(index[u], index[v]) for u, v in added}
+    removed_indices = {(index[u], index[v]) for u, v in removed}
+    if not removed_indices <= base.edge_set or not removed_recs <= original_recs:
         raise ValueError("Cannot remove a relationship absent from the base dataset")
     # Redundant additions are no-ops; they neither change weights nor consume credit.
-    added -= original_links
+    added_indices -= base.edge_set
+    added = {(ids[u], ids[v]) for u, v in added_indices}
     recs -= original_recs
     if not cooperation <= added:
         raise ValueError("Cooperation must name an active added link")
@@ -124,8 +140,14 @@ def apply(base: BaseGraph, edits: SybilScenarioCreate) -> AppliedScenario:
         changed.update(v for v, _ in recs | removed_recs)
         if any(changed[v] > 100 for v in compromised):
             raise ValueError("A compromised website permits at most 100 changed relationships")
-    final_links = (original_links - removed) | added
-    internal_count = sum(u in injected and v in injected for u, v in final_links)
+    final_links = tuple(
+        heapq.merge(
+            (edge for edge in base.ordered_edges if edge not in removed_indices),
+            sorted(added_indices),
+        )
+    )
+    base_count = len(base.ids)
+    internal_count = sum(u >= base_count and v >= base_count for u, v in added_indices)
     credits = len(cooperation) * 2 + sum(15 if v in base.anchors else 5 for v in compromised)
     budget = SybilBudget(
         injected_websites=len(injected), internal_links=internal_count, external_credits=credits
@@ -170,10 +192,10 @@ def apply(base: BaseGraph, edits: SybilScenarioCreate) -> AppliedScenario:
         budget=budget,
     )
     degrees = list(base.graph.original_outdegree) + [0] * len(injected)
-    for u, _ in removed:
-        degrees[index[u]] -= 1
-    for u, _ in added:
-        degrees[index[u]] += 1
+    for u, _ in removed_indices:
+        degrees[u] -= 1
+    for u, _ in added_indices:
+        degrees[u] += 1
     final_recs = (original_recs - removed_recs) | recs
     recommendations = {}
     for v, shop in sorted(final_recs):
@@ -182,7 +204,7 @@ def apply(base: BaseGraph, edits: SybilScenarioCreate) -> AppliedScenario:
         revision,
         ids,
         Graph(
-            len(ids), tuple(sorted((index[u], index[v]) for u, v in final_links)), tuple(degrees)
+            len(ids), final_links, tuple(degrees)
         ),
         tuple(index[v] for v in anchors),
         tuple((v, tuple(shops)) for v, shops in sorted(recommendations.items())),

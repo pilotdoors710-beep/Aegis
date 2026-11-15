@@ -17,6 +17,19 @@ uv run python ../eval/run.py --model x:y --out ../eval/results/<new> --rescore <
 Outputs per directory: `runs.jsonl` (one row per run, with actions and ground truth),
 `summary.csv`, `meta.json`.
 
+## Sybil real-data benchmark
+
+The validated Common Crawl artifact is benchmarked separately from browser-agent runs:
+
+```bash
+python eval/sybil_benchmark.py --directory server/data/sybil \
+  --output eval/results/sybil-real-data/benchmark.json --repeats 5 --enforce-targets
+```
+
+The report retains every propagation and full-assessment timing, environment versions, imported
+counts, workload and pass/fail against the brief's p95 targets. The pre-optimization baseline is
+also retained; it is diagnostic history, not a current result.
+
 ## Provider facts (checked Thu 12 Nov 2026)
 
 | provider:model | clean task | calls | duration | RPD | TPM | tokens/call | notes |

@@ -18,7 +18,7 @@ from pathlib import Path
 import numpy as np
 from scipy.sparse import csr_array, save_npz
 from sybil_extract import extract
-from sybil_import import FILES, RELEASE, sha256, storage_check
+from sybil_import import FILES, RELEASE, sha256, storage_check, verify_s3_etag
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "server"))
 from aegis.sybil import Graph, reference_scale
@@ -106,6 +106,15 @@ def prepare(args):
         if name not in hashes or sha256(source / name) != hashes[name]:
             raise ValueError(f"Missing or mismatched source SHA-256: {name}")
     preflight = json.loads((source / "preflight.json").read_text(encoding="utf-8"))
+    remote_objects = preflight.get("remote_objects")
+    if not remote_objects or set(remote_objects) != set(FILES):
+        raise ValueError(
+            "Source preflight lacks remote object identities; rerun preflight"
+        )
+    for name in FILES:
+        verify_s3_etag(
+            source / name, remote_objects[name]["etag"], preflight["files"][name]
+        )
     # Recheck allowance before offsets and extraction; the reserved allowance includes both.
     plan = storage_check(preflight["files"], source, 60 * 1024**3, 20 * 1024**3)
     if not plan["can_download"]:

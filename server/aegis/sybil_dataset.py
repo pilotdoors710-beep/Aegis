@@ -101,8 +101,11 @@ def load_dataset(directory: Path) -> Dataset:
     tau = reference_scale(graph, anchor_indices)
     if not np.isclose(tau, manifest.tau, rtol=1e-10, atol=0):
         raise ValueError("Frozen normalization does not match the clean graph")
+    base = BaseGraph(manifest.id, manifest.id, ids, graph, manifest.anchors, manifest.tau)
+    # Build immutable lookup structures during artifact loading, outside the edit latency budget.
+    _ = base.index, base.edge_set, base.ordered_edges
     return Dataset(
         manifest,
         nodes,
-        BaseGraph(manifest.id, manifest.id, ids, graph, manifest.anchors, manifest.tau),
+        base,
     )

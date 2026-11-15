@@ -57,6 +57,7 @@ from aegis.schemas import (
     SideOutcomes,
     SnapshotEvent,
     SnapshotPayload,
+    SybilGraphEvidence,
     TrialReport,
     TwoViewReport,
     Verdict,
@@ -163,6 +164,7 @@ async def run_side(
     unresolved: list[str] | None = None,
     gate: AskGate | None = None,
     executed_log: list[Action] | None = None,
+    graph_evidence: SybilGraphEvidence | None = None,
 ) -> AsyncIterator[Event]:
     """One side of a run. mode=unshielded runs no checks at all. Shielded: F = fast detectors +
     filtering; I = F + pre-commit audit, verified recovery and the human gate; I_MINUS_AUDIT = I
@@ -240,6 +242,8 @@ async def run_side(
             snap = await take_snapshot(page)
             page_findings = (await check_fast(snap, None, ledger))[0] if shielded else None
             view = build_agent_view(snap, sanitize=page_findings)
+            if shielded and graph_evidence is not None:
+                view = view.model_copy(update={"graph_evidence": graph_evidence})
             yield SnapshotEvent(
                 **env(step),
                 payload=SnapshotPayload(
@@ -529,6 +533,7 @@ async def run_pair(
     ledger: Ledger | None = None,
     unresolved: list[str] | None = None,
     shield: ShieldConfig = "I",
+    graph_evidence: SybilGraphEvidence | None = None,
 ) -> None:
     """Both sides concurrently from the same task and start URL, each with its own agent from the
     same factory (same model and prompt); events go to the bus."""
@@ -543,6 +548,7 @@ async def run_pair(
                 browser, run_id=run_id, mode=mode, task=task, url=url, agent=make_agent(),
                 max_steps=max_steps, allowed_origin=allowed_origin, shield=shield, ledger=ledger,
                 unresolved=unresolved, gate=gate,
+                graph_evidence=graph_evidence,
             ):  # fmt: skip
                 step = ev.step
                 if isinstance(ev, DoneEvent):

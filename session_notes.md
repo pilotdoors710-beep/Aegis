@@ -22,9 +22,44 @@ Template:
 
 ## Log
 
+### 2026-11-15 � Codex � landing headline font
+- Changed the landing headline to plain text with bold italic sans-serif styling.
+- Kept its gold color and reveal effect.
+
+
+### 2026-11-15 · Codex · double-struck landing paragraph
+- Changed the landing paragraph to match the user's double-struck sample and kept it smaller.
+- Typecheck passes; prior Great Vibes font asset remains bundled from the earlier change.
+
+### 2026-11-15 · Codex · landing paragraph script font
+- Changed the paragraph below "PROTECT YOUR AGENTS LIKE NEVER BEFORE" to a bundled Great Vibes script font matching the requested sample.
+- Kept the paragraph readable on desktop, phone and short screens; the font license is included.
+- Web types, lint, production build, landing viewport checks and the Impeccable design scan pass.
+
 ### 2026-11-15 · Dev A · Claude Code · rebased UI overhaul onto Codex's Sybil work
 - Rebased "ui overhaul" onto 4 new Codex commits. Kept all new Sybil playground features (scenario form, graph preview, score polling) and restyled them flat to match the overhaul (no cards or icons, `--sN` tokens).
 - Typecheck and lint pass. Pushed to `main`.
+### 2026-11-15 · Codex · Sybil revision editor and counterfactuals
+- Added revision-bound counterfactual score, component and rank deltas through the shared numerical worker.
+- Added arbitrary validated edit JSON, undo/redo/reset, and JSON, score CSV and graph SVG exports to the gated playground.
+- Added bounded graph evidence with the frozen revision and both policy thresholds; shielded agents can receive it in a trusted prompt section while legacy runs stay unchanged.
+- Regenerated API types and expanded the browser check for editing, deltas, history and downloads.
+- Optimized million-edge scenario application from about 2.9 seconds to 0.24 seconds; a warm-baseline real counterfactual measured 1.54 seconds.
+- Checks pass: 223 backend tests (1 skipped), Ruff, 18 web tests, web types, lint, production build and the Chrome Sybil workflow.
+- Next: add the rich graph inspector and evidence contract, then build the frozen two-shop agent integration. The public feature stays disabled.
+
+### 2026-11-15 · Codex · Sybil implementation progress audit
+- Reviewed the current workspace against the staged Sybil plan; no application code changed.
+- Stage 1 is complete locally, Stage 2 is a partial playground, and Stage 3 agent integration has not started.
+- The focused Sybil suite passes: 58 tests in 3.32 seconds using the existing server virtual environment.
+- Next: finish the judge playground, apply the database migration, package and deploy the artifact, then build and verify the two-shop agent comparison.
+
+### 2026-11-15 · Codex · Sybil real-data extraction and benchmark
+- Repaired one corrupt resumed graph file after its remote S3 identity failed, then verified all five Common Crawl source objects and local hashes.
+- Built the full 50,000-node / 1,000,000-edge artifact with the official WebGraph tool and passed strict artifact loading.
+- Added a repeatable real-data benchmark and kept the slow baseline. Sparse transition and edge tests now meet the measured p95 targets without changing the score.
+- Checks pass: 58 focused Sybil tests, Ruff, the five-run benchmark and the full backend suite (219 passed, 1 skipped).
+- Next: package the ignored artifact with the backend, apply the Sybil database migration, then continue agent integration. The public feature stays disabled.
 
 ### 2026-11-16 · Codex · Sybil scenario and assessment slice
 - Added typed immutable scenario, bounded graph-view and assessment APIs with one background numerical process, a queue limit and durable database records.
@@ -491,3 +526,8 @@ Template:
   `deploy/smoke.sh` passes. Keep `uvicorn` running on that PC.
 - Next: Friday's protection checks (A1–A5, B5, C1) and the live run API. Still want a cloud VM
   for submission, and sneakier trap variants (only 1/6 baseline traps worked).
+
+### 2026-11-15 � Codex � landing headline font
+- Changed the landing headline to plain text with the requested bold italic sans-serif styling.
+- Kept the existing gold color and reveal effect.
+

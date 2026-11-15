@@ -203,15 +203,15 @@
   font-family: var(--font-coolvetica), sans-serif;
   font-size: clamp(16px, 2.3vw, 24px);
   font-weight: 700;
+  font-style: italic;
   letter-spacing: 0.06em;
   line-height: 1.25;
-  text-transform: uppercase;
   display: inline-block;
   cursor: default;
 }
 
 .subtitleRevealed {
-  color: #b8cce4; /* light steel blue */
+  color: #c2a15a;
   text-shadow: 0 1px 2px rgb(8 13 20 / 55%), 0 2px 14px rgb(8 13 20 / 45%);
   transition: color 0.3s ease;
 }
@@ -224,13 +224,14 @@
 
 .heroDescription {
   font-family: var(--font-coolvetica), sans-serif;
-  font-size: clamp(13px, 1.35vw, 15px);
-  font-weight: 400;
-  line-height: 1.65;
+  font-size: clamp(16px, 1.35vw, 18px);
+  font-weight: 700;
+  line-height: 1.45;
+  letter-spacing: 0.01em;
   color: rgb(245 241 232 / 92%);
   max-width: 620px;
   margin: 0;
-  text-wrap: balance;
+  text-wrap: pretty;
   text-shadow: 0 1px 2px rgb(8 13 20 / 60%), 0 2px 12px rgb(8 13 20 / 45%);
 }
 
@@ -255,8 +256,8 @@
   }
 
   .heroDescription {
-    font-size: 13px;
-    line-height: 1.55;
+    font-size: 16px;
+    line-height: 1.4;
   }
 }
 
@@ -271,8 +272,8 @@
   }
 
   .heroDescription {
-    font-size: 12px;
-    line-height: 1.45;
+    font-size: 15px;
+    line-height: 1.35;
   }
 }
 
@@ -388,3 +389,10 @@
     translate: -50% 0;
   }
 }
+
+.boldItalicHeadline {
+  font-family: var(--font-coolvetica), sans-serif;
+  font-weight: 700;
+  font-style: italic;
+}
+

@@ -1,0 +1,57 @@
+{
+  "kind": "sybil-real-data-performance-v1",
+  "recorded_at": "2026-11-15T09:23:12.687105+00:00",
+  "dataset": {
+    "id": "ef319d7b9adc74e9fee26636448133179e76f832abc21b2f1a62193c27bde49c",
+    "release": "cc-main-2026-aug-sep-oct",
+    "nodes": 50000,
+    "edges": 1000000,
+    "tau": 1.2665528751877717e-06,
+    "extraction": {
+      "seed": 1,
+      "fanout": 128,
+      "maximum_depth": 4,
+      "node_limit": 50000,
+      "edge_limit": 1000000,
+      "version": "seeded-neighborhood-v1"
+    }
+  },
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.16",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1"
+  },
+  "repeats": 5,
+  "artifact_load_ms": 4545.060599979479,
+  "propagation_only_ms": [
+    4435.332300025038,
+    4368.188499996904,
+    4663.724699988961,
+    6406.633300008252,
+    7019.062800041866
+  ],
+  "full_assessment_ms": [
+    48953.763300029095,
+    37264.182000013534,
+    56151.14800003357,
+    68455.8982999879,
+    45008.56499996735
+  ],
+  "summary": {
+    "propagation_p50_ms": 4663.724699988961,
+    "propagation_p95_ms": 6896.576900035143,
+    "full_p50_ms": 48953.763300029095,
+    "full_p95_ms": 65994.94823999703,
+    "propagation_p95_target_ms": 1000,
+    "full_p95_target_ms": 5000,
+    "propagation_target_passed": false,
+    "full_target_passed": false
+  },
+  "workload": {
+    "supporters": 100,
+    "tested_edges": 5,
+    "score": 61.922081967430486,
+    "converged": true
+  }
+}

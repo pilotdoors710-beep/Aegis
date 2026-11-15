@@ -35,6 +35,10 @@ export const api = {
   sybilAssessment: (id: string, signal?: AbortSignal) => request<Schema["SybilAssessmentRecord"]>(
     `/sybil/assessments/${encodeURIComponent(id)}`, { signal },
   ),
+  sybilCounterfactual: (id: string, body: Schema["SybilScenarioCreate"]) => request<Schema["SybilCounterfactualResult"]>(
+    `/sybil/scenarios/${encodeURIComponent(id)}/counterfactuals`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+  ),
   presets: (signal?: AbortSignal) => request<Schema["Preset"][]>("/presets", { signal }),
   run: (id: string, signal?: AbortSignal) => request<Schema["RunSummary"]>(`/runs/${encodeURIComponent(id)}`, { signal }),
   runs: (signal?: AbortSignal) => request<Schema["RunSummary"][]>("/runs?limit=20", { signal }),

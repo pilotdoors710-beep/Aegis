@@ -5,6 +5,7 @@ The final matrix row is the absorbing outside-sample sink.
 """
 
 from dataclasses import dataclass
+from functools import cached_property
 from time import perf_counter
 
 import numpy as np
@@ -19,34 +20,49 @@ class Graph:
     edges: tuple[tuple[int, int], ...]
     original_outdegree: tuple[int, ...]
 
-    def transition(self) -> csr_array:
+    @cached_property
+    def canonical_edges(self) -> np.ndarray:
+        links = np.asarray(self.edges, dtype=np.int64).reshape((-1, 2))
+        unique = np.unique(links, axis=0)
+        unique.setflags(write=False)
+        return unique
+
+    @cached_property
+    def transition_matrix(self) -> csr_array:
         if self.node_count < 1 or len(self.original_outdegree) != self.node_count:
             raise ValueError("One original outdegree is required per website")
-        links = sorted(set(self.edges))
-        if any(not 0 <= v < self.node_count for edge in links for v in edge):
+        links = self.canonical_edges
+        if links.size and (links.min() < 0 or links.max() >= self.node_count):
             raise ValueError("Edge endpoint outside website graph")
-        degree = np.bincount([u for u, _ in links], minlength=self.node_count)
-        original = np.asarray(self.original_outdegree)
+        sources = links[:, 0] if links.size else np.empty(0, dtype=np.int64)
+        targets = links[:, 1] if links.size else np.empty(0, dtype=np.int64)
+        degree = np.bincount(sources, minlength=self.node_count)
+        original = np.asarray(self.original_outdegree, dtype=np.int64)
         if np.any(original < degree) or np.any(original < 0):
             raise ValueError("Original outdegree cannot be less than retained outdegree")
-        rows, cols, weights = [], [], []
-        for u, v in links:
-            rows.append(u)
-            cols.append(v)
-            weights.append(1.0 / original[u])
-        for u in range(self.node_count):
-            if original[u] == 0:
-                rows.append(u)
-                cols.append(u)
-                weights.append(1.0)
-            elif original[u] > degree[u]:
-                rows.append(u)
-                cols.append(self.node_count)
-                weights.append(float((original[u] - degree[u]) / original[u]))
-        rows.append(self.node_count)
-        cols.append(self.node_count)
-        weights.append(1.0)
+        dangling = np.flatnonzero(original == 0)
+        omitted = np.flatnonzero(original > degree)
+        rows = np.concatenate((sources, dangling, omitted, [self.node_count]))
+        cols = np.concatenate(
+            (
+                targets,
+                dangling,
+                np.full(omitted.size, self.node_count),
+                [self.node_count],
+            )
+        )
+        weights = np.concatenate(
+            (
+                1.0 / original[sources],
+                np.ones(dangling.size),
+                (original[omitted] - degree[omitted]) / original[omitted],
+                [1.0],
+            )
+        )
         return csr_array((weights, (rows, cols)), shape=(self.node_count + 1,) * 2)
+
+    def transition(self) -> csr_array:
+        return self.transition_matrix.copy()
 
     def without(self, edge: tuple[int, int]) -> "Graph":
         links = set(self.edges)
@@ -85,6 +101,36 @@ class Propagation:
 
 
 DEFAULT_CONFIG = Config()
+
+
+def _without_edge_transition(matrix: csr_array, graph: Graph, edge: tuple[int, int]) -> csr_array:
+    """Remove one observed edge and renormalize only its source row."""
+    source, target = edge
+    original = graph.original_outdegree[source]
+    if original < 1:
+        raise ValueError("Cannot remove an edge from a dangling website")
+    updated = matrix.copy()
+    start, end = updated.indptr[source : source + 2]
+    columns = updated.indices[start:end]
+    target_positions = np.flatnonzero(columns == target)
+    if target_positions.size != 1:
+        raise ValueError("Removed edge is absent or duplicated")
+    remaining_degree = original - 1
+    if remaining_degree == 0:
+        mutable = updated.tolil()
+        mutable.rows[source] = [source]
+        mutable.data[source] = [1.0]
+        return mutable.tocsr()
+    retained = columns != graph.node_count
+    omitted = original - int(np.count_nonzero(retained))
+    row = updated.data[start:end]
+    row[retained] = 1.0 / remaining_degree
+    row[target_positions[0]] = 0
+    sink = columns == graph.node_count
+    if np.any(sink):
+        row[sink] = omitted / remaining_degree
+    updated.eliminate_zeros()
+    return updated
 
 
 def propagate(matrix: csr_array, restart: np.ndarray, config: Config) -> Propagation:
@@ -184,17 +230,20 @@ def assess(
         breadth = float(np.clip((effective - 1) / (len(anchors) - 1), 0, 1))
         withdrawn = (per_anchor.sum() - per_anchor) / (len(anchors) - 1)
         withdrawal = float(np.clip(withdrawn.min() / mass, 0, 1))
-        supporter_set = set(supporters)
-        candidates = sorted(
-            (edge for edge in set(graph.edges) if edge[1] in supporter_set),
-            key=lambda edge: (
-                -float((1 - config.restart) * trust[edge[0]] * matrix[edge[0], edge[1]]),
-                edge,
-            ),
-        )[:5]
+        links = graph.canonical_edges
+        entering = links[np.isin(links[:, 1], supporters)]
+        if entering.size:
+            original = np.asarray(graph.original_outdegree)
+            flows = (1 - config.restart) * trust[entering[:, 0]] / original[entering[:, 0]]
+            order = np.lexsort((entering[:, 1], entering[:, 0], -flows))[:5]
+            candidates = [tuple(map(int, entering[i])) for i in order]
+        else:
+            candidates = []
         ratios = []
         for edge in candidates:
-            removed = propagate(graph.without(edge).transition(), seeds.mean(axis=1), config)
+            removed = propagate(
+                _without_edge_transition(matrix, graph, edge), seeds.mean(axis=1), config
+            )
             if not removed.converged:
                 return Assessment(
                     trust[:-1], result.mass[:-1], removed, None, (perf_counter() - started) * 1000
