@@ -19,7 +19,8 @@ function Menu({ pathname, sybilEnabled = false }: { pathname: string; sybilEnabl
   return <StaggeredMenu
     isFixed
     position="right"
-    colors={["#132131", "#1f3347"]}
+    // 4th slot is required: StaggeredMenu drops the middle colour when given 3+, leaving steel → pearl → gold.
+    colors={["#4a6a8a", "#ece9e2", "#ece9e2", "#c2a15a"]}
     accentColor="#c2a15a"
     menuButtonColor="#f2eee6"
     openMenuButtonColor="#f2eee6"
