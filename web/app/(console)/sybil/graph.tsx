@@ -81,6 +81,8 @@ export function SybilGraph({
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [fullscreen, setFullscreen] = useState(false);
+  const [settledView, setSettledView] = useState<GraphView | null>(null);
+  const settled = settledView === view;
   // Mutable render state lives in a ref so physics frames never re-render React.
   const state = useRef({
     nodes: [] as Node[],
@@ -93,6 +95,11 @@ export function SybilGraph({
     hover: null as Node | null,
     dirty: true,
     reduced: false,
+    // Settled layout before any dragging, and an in-flight glide back to it.
+    home: null as [number, number][] | null,
+    tween: null as { from: [number, number][]; start: number } | null,
+    reset: () => {},
+    remember: () => {},
   });
   const callbacks = useRef({ onSelectNode, onSelectEdge, onClearSelection });
 
@@ -120,14 +127,34 @@ export function SybilGraph({
       .force("collide", forceCollide<Node>((n) => RADIUS[n.kind] + 1))
       .force("x", forceX(0).strength(0.03))
       .force("y", forceY(0).strength(0.03))
-      .alphaDecay(0.02)
+      .alphaDecay(0.03)
       .on("tick", () => (s.dirty = true));
+    const remember = () => {
+      if (s.home) return;
+      s.home = nodes.map((n) => [n.x!, n.y!]);
+      setSettledView(view);
+    };
+    sim.on("end", remember);
+    const reset = () => {
+      if (!s.home) return;
+      sim.stop();
+      for (const n of nodes) {
+        n.vx = 0;
+        n.vy = 0;
+      }
+      s.tween = { from: nodes.map((n) => [n.x!, n.y!]), start: s.reduced ? -Infinity : performance.now() };
+    };
+    Object.assign(s, { nodes, links, sim, dirty: true, home: null, tween: null, reset, remember });
+    let frame = 0;
     if (s.reduced) {
       sim.stop();
       sim.tick(300);
+      frame = requestAnimationFrame(remember);
     }
-    Object.assign(s, { nodes, links, sim, dirty: true });
-    return () => void sim.stop();
+    return () => {
+      sim.stop();
+      cancelAnimationFrame(frame);
+    };
   }, [view]);
 
   // Canvas size, render loop, and pointer/zoom input.
@@ -256,6 +283,19 @@ export function SybilGraph({
         v.y += (g.y - v.y) * ease;
         s.dirty = true;
       }
+      if (s.tween && s.home) {
+        const t = Math.min(1, (performance.now() - s.tween.start) / 700);
+        // easeOutBack: a small springy overshoot before landing.
+        const e = 1 + 2.2 * (t - 1) ** 3 + 1.2 * (t - 1) ** 2;
+        s.nodes.forEach((n, i) => {
+          const [fx, fy] = s.tween!.from[i];
+          const [hx, hy] = s.home![i];
+          n.x = fx + (hx - fx) * e;
+          n.y = fy + (hy - fy) * e;
+        });
+        if (t === 1) s.tween = null;
+        s.dirty = true;
+      }
       if (s.dirty) {
         s.dirty = false;
         draw();
@@ -279,6 +319,7 @@ export function SybilGraph({
       drag = { node, startX: e.clientX, startY: e.clientY, moved: false };
       canvas.setPointerCapture(e.pointerId);
       if (node) {
+        s.remember(); // "original" = before the first drag, even if still settling
         node.fx = node.x;
         node.fy = node.y;
         if (!s.reduced) s.sim?.alphaTarget(0.3).restart();
@@ -381,21 +422,25 @@ export function SybilGraph({
     const g = state.current.goal;
     state.current.goal = { k: Math.min(12, Math.max(0.2, g.k * factor)), x: g.x * factor, y: g.y * factor };
   };
-  const fit = () => {
-    const { nodes } = state.current;
+  const fit = (points = state.current.nodes.map((n): [number, number] => [n.x!, n.y!])) => {
     const canvas = canvasRef.current;
-    if (!canvas || !nodes.length) return;
-    const xs = nodes.map((n) => n.x!);
-    const ys = nodes.map((n) => n.y!);
+    if (!canvas || !points.length) return;
+    const xs = points.map((p) => p[0]);
+    const ys = points.map((p) => p[1]);
     const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
     const k = Math.min(12, 0.9 * Math.min(canvas.clientWidth / (x1 - x0 || 1), canvas.clientHeight / (y1 - y0 || 1)));
     state.current.goal = { k, x: (-(x0 + x1) / 2) * k, y: (-(y0 + y1) / 2) * k };
   };
 
+  const reset = () => {
+    state.current.reset();
+    if (state.current.home) fit(state.current.home);
+  };
+
   useEffect(() => {
     const change = () => {
       setFullscreen(document.fullscreenElement === wrapRef.current);
-      window.setTimeout(fit, 150); // after the canvas has resized
+      window.setTimeout(() => fit(), 150); // after the canvas has resized
     };
     document.addEventListener("fullscreenchange", change);
     return () => document.removeEventListener("fullscreenchange", change);
@@ -403,7 +448,7 @@ export function SybilGraph({
 
   // Fit once the layout has mostly settled after a new view.
   useEffect(() => {
-    const timer = window.setTimeout(fit, state.current.reduced ? 0 : 1800);
+    const timer = window.setTimeout(() => fit(), state.current.reduced ? 0 : 1800);
     return () => window.clearTimeout(timer);
   }, [view]);
 
@@ -423,8 +468,17 @@ export function SybilGraph({
         <button type="button" className="secondary-button" onClick={() => zoom(1 / 1.4)} aria-label="Zoom out">
           −
         </button>
-        <button type="button" className="secondary-button" onClick={fit}>
+        <button type="button" className="secondary-button" onClick={() => fit()}>
           Fit
+        </button>
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={reset}
+          disabled={!settled}
+          title={settled ? "Move every website back to its settled position" : "Layout still settling"}
+        >
+          Reset layout
         </button>
         <button
           type="button"
