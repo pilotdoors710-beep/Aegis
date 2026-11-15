@@ -26,6 +26,7 @@ Template:
 - Backend runs only on Dev A's PC via Tailscale Funnel. Removed the Hugging Face deploy script, Caddy and the Oracle VM steps.
 - `deploy/oracle-setup.md` is now `deploy/pc-setup.md`; brief §3 and `web/README.md` updated to match.
 - Sybil graph artifact was built on Dev B's PC; it must be copied into `server/data/sybil/` here (it is git-ignored).
+- Copied artifact now loads (set `SYBIL_DATA_DIR` in `.env`). Applied `0002_sybil.sql` to Supabase; scenario create + assessment now work.
 
 ### 2026-11-15 · Dev A · Claude Code · R2 go/no-go recorded
 - Reran the R2 gate tests: 12/12 pass, both copies ≈0.9 s.
