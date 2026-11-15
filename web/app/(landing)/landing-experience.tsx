@@ -2,22 +2,35 @@
 
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import dynamic from "next/dynamic";
+import localFont from "next/font/local";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import TechText from "@/components/reactbits/TechText";
+import { GlassFold } from "@/components/ui/glass-fold";
 import { signalConsoleEntry } from "@/lib/landing/phases";
 import styles from "./landing.module.css";
+import { ParticleLogo } from "./particle-logo";
 
-const Galaxy = dynamic(() => import("@/components/reactbits/Galaxy"), { ssr: false });
 const DecryptedText = dynamic(() => import("@/components/reactbits/DecryptedText"), { ssr: false });
+
+// THEBOLDFONT free version (Sven Pels), wordmark only.
+const boldFont = localFont({
+  src: "../../public/landing/fonts/the_bold_font/THEBOLDFONT-FREEVERSION.woff",
+  weight: "700",
+  display: "block",
+});
 
 const WORD = "AEGIS";
 const WEIGHT = 700;
 const TRACKING = 0.38; // em
-const STARS = ["#FCF8D8", "#E8C59E", "#d9541e"];
-const COMMIT_AT = 0.12; // released past this, the scroll finishes on its own
+const FONT_MAX = 640;
+// Dark steel ground keeps the pearl (#F2EEE6) wordmark and copy readable.
+const GLASS = { color1: "#4682B4", color2: "#0B131C", color3: "#C2A15A" }; // steel blue, ground, antique gold
+const COMMIT_AT = 0.03; // released past this (~30px), the scroll finishes on its own
+const FINISH_MS = 1100;
 const ARRIVE_AT = 0.985;
+const HOVER_TILT = 6; // deg, extra lean toward the cursor while it is over the hero copy
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 const span = (value: number, from: number, to: number) => clamp01((value - from) / (to - from));
@@ -35,18 +48,22 @@ export function LandingExperience() {
   const track = useRef<HTMLElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const mark = useRef<HTMLDivElement>(null);
+  const broad = useRef<HTMLDivElement>(null);
+  const copy = useRef<HTMLDivElement>(null);
   const readout = useRef<HTMLSpanElement>(null);
-  const [fontSize, setFontSize] = useState(256);
+  const finishRef = useRef<() => void>(() => {});
   const [speed, setSpeed] = useState(1);
+  const [fontSize, setFontSize] = useState(160);
   const [reduced, setReduced] = useState(false);
 
   useEffect(() => {
-    const trackEl = track.current, stageEl = stage.current, markEl = mark.current;
-    if (!trackEl || !stageEl || !markEl) return;
+    const trackEl = track.current, stageEl = stage.current, markEl = mark.current, broadEl = broad.current;
+    if (!trackEl || !stageEl || !markEl || !broadEl) return;
     const motion = matchMedia("(prefers-reduced-motion: reduce)");
     const probe = document.createElement("canvas").getContext("2d");
-    let frame = 0, idle: ReturnType<typeof setTimeout> | undefined, lastY = 0, direction = 1, arrived = false;
+    let frame = 0, tween = 0, idle: ReturnType<typeof setTimeout> | undefined, lastY = 0, direction = 1, arrived = false;
     let start = { w: 0, h: 0 };
+    let inkBox = { l: 0, t: 0, r: 0, b: 0 }; // wordmark ink box in stage (= viewport) pixels
 
     router.prefetch("/console");
     history.scrollRestoration = "manual";
@@ -55,25 +72,38 @@ export function LandingExperience() {
     const travel = () => trackEl.offsetHeight - window.innerHeight;
 
     // Same fit TechText uses, so the frame starts exactly on the wordmark's ink.
+    // offset* ignores the zoom-in transform, so this is the resting position.
     const measure = () => {
       const width = stageEl.clientWidth, height = stageEl.clientHeight;
-      const wanted = Math.max(52, Math.round(width * 0.15));
-      setFontSize(wanted);
       if (!probe) return;
-      const family = getComputedStyle(markEl).fontFamily || "sans-serif";
+      const family = getComputedStyle(broadEl).fontFamily || "sans-serif";
       const ink = (size: number) => {
         probe.font = `${WEIGHT} ${size}px ${family}`;
         probe.letterSpacing = `${TRACKING * size}px`;
         const m = probe.measureText(WORD);
         return { w: m.actualBoundingBoxLeft + m.actualBoundingBoxRight, h: m.actualBoundingBoxAscent + m.actualBoundingBoxDescent };
       };
-      const full = ink(wanted);
-      const size = wanted * Math.min(1, (width * 0.88) / Math.max(full.w * 1.12, 1), (height * 0.55) / Math.max(full.h, 1));
+      // Size to the left column; TechText's own canvas spans the whole stage so dragged letters aren't clipped.
+      const column = broadEl.offsetParent as HTMLElement | null;
+      const colW = column?.offsetWidth ?? width, colH = column?.offsetHeight ?? height;
+      const full = ink(FONT_MAX);
+      const size = FONT_MAX * Math.min(1, (colW * 0.9) / Math.max(full.w, 1), (colH * 0.66) / Math.max(full.h, 1));
+      setFontSize(size);
       const fitted = ink(size);
       const pad = Math.max(14, size * 0.14);
-      start = { w: Math.round((fitted.w + pad * 2) * 1.12), h: fitted.h + pad * 2 };
-      stageEl.style.setProperty("--inset-x", `${Math.max(0, (width - start.w) / 2)}px`);
-      stageEl.style.setProperty("--inset-y", `${Math.max(0, (height - start.h) / 2)}px`);
+      start = { w: Math.round(fitted.w + pad * 2), h: Math.round(fitted.h + pad * 2) };
+      // TechText align="left" starts the ink 5% into its box.
+      const inkLeft = (column?.offsetLeft ?? 0) + broadEl.offsetLeft + broadEl.offsetWidth * 0.05;
+      const cx = inkLeft + fitted.w / 2;
+      const cy = (column?.offsetTop ?? 0) + colH / 2; // the canvas is centred on the column
+      const px = (name: string, value: number) => stageEl.style.setProperty(name, `${Math.max(0, value)}px`);
+      px("--inset-l", cx - start.w / 2);
+      px("--inset-r", width - cx - start.w / 2);
+      px("--inset-t", cy - start.h / 2);
+      px("--inset-b", height - cy - start.h / 2);
+      inkBox = { l: cx - start.w / 2, t: cy - start.h / 2, r: cx + start.w / 2, b: cy + start.h / 2 };
+      px("--ink-left", inkLeft);
+      px("--ink-bottom", cy + fitted.h / 2);
       draw();
     };
 
@@ -103,13 +133,27 @@ export function LandingExperience() {
       }
     };
 
+    // Timed ease-out instead of native smooth scroll, whose speed depends on distance and browser.
+    const finish = () => {
+      if (tween || arrived) return;
+      const from = window.scrollY, t0 = performance.now();
+      const step = (now: number) => {
+        const x = Math.min(1, (now - t0) / FINISH_MS);
+        window.scrollTo(0, from + (travel() - from) * (1 - (1 - x) ** 3));
+        tween = x < 1 ? requestAnimationFrame(step) : 0;
+      };
+      tween = requestAnimationFrame(step);
+    };
+    finishRef.current = finish;
+
     // A scroll that stops part-way finishes itself, or returns if it was barely started.
     const settle = () => {
       const max = travel();
-      if (arrived || motion.matches || max <= 0) return;
+      if (tween || arrived || motion.matches || max <= 0) return;
       const p = window.scrollY / max;
       if (p <= 0.001 || p >= ARRIVE_AT) return;
-      window.scrollTo({ top: direction > 0 && p > COMMIT_AT ? max : 0, behavior: "smooth" });
+      if (direction > 0 && p > COMMIT_AT) finish();
+      else window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
     const onScroll = () => {
@@ -117,8 +161,24 @@ export function LandingExperience() {
       lastY = window.scrollY;
       if (!frame) frame = requestAnimationFrame(draw);
       clearTimeout(idle);
-      idle = setTimeout(settle, 140);
+      idle = setTimeout(settle, 90);
     };
+    // The letter canvas covers the whole stage, so hover is judged against the wordmark + copy box, not DOM targets.
+    const hover = (x: number, y: number) => {
+      markEl.style.setProperty("--hover-y", `${(x * HOVER_TILT).toFixed(2)}deg`);
+      markEl.style.setProperty("--hover-x", `${(-y * HOVER_TILT).toFixed(2)}deg`);
+    };
+    const onPointer = (e: PointerEvent) => {
+      if (e.pointerType !== "mouse" || motion.matches || stageEl.hasAttribute("data-scrolling")) return hover(0, 0);
+      const c = copy.current?.getBoundingClientRect();
+      const l = Math.min(inkBox.l, c?.left ?? inkBox.l), r = Math.max(inkBox.r, c?.right ?? inkBox.r);
+      const t = Math.min(inkBox.t, c?.top ?? inkBox.t), b = Math.max(inkBox.b, c?.bottom ?? inkBox.b);
+      const inside = r > l && b > t && e.clientX >= l && e.clientX <= r && e.clientY >= t && e.clientY <= b;
+      if (!inside) return hover(0, 0);
+      hover(((e.clientX - l) / (r - l)) * 2 - 1, ((e.clientY - t) / (b - t)) * 2 - 1);
+    };
+    const onLeave = () => hover(0, 0);
+
     const onMotion = () => { setReduced(motion.matches); window.scrollTo(0, 0); measure(); };
 
     setReduced(motion.matches);
@@ -126,49 +186,46 @@ export function LandingExperience() {
     document.fonts?.ready.then(measure, measure);
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", measure, { passive: true });
+    window.addEventListener("pointermove", onPointer, { passive: true });
+    document.documentElement.addEventListener("mouseleave", onLeave);
     motion.addEventListener("change", onMotion);
     return () => {
       cancelAnimationFrame(frame);
+      cancelAnimationFrame(tween);
       clearTimeout(idle);
       history.scrollRestoration = "auto";
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", measure);
+      window.removeEventListener("pointermove", onPointer);
+      document.documentElement.removeEventListener("mouseleave", onLeave);
       motion.removeEventListener("change", onMotion);
     };
   }, [router]);
 
   const enter = (event: MouseEvent<HTMLAnchorElement>) => {
     signalConsoleEntry();
-    const el = track.current;
-    if (reduced || !el || event.metaKey || event.ctrlKey || event.shiftKey) return;
+    if (reduced || event.metaKey || event.ctrlKey || event.shiftKey) return;
     event.preventDefault();
-    window.scrollTo({ top: el.offsetHeight - window.innerHeight, behavior: "smooth" });
+    finishRef.current();
   };
 
   return (
     <main ref={track} className={styles.landing} data-reduced={reduced}>
       <div ref={stage} className={styles.stage}>
         <div className={styles.sky} aria-hidden="true">
-          <Galaxy
-            starColors={STARS}
-            starSpeed={0.5}
-            speed={speed}
-            density={1.1}
-            glowIntensity={0.35}
-            twinkleIntensity={0.35}
-            rotationSpeed={0.04}
-            clickWarp={false}
-            dpr={1.5}
-          />
+          <GlassFold {...GLASS} speed={0.4 * speed} noise={0.1} />
         </div>
         <div className={styles.ground} aria-hidden="true" />
+        <ParticleLogo src="/landing/logo-white-trimmed.png" className={styles.particleLogo} />
         <div ref={mark} className={styles.mark}>
           <div className={styles.wordmarkZoom}>
-            <div className={styles.wordmarkBroad}>
+            <div ref={broad} className={`${styles.wordmarkBroad} ${boldFont.className}`}>
               <TechText
                 text={WORD}
+                color="#e6dcc8" // warm bone, so the wordmark reads apart from the brighter subtitle
                 fontWeight={WEIGHT}
                 fontSize={fontSize}
+                align="left"
                 letterSpacing={TRACKING}
                 reveal="letter"
                 dashLength={5}
@@ -181,7 +238,7 @@ export function LandingExperience() {
               />
             </div>
           </div>
-          <div className={styles.subtitleWrapper}>
+          <div ref={copy} className={styles.subtitleWrapper}>
             <motion.div
               className={styles.headlineMotion}
               initial={reduced ? false : { opacity: 0, y: 48 }}
@@ -198,7 +255,7 @@ export function LandingExperience() {
                 speed={40}
                 maxIterations={15}
                 sequential={true}
-                scrambleColor="#d9541e"
+                scrambleColor="#c2a15a"
                 className={styles.subtitleRevealed}
                 encryptedClassName={styles.subtitleEncrypted}
                 parentClassName={styles.displaySubtitle}

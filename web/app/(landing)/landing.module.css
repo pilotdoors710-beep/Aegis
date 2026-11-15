@@ -3,8 +3,8 @@
   position: relative;
   height: 230svh; /* 100svh of stage + the scroll travel that drives the transition */
   width: 100%;
-  background: #000;
-  color: #fcf8d8;
+  background: radial-gradient(ellipse at 50% 35%, #1f3347, #0b131c 70%);
+  color: #f2eee6;
 }
 
 .landing[data-reduced="true"] {
@@ -18,10 +18,16 @@
   --ground: 0;
   --hint: 1;
   --frame: 0;
-  --inset-x: 20vw;
-  --inset-y: 38svh;
-  --edge-x: calc(var(--inset-x) * (1 - var(--t)));
-  --edge-y: calc(var(--inset-y) * (1 - var(--t)));
+  --inset-l: 8vw;
+  --inset-r: 52vw;
+  --inset-t: 38svh;
+  --inset-b: 38svh;
+  --ink-left: 6vw;
+  --ink-bottom: 48svh;
+  --edge-l: calc(var(--inset-l) * (1 - var(--t)));
+  --edge-r: calc(var(--inset-r) * (1 - var(--t)));
+  --edge-t: calc(var(--inset-t) * (1 - var(--t)));
+  --edge-b: calc(var(--inset-b) * (1 - var(--t)));
   position: sticky;
   top: 0;
   height: 100svh;
@@ -44,40 +50,95 @@
 .ground {
   background: var(--aegis-ground);
   opacity: var(--ground);
-  clip-path: inset(var(--edge-y) var(--edge-x));
+  clip-path: inset(var(--edge-t) var(--edge-r) var(--edge-b) var(--edge-l));
 }
 
+/* Off-white ink; dark shadows separate it from the lit glass. */
 .mark {
-  font-family: var(--font-geist-sans), sans-serif;
+  color: #f5f1e8;
+  font-family: var(--font-coolvetica), sans-serif;
   opacity: calc(1 - var(--mark));
-  transform: scale(calc(1 + 0.55 * var(--mark)));
+  /* Tilted plane: left edge leans out, right edge sinks in; flattens as the scroll zoom starts so the frame lands on flat ink. */
+  transform-origin: 28% 50%;
+  transform: perspective(1300px)
+    rotateX(calc((var(--tilt-x) + var(--hover-x)) * (1 - var(--mark))))
+    rotateY(calc((var(--tilt-y) + var(--hover-y)) * (1 - var(--mark))))
+    scale(calc(1 + 0.55 * var(--mark)));
   filter: blur(calc(var(--mark) * 20px));
+  /* Only the hover lean eases; scroll-driven values stay frame-exact. */
+  transition: --hover-x 600ms cubic-bezier(0.16, 1, 0.3, 1), --hover-y 600ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Soft dark pool behind the light copy, feathered out so it melts into the glass. */
+.mark::before {
+  content: "";
+  position: absolute;
+  inset: -10% 25% -10% -15%;
+  background:
+    radial-gradient(ellipse 55% 45% at 45% 52%, rgb(6 10 16 / 78%), rgb(6 10 16 / 45%) 55%, transparent 82%),
+    linear-gradient(90deg, rgb(6 10 16 / 45%), transparent 85%);
+  filter: blur(24px);
+  pointer-events: none;
+}
+
+@property --tilt-y {
+  syntax: "<angle>";
+  inherits: true;
+  initial-value: 15deg;
+}
+
+@property --hover-x {
+  syntax: "<angle>";
+  inherits: true;
+  initial-value: 0deg;
+}
+
+@property --hover-y {
+  syntax: "<angle>";
+  inherits: true;
+  initial-value: 0deg;
+}
+
+@property --tilt-x {
+  syntax: "<angle>";
+  inherits: true;
+  initial-value: 2deg;
 }
 
 .stage[data-scrolling] .mark {
   pointer-events: none;
 }
 
+/* Left column: wordmark, with the copy under it. The right side is left open. */
 .wordmarkZoom {
+  --col-left: 3vw;
   position: absolute;
-  inset: 0;
+  left: var(--col-left);
+  top: 14svh;
+  width: 55vw;
+  height: 50svh;
   display: flex;
   align-items: center;
   justify-content: center;
   pointer-events: none;
   transform-origin: center center;
-  translate: 0 -14vh;
   animation: aegisZoomIn 1.4s cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity, filter;
   backface-visibility: hidden;
 }
 
+/* TechText's canvas: oversized and centred on the column so the tilted plane still covers the whole
+   stage and dragged letters are never clipped. Left offset keeps the ink (5% into the box) at 5vw. */
 .wordmarkBroad {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transform: scaleX(1.12);
-  transform-origin: center center;
+  --canvas-w: 170vw;
+  font-size-adjust: none; /* the wordmark keeps its own metrics */
+  position: absolute;
+  left: calc(5vw - 0.05 * var(--canvas-w) - var(--col-left));
+  top: 50%;
+  width: var(--canvas-w);
+  height: 170svh;
+  translate: 0 -50%;
+  pointer-events: auto;
 }
 
 @keyframes aegisZoomIn {
@@ -96,32 +157,50 @@
   }
 }
 
+/* Right half: the particle logo, fading with the wordmark once the scroll zoom starts. */
+.particleLogo {
+  position: absolute;
+  right: 4vw;
+  top: 12svh;
+  width: 38vw;
+  height: 72svh;
+  opacity: calc(1 - var(--mark));
+  pointer-events: none;
+  /* Same dark pool as the copy: keeps light particles readable when bright glass bands pass behind. */
+  background: radial-gradient(closest-side, rgb(6 10 16 / 72%), rgb(6 10 16 / 40%) 60%, transparent);
+}
+
+@media (max-width: 760px) {
+  .particleLogo {
+    display: none;
+  }
+}
+
 .subtitleWrapper {
   position: absolute;
-  top: calc(100% - var(--inset-y) + 84px - 14vh);
-  left: 50%;
-  translate: -50% 0;
-  width: max-content;
-  max-width: min(90vw, 680px);
-  text-align: center;
+  /* Placed under the wordmark's measured ink. */
+  top: calc(var(--ink-bottom) + 28px);
+  left: var(--ink-left);
+  width: min(46vw, 560px);
+  text-align: left;
   z-index: 2;
   pointer-events: auto;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: 16px;
 }
 
 .headlineMotion {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
   width: 100%;
 }
 
 .displaySubtitle,
 .subtitle {
-  font-family: var(--font-geist-sans), "Cabinet Grotesk", "Clash Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-coolvetica), sans-serif;
   font-size: clamp(16px, 2.3vw, 24px);
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -132,42 +211,41 @@
 }
 
 .subtitleRevealed {
-  color: rgb(252 248 216 / 95%);
-  text-shadow: 0 0 18px rgba(217, 84, 30, 0.28), 0 2px 10px rgba(0, 0, 0, 0.6);
+  color: #b8cce4; /* light steel blue */
+  text-shadow: 0 1px 2px rgb(8 13 20 / 55%), 0 2px 14px rgb(8 13 20 / 45%);
   transition: color 0.3s ease;
 }
 
 .subtitleEncrypted {
-  color: #d9541e;
+  color: #c2a15a;
   opacity: 0.9;
-  text-shadow: 0 0 12px rgba(217, 84, 30, 0.6);
+  text-shadow: 0 1px 2px rgb(8 13 20 / 55%), 0 2px 12px rgb(8 13 20 / 45%);
 }
 
 .heroDescription {
-  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-coolvetica), sans-serif;
   font-size: clamp(13px, 1.35vw, 15px);
   font-weight: 400;
   line-height: 1.65;
-  color: rgb(252 248 216 / 72%);
+  color: rgb(245 241 232 / 92%);
   max-width: 620px;
   margin: 0;
   text-wrap: balance;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 1px 2px rgb(8 13 20 / 60%), 0 2px 12px rgb(8 13 20 / 45%);
 }
 
-@media (max-width: 640px) {
+/* Narrow screens: wordmark on top, copy below. */
+@media (max-width: 760px) {
   .wordmarkZoom {
-    translate: 0 -10vh;
+    --col-left: 2vw;
+    width: 96vw;
+    height: 40svh;
   }
 
   .subtitleWrapper {
-    top: calc(100% - var(--inset-y) + 54px - 10vh);
-    max-width: 92vw;
+    right: 6vw;
+    width: auto;
     gap: 12px;
-  }
-
-  .frame {
-    translate: 0 calc(-10vh * (1 - var(--t)));
   }
 
   .displaySubtitle,
@@ -179,22 +257,12 @@
   .heroDescription {
     font-size: 13px;
     line-height: 1.55;
-    max-width: 94vw;
   }
 }
 
 @media (max-height: 600px) {
-  .wordmarkZoom {
-    translate: 0 -11vh;
-  }
-
   .subtitleWrapper {
-    top: calc(100% - var(--inset-y) + 40px - 11vh);
     gap: 10px;
-  }
-
-  .frame {
-    translate: 0 calc(-11vh * (1 - var(--t)));
   }
 
   .displaySubtitle,
@@ -210,18 +278,17 @@
 
 .frame {
   position: absolute;
-  inset: var(--edge-y) var(--edge-x);
-  border: 1px solid rgb(252 248 216 / 50%);
+  inset: var(--edge-t) var(--edge-r) var(--edge-b) var(--edge-l);
+  border: 1px solid rgb(242 238 230 / 50%);
   opacity: var(--frame);
   pointer-events: none;
-  translate: 0 calc(-14vh * (1 - var(--t)));
 }
 
 .frame i {
   position: absolute;
   width: 5px;
   height: 5px;
-  background: #fcf8d8;
+  background: #f2eee6;
 }
 
 .frame i:nth-of-type(1) { top: -3px; left: -3px; }
@@ -233,10 +300,10 @@
   position: absolute;
   left: 0;
   bottom: calc(100% + 7px);
-  font: 10px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font: 10px/1 var(--font-azeret-mono), monospace;
   font-variant-numeric: tabular-nums;
   white-space: pre;
-  color: rgb(252 248 216 / 62%);
+  color: rgb(242 238 230 / 62%);
 }
 
 .hintWrapper {
@@ -258,19 +325,19 @@
   gap: 14px;
   min-height: 44px;
   padding: 10px 18px;
-  font: 500 13px/1 var(--font-geist-sans), sans-serif;
+  font: 500 13px/1 var(--font-coolvetica), sans-serif;
   letter-spacing: 0.02em;
-  color: rgb(252 248 216 / 78%);
+  color: rgb(242 238 230 / 78%);
   opacity: var(--hint);
   transition: color 150ms;
 }
 
 .hint:hover {
-  color: #fcf8d8;
+  color: #f2eee6;
 }
 
 .hint:focus-visible {
-  outline: 2px solid #d9541e;
+  outline: 2px solid #c2a15a;
   outline-offset: 4px;
   border-radius: 4px;
 }
@@ -280,7 +347,7 @@
   position: relative;
   width: 1px;
   height: 34px;
-  background: rgb(252 248 216 / 28%);
+  background: rgb(242 238 230 / 28%);
 }
 
 .tick::after {
@@ -290,7 +357,7 @@
   top: 0;
   width: 5px;
   height: 5px;
-  background: #fcf8d8;
+  background: #f2eee6;
   animation: fall 1.9s cubic-bezier(0.16, 1, 0.3, 1) infinite;
 }
 
@@ -302,7 +369,7 @@
 }
 
 .landing ::selection {
-  background: #d9541e;
+  background: #c2a15a;
   color: #111;
 }
 
@@ -314,12 +381,6 @@
     transform: none;
     filter: none;
     opacity: 1;
-    translate: 0 -14vh;
-  }
-  .subtitleWrapper {
-    animation: none;
-    opacity: 1;
-    translate: -50% 0;
   }
   .hintWrapper {
     animation: none;

@@ -8,10 +8,10 @@ type Report = Schema["TrialReport"];
 type Branch = Schema["TrialBranch"];
 
 const EXAMPLES = [
-  "Uncheck to not stop receiving partner offers",
-  "Keep my lamp protected (recommended)",
-  "Don't skip the care plan",
-];
+  ["Double negative", "Uncheck to not stop receiving partner offers"],
+  ["Recommended", "Keep my lamp protected (recommended)"],
+  ["Don't skip", "Don't skip the care plan"],
+] as const;
 const money = (value?: number | null) => value == null ? "unknown" : `₹${value.toLocaleString("en-IN")}`;
 const plain = (key: string) => key.replace(/^[a-z_]+:/, "");
 
@@ -26,8 +26,8 @@ function headline(report: Report) {
 
 function Receipt({ branch }: { branch: Branch }) {
   const box = branch.control_checked ? "Box ticked" : "Box unticked";
-  return <article className="agent-pane">
-    <div className="pane-heading"><h3>Disposable copy · {box.toLowerCase()}</h3><span>{branch.disposable_actions} actions</span></div>
+  return <article className="pane">
+    <div className="pane-heading"><h3>{box}</h3><span>{branch.disposable_actions} actions</span></div>
     <div className="browser-frame">{branch.screenshot_b64
       // eslint-disable-next-line @next/next/no-img-element
       ? <img src={`data:image/jpeg;base64,${branch.screenshot_b64}`} alt={`Disposable copy confirmation, ${box.toLowerCase()}`} />
@@ -44,7 +44,7 @@ function Receipt({ branch }: { branch: Branch }) {
 }
 
 export default function LabPage() {
-  const [form, setForm] = useState<Lab>({ label: EXAMPLES[0], effect: "share", ticked_means_on: false, starts_ticked: true, permit_plan: false, permit_sharing: false });
+  const [form, setForm] = useState<Lab>({ label: EXAMPLES[0][1], effect: "share", ticked_means_on: false, starts_ticked: true, permit_plan: false, permit_sharing: false });
   const [report, setReport] = useState<Report | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,13 +64,15 @@ export default function LabPage() {
       <ul className="facts"><li>Experimental</li><li>Disposable consent trials</li><li>Arena only</li><li>No AI model</li></ul></header>
 
     <form className="lab-form" onSubmit={(e) => { e.preventDefault(); void test(); }}>
-      <section className="console-card">
-        <label htmlFor="lab-label">Checkbox label shown on the checkout</label>
+      <div className="lab-column">
+        <h2 className="label"><label htmlFor="lab-label">1 · Label</label></h2>
         <input id="lab-label" type="text" maxLength={160} required value={form.label} onChange={(e) => set({ label: e.target.value })} />
-        <div className="lab-examples">{EXAMPLES.map((x) => <button type="button" className="secondary-button" key={x} onClick={() => set({ label: x })}>{x}</button>)}</div>
-      </section>
-      <fieldset className="console-card">
-        <legend>Secret: what the box really does (hidden from Aegis)</legend>
+        <p className="muted">The text shown next to the checkbox on the checkout.</p>
+        <div className="chip-row">{EXAMPLES.map(([name, text]) => <button type="button" className="text-button" key={name} title={text} aria-label={`Use example: ${text}`} onClick={() => set({ label: text })}>{name}</button>)}</div>
+      </div>
+      <fieldset className="lab-column">
+        <legend className="label">2 · Secret effect</legend>
+        <p className="muted">Hidden from Aegis.</p>
         <select aria-label="Real effect" value={form.effect} onChange={(e) => set({ effect: e.target.value as Lab["effect"] })}>
           <option value="plan">Adds a ₹299/yr auto-renewing care plan</option>
           <option value="share">Shares the user&apos;s email with partners</option>
@@ -82,21 +84,22 @@ export default function LabPage() {
         </select>
         <label className="check"><input type="checkbox" checked={!!form.starts_ticked} onChange={(e) => set({ starts_ticked: e.target.checked })} /> Box starts ticked</label>
       </fieldset>
-      <fieldset className="console-card">
-        <legend>The user&apos;s permission: one Aurora desk lamp under ₹2,000</legend>
+      <fieldset className="lab-column">
+        <legend className="label">3 · Permission</legend>
+        <p className="muted">One Aurora desk lamp under ₹2,000.</p>
         <label className="check"><input type="checkbox" checked={!!form.permit_plan} onChange={(e) => set({ permit_plan: e.target.checked })} /> Allow a care plan subscription</label>
         <label className="check"><input type="checkbox" checked={!!form.permit_sharing} onChange={(e) => set({ permit_sharing: e.target.checked })} /> Allow sharing my email</label>
-        <button className="primary-button" type="submit" disabled={busy}>{busy ? "Testing two disposable copies…" : "Test both futures"}</button>
+        <button className="primary-button" type="submit" disabled={busy} aria-label="Test both checkbox states in disposable copies">{busy ? "Testing…" : "Test"}</button>
       </fieldset>
     </form>
 
     {error && <p role="alert" className="error-message">Trial failed: {error}</p>}
-    {report && <section aria-live="polite">
-      <div className={`console-card lab-verdict ${report.status === "resolved" || report.status === "both_ok" ? "good" : ""}`}>
+    {report && <section className="result" aria-live="polite">
+      <div className={`verdict ${report.status === "resolved" || report.status === "both_ok" ? "good" : ""}`}>
         <h2>{headline(report)}</h2>
-        <ul className="facts"><li>{actions} disposable actions</li><li>{report.elapsed_ms} ms</li><li>No LLM calls</li>{report.original_unchanged && <li>Original checkout unchanged</li>}</ul>
         <p>{report.reason.replace(/\b[a-z_]+:/g, "")}</p>
-        {report.control_label && <p>Label tested: “{report.control_label}”</p>}
+        {report.control_label && <p className="muted">Label tested: “{report.control_label}”</p>}
+        <ul className="facts"><li>{actions} disposable actions</li><li>{report.elapsed_ms} ms</li><li>No LLM calls</li>{report.original_unchanged && <li>Original checkout unchanged</li>}</ul>
       </div>
       <div className="comparison-grid">{report.branches.map((b) => <Receipt key={String(b.control_checked)} branch={b} />)}</div>
     </section>}

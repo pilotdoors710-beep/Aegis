@@ -1,41 +1,52 @@
-.page { display: flex; flex-direction: column; gap: 20px; }
-.page h2 { font-size: 1.05rem; }
-.strip { display: flex; flex-wrap: wrap; gap: 16px 24px; font-size: .85rem; }
-.strip span { display: inline-flex; align-items: center; gap: 8px; }
-.workspace { display: grid; grid-template-columns: minmax(200px, .8fr) minmax(300px, 1.7fr) minmax(240px, 1fr); gap: 16px; }
-.empty { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; min-height: 340px; text-align: center; }
-.empty p { max-width: 64ch; }
-.controls { display: grid; gap: 14px; margin-top: 20px; }
-.controls label { display: grid; gap: 7px; color: var(--muted-foreground); font-size: .82rem; }
-.controls input, .controls select { width: 100%; border: 1px solid color-mix(in srgb, var(--foreground) 18%, transparent); border-radius: 8px; padding: 9px 10px; background: color-mix(in srgb, var(--background) 65%, transparent); color: var(--foreground); }
-.facts { display: flex; flex-direction: column; gap: 14px; margin: 24px 0; }
-.facts div { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+/* Spacing uses the console's --sN tokens only. */
+.page { display: flex; flex-direction: column; gap: var(--s4); }
+.page h2 { font-size: 1rem; }
+.strip { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s4); padding-block: var(--s2); border-block: 1px solid var(--line); font: 400 .8125rem var(--mono); color: var(--muted); }
+.alert { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s2); color: var(--danger); }
+.workspace { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.7fr) minmax(0, 1fr); }
+.workspace > section { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; padding-right: var(--s4); }
+.workspace > section + section { padding-left: var(--s4); border-left: 1px solid var(--line); }
+.workspace > section:last-child { padding-right: 0; }
+.workspace p { color: var(--muted); font-size: .9375rem; }
+.empty { justify-content: center; align-items: center; min-height: 340px; text-align: center; }
+.empty p { max-width: 55ch; }
+.facts { display: flex; flex-direction: column; gap: var(--s2); }
+.facts div { display: flex; justify-content: space-between; flex-wrap: wrap; gap: var(--s1); padding-bottom: var(--s1); border-bottom: 1px solid var(--line); }
+.facts dt { font: 400 .8125rem var(--mono); color: var(--muted); }
 .facts dd { font-variant-numeric: tabular-nums; }
-.formula { margin-top: 20px; }
-.formula summary { cursor: pointer; padding: 12px 0; }
-.formula code { overflow-wrap: anywhere; }
-.formula dt { margin-top: 14px; font-weight: 600; }
-.formula dd { color: var(--muted-foreground); font-size: .875rem; margin-top: 4px; }
-.comparison { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; align-items: center; }
+.formula summary { padding-block: var(--s1); }
+.formula code { overflow-wrap: anywhere; font-family: var(--mono); }
+.formula dt { margin-top: var(--s2); font-weight: 600; }
+.formula dd { color: var(--muted); font-size: .875rem; margin-top: var(--s1); }
+.comparison { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--s4); align-items: center; padding-top: var(--s3); border-top: 1px solid var(--line); }
+.comparison > div { display: grid; gap: var(--s1); }
+.controls { display: grid; gap: var(--s2); }
+.controls label { display: grid; gap: var(--s1); color: var(--muted); font-size: .8125rem; }
+.controls input, .controls select { width: 100%; border: 1px solid var(--line-strong); border-radius: var(--radius); padding: var(--s1) var(--s2); background: var(--bg); color: var(--fg); }
 .total { font-variant-numeric: tabular-nums; }
 .total strong { font-size: 2rem; }
-.metrics { display: grid; gap: 7px; margin-top: 12px; }
-.metrics div { display: flex; justify-content: space-between; gap: 12px; }
+.metrics { display: grid; gap: var(--s1); }
+.metrics div { display: flex; justify-content: space-between; gap: var(--s2); }
 .metrics dd { font-variant-numeric: tabular-nums; }
-.graph { width: 100%; min-height: 260px; border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent); border-radius: 10px; background: color-mix(in srgb, var(--background) 58%, transparent); }
-.observedEdges line { stroke: color-mix(in srgb, var(--foreground) 25%, transparent); stroke-width: 1; }
+.graph { width: 100%; min-height: 260px; border: 1px solid var(--line); background: var(--bg); }
+.observedEdges line { stroke: color-mix(in srgb, var(--fg) 25%, transparent); stroke-width: 1; }
 .observedEdges .simulatedEdge { stroke: #d97745; stroke-dasharray: 5 4; }
 .recommendationEdges line { stroke: #e8c59e; stroke-width: 1.5; stroke-dasharray: 2 4; }
-.graph g rect { fill: color-mix(in srgb, #d9541e 24%, var(--background)); stroke: #d9541e; }
-.graph g text { fill: var(--foreground); text-anchor: middle; font-size: 12px; }
-.observedNode { fill: color-mix(in srgb, var(--foreground) 55%, var(--background)); }
+.graph g rect { fill: color-mix(in srgb, #d9541e 24%, var(--bg)); stroke: #d9541e; }
+.graph g text { fill: var(--fg); text-anchor: middle; font-size: 12px; }
+.observedNode { fill: color-mix(in srgb, var(--fg) 55%, var(--bg)); }
 .simulatedNode { fill: #d9541e; stroke: #e8c59e; stroke-width: 1; }
-.anchorNode { fill: var(--background); stroke: #e8c59e; stroke-width: 2; }
+.anchorNode { fill: var(--bg); stroke: #e8c59e; stroke-width: 2; }
 .nodeTable { width: 100%; text-align: left; }
 .nodeTable summary { cursor: pointer; }
-.tableScroll { max-height: 280px; overflow: auto; margin-top: 10px; }
+.tableScroll { max-height: 280px; overflow: auto; margin-top: var(--s1); }
 .tableScroll table { width: 100%; border-collapse: collapse; font-size: .78rem; }
-.tableScroll th, .tableScroll td { padding: 7px; border-bottom: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent); text-align: left; }
-.disclosure { color: var(--muted-foreground); font-size: .875rem; max-width: 75ch; }
-@media (max-width: 1000px) { .workspace { grid-template-columns: 1fr; } .empty { min-height: 260px; } }
+.tableScroll th, .tableScroll td { padding: var(--s1); border-bottom: 1px solid var(--line); text-align: left; }
+.disclosure { color: var(--muted); font-size: .875rem; max-width: 75ch; }
+@media (max-width: 1100px) {
+  .workspace { grid-template-columns: 1fr; }
+  .workspace > section, .workspace > section + section { padding: var(--s3) 0; border-left: 0; }
+  .workspace > section + section { border-top: 1px solid var(--line); }
+  .empty { min-height: 260px; }
+}
 @media (max-width: 600px) { .comparison { grid-template-columns: 1fr; } }

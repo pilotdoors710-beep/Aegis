@@ -46,7 +46,7 @@ class LandingChecks(unittest.TestCase):
         self.page.goto(BASE + "/")
         self.hint().wait_for()
         # Hydrated once the effect has measured the wordmark; scrolls before that have no listener.
-        self.page.wait_for_function("document.querySelector('main > div').style.getPropertyValue('--inset-x') !== ''")
+        self.page.wait_for_function("document.querySelector('main > div').style.getPropertyValue('--inset-l') !== ''")
 
     def hint(self):
         return self.page.locator("main a[href='/console']")
@@ -78,13 +78,13 @@ class LandingChecks(unittest.TestCase):
 
     def test_03_scroll_past_commit_finishes_into_console(self):
         self.visit()
-        self.scroll_to(0.1, 0.3)  # past COMMIT_AT (12%), then released
+        self.scroll_to(0.1, 0.3)  # past COMMIT_AT (3%), then released
         self.at_console()
         self.page.screenshot(path=str(OUTPUT / "console-arrival.png"))
 
     def test_04_small_scroll_returns_to_top(self):
         self.visit()
-        self.scroll_to(0.03, 0.06)  # below COMMIT_AT
+        self.scroll_to(0.01, 0.02)  # below COMMIT_AT (3%)
         self.page.wait_for_function("scrollY === 0", timeout=4000)
         self.assertTrue(self.page.url.endswith("/"))
 
@@ -145,13 +145,21 @@ class LandingChecks(unittest.TestCase):
             self.page.wait_for_timeout(150)
             self.page.screenshot(path=str(OUTPUT / f"{name}.png"))
             self.assertLessEqual(self.page.evaluate("document.documentElement.scrollWidth"), width)
-            for target in (self.page.get_by_role("img", name="AEGIS"), self.hint()):
-                box = target.bounding_box()
-                self.assertIsNotNone(box)
-                self.assertGreaterEqual(box["x"], 0)
-                self.assertLessEqual(box["x"] + box["width"], width + 1)
-                self.assertLessEqual(box["y"] + box["height"], height + 1)
-                self.assertAlmostEqual(box["x"] + box["width"] / 2, width / 2, delta=6)
+            box = self.hint().bounding_box()
+            self.assertIsNotNone(box)
+            self.assertGreaterEqual(box["x"], 0)
+            self.assertLessEqual(box["y"] + box["height"], height + 1)
+            self.assertAlmostEqual(box["x"] + box["width"] / 2, width / 2, delta=6)
+            # The wordmark canvas spans the stage, so check its measured ink box instead.
+            ink = self.page.evaluate("""() => { const st = getComputedStyle(document.querySelector('main > div'));
+              const v = (n) => parseFloat(st.getPropertyValue(n));
+              return { left: v('--inset-l'), right: innerWidth - v('--inset-r'), top: v('--inset-t'), bottom: innerHeight - v('--inset-b') }; }""")
+            self.assertGreaterEqual(ink["left"], 0)
+            self.assertLessEqual(ink["right"], width + 1)
+            self.assertGreaterEqual(ink["top"], 0)
+            self.assertLessEqual(ink["bottom"], height + 1)
+            if width > 760:
+                self.assertLess((ink["left"] + ink["right"]) / 2, width / 2)  # wordmark sits in the left column
 
     def test_12_deep_links_skip_entrance(self):
         for path in ["/console", "/runs", "/runs/sample?replay=1", "/lab", "/scan", "/stats", "/health"]:

@@ -28,9 +28,9 @@ function Replay({ runId }: { runId: string }) {
 }
 
 function Live({ runId, queue }: { runId: string; queue: number }) {
-  return <><RunView runId={runId} queue={queue} /><Link href={`/runs/${encodeURIComponent(runId)}?replay=1`}>Open stored replay</Link></>;
+  return <><RunView runId={runId} queue={queue} /><Link className="secondary-button" href={`/runs/${encodeURIComponent(runId)}?replay=1`} aria-label="Open the stored replay of this run">Stored replay</Link></>;
 }
 
 export function RunSession({ runId, replay, queue }: { runId: string; replay: boolean; queue: number }) {
-  return <><div className="section-heading run-head"><h1>{replay ? "Run replay" : "Live run"}{replay && <strong className="badge">REPLAY · Stored activity</strong>}</h1><Link href="/runs">Run history</Link></div>{replay ? <Replay runId={runId} /> : <Live runId={runId} queue={queue} />}</>;
+  return <><div className="run-head"><h1>{replay ? "Run replay" : "Live run"}{replay && <strong className="badge">REPLAY · Stored activity</strong>}</h1><Link className="secondary-button" href="/runs">History</Link></div>{replay ? <Replay runId={runId} /> : <Live runId={runId} queue={queue} />}</>;
 }

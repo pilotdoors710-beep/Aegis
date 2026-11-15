@@ -3,8 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, History } from "lucide-react";
-
 import { api, type Schema } from "@/lib/api";
 
 function permissionLabel(ledger: Schema["Ledger"] | null | undefined) {
@@ -77,10 +75,10 @@ export function PermissionPair({ summary, finished }: { summary: Schema["RunSumm
       <span>A fresh ledger is written for the new run. The completed run is never edited.</span>
     </div>
     {pairPreset && <div className="permission-pair-actions">
-      <button className="primary-button" disabled={launching} onClick={launchPair}>
-        {launching ? "Starting fresh run…" : `Run again: ${pairPreset.title}`} <ArrowRight size={15} />
+      <button className="primary-button" disabled={launching} aria-label={`Start a fresh run: ${pairPreset.title}`} onClick={launchPair}>
+        {launching ? "Starting…" : "Run pair"}
       </button>
-      {storedPair && <Link className="secondary-button" href={`/runs/${encodeURIComponent(storedPair.run_id)}?replay=1`}><History size={15} /> Show last stored paired run</Link>}
+      {storedPair && <Link className="secondary-button" aria-label="Show the last stored paired run" href={`/runs/${encodeURIComponent(storedPair.run_id)}?replay=1`}>Last pair</Link>}
     </div>}
     {error && <p className="error-message" role="alert">Paired run unavailable: {error}</p>}
     {storedPair && <div className="permission-pair-grid">

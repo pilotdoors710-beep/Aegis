@@ -1,6 +1,4 @@
-import AnimatedContent from "@/components/reactbits/AnimatedContent";
 import Counter from "@/components/reactbits/Counter";
-import ElectricBorder from "@/components/reactbits/ElectricBorder";
 import type { RunEvent, Schema } from "@/lib/api";
 import { type AskEvent, commitmentKey } from "@/lib/run-evidence";
 
@@ -40,7 +38,7 @@ export function OutcomeCards({ events, summary }: { events: RunEvent[]; summary:
   if (!left || !right) return null;
   return <section className="outcomes-section" aria-label="Final commitment comparison">
     <div className="section-heading"><h2>{summary?.is_sample ? "Sample outcomes" : "Run outcomes"}</h2><span className="outcome-difference">{difference(left, right)}</span></div>
-    <AnimatedContent className="comparison-grid" trigger="mount" distance={28} duration={0.6} stagger={0.12}>{(["unshielded", "shielded"] as const).map((mode) => {
+    <div className="comparison-grid">{(["unshielded", "shielded"] as const).map((mode) => {
       const done = mode === "shielded" ? right : left;
       const other = mode === "shielded" ? left : right;
       const commitments = done.payload.outcome.commitments ?? [];
@@ -57,8 +55,7 @@ export function OutcomeCards({ events, summary }: { events: RunEvent[]; summary:
         {recurring.length ? recurring.map((item, index) => {
           const only = !otherKeys.has(commitmentKey(item));
           const line = <p className={`outcome-recurring${only ? " outcome-recurring-only" : ""}`}>+ {recurringLabel(item)}<span>{item.description.split(" · ")[0]}{only && " · only on this side"}</span></p>;
-          // Arcs mark a recurring charge that only this side took on.
-          return only ? <ElectricBorder key={index} className="outcome-arc" color="#ff6b5e" borderRadius={8} thickness={1.5} speed={0.8} chaos={0.5} interactive={false}>{line}</ElectricBorder> : <div key={index} className="outcome-arc">{line}</div>;
+          return <div key={index} className="outcome-arc">{line}</div>;
         }) : <p className="outcome-no-recurring">No recurring charges</p>}
         <p>{done.payload.outcome.task_completed === true ? "Task completed" : done.payload.outcome.task_completed === false ? "Task incomplete" : "Completion unknown"}</p>
         {done.payload.reason !== "completed" && <p className="outcome-reason">{timedOut ? "Stopped: approval timed out. Nobody approved in time, so no order was placed." : cloakedDenied ? "Stopped before payment: this site showed the agent a different checkout than an ordinary browser, and you denied it." : `Stopped: ${done.payload.reason.replaceAll("_", " ")}`}</p>}
@@ -68,6 +65,6 @@ export function OutcomeCards({ events, summary }: { events: RunEvent[]; summary:
         })}
         {!commitments.length && <p>No commitments recorded.</p>}
       </article>;
-    })}</AnimatedContent>
+    })}</div>
   </section>;
 }

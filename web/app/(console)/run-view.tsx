@@ -2,7 +2,6 @@
 
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import Counter from "@/components/reactbits/Counter";
-import ElectricBorder from "@/components/reactbits/ElectricBorder";
 import { useRunStream } from "@/lib/events";
 import type { RunEvent, Schema } from "@/lib/api";
 import { approvalLabels, latestAsks, pendingAsk } from "@/lib/run-evidence";
@@ -35,9 +34,6 @@ function Ledger({ ledger }: { ledger: Schema["Ledger"] | null | undefined }) {
     <div><dt>Data</dt><dd>{ledger.data_allowed?.join(", ") || "No sharing authorized"}</dd></div>
   </dl></> : <p role="status">Parsing your request…</p>}</aside>;
 }
-
-// Arcs around the protected browser while Aegis is holding an action back.
-const ALERT: Record<string, string> = { BLOCK: "#ff6b5e", REROUTE: "#d9541e", ASK: "#f3eee3" };
 
 const EventRow = memo(function EventRow({ event, inspected, sample, onSelect }: {
   event: RunEvent; inspected: boolean; sample: boolean; onSelect: (event: VerdictEvent) => void;
@@ -77,7 +73,7 @@ const AgentPane = memo(function AgentPane({ mode, events: side, summary, replayS
   useEffect(() => { if (!inspected && feed.current) feed.current.scrollTop = feed.current.scrollHeight; }, [side.length, inspected]);
   return <article className="agent-pane" data-mode={mode}>
     <div className="pane-heading"><h3>{mode === "shielded" ? "With Aegis" : "Unprotected agent"}</h3>{held && <strong className={`chip chip-${latest.toLowerCase()}`}>{latest}</strong>}<span className="pane-step">Step <Counter value={inspected?.step ?? side.at(-1)?.step ?? 0} fontSize={13} fontWeight={500} intro={false} duration={0.45} /></span></div>
-    <ElectricBorder className="frame-wrap" active={held} intro={false} interactive={false} color={ALERT[latest ?? ""] ?? ALERT.REROUTE} borderRadius={10} thickness={1.5} speed={0.9} chaos={0.5}><div className="browser-frame">
+    <div className="frame-wrap" data-held={held ? latest : undefined}><div className="browser-frame">
       {image?.screenshot_b64 || image?.screenshot_url ? <>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img alt={`${mode} browser at step ${snapshot?.step}`} src={image.screenshot_url || `data:image/jpeg;base64,${image.screenshot_b64}`} />
@@ -86,10 +82,10 @@ const AgentPane = memo(function AgentPane({ mode, events: side, summary, replayS
           return <g key={highlight.element_id}><rect x={x} y={y} width={width} height={height} /><text x={Math.max(2, Math.min(x, 1000))} y={Math.max(24, y - 8)}>{highlight.label}</text></g>;
         })}</svg>}
       </> : <span>Waiting for a browser snapshot</span>}
-    </div></ElectricBorder>
+    </div></div>
     {mode === "shielded" && <TwoView report={side.findLast((event): event is VerdictEvent => event.kind === "verdict" && event.payload.two_view?.status === "mismatch")?.payload.two_view} />}
     {mode === "shielded" ? <Ledger ledger={summary?.ledger} /> : <aside className="ledger-panel ledger-none" aria-label="No protection"><h4>No Aegis checks</h4><p>{summary?.task ?? "Waiting for the task…"}</p><p className="ledger-note">Same model, prompt and starting page. Every proposed action runs as it is.</p></aside>}
-    {inspected && <button className="inspect-button" onClick={() => setSelected(null)}>Inspecting step {inspected.step} · Return to latest</button>}
+    {inspected && <p className="inspect-bar">Inspecting step {inspected.step}<button className="secondary-button" aria-label="Return to the latest step" onClick={() => setSelected(null)}>Latest</button></p>}
     <ol ref={feed} className="event-feed" aria-label={`${mode} events`}>{side.filter((event) => mode === "shielded" || event.kind !== "verdict").map((event, index) => <EventRow key={index} event={event} inspected={inspected === event} sample={!!summary?.is_sample} onSelect={setSelected} />)}</ol>
   </article>;
 }, (previous, next) => previous.mode === next.mode && previous.summary === next.summary && previous.replayStep === next.replayStep &&
@@ -104,7 +100,7 @@ export function RunComparison({ summary, events, status, error, replay = false, 
   const asks = useMemo(() => latestAsks(events), [events]);
   const finished = (["unshielded", "shielded"] as const).every((mode) => events.some((event) => event.kind === "done" && event.mode === mode));
   return <section className="run-section" aria-label="Run comparison">
-    <div className="run-bar"><h2>Run comparison</h2>{summary && <p className="task-line" title={summary.task}><span>Task</span>{summary.task}</p>}<div className="run-state">{replay && <strong className="badge">REPLAY</strong>} {summary?.is_sample && <strong className="badge">SAMPLE DATA</strong>} {summary?.own_key && <strong className="badge" title="Run with a visitor's own API key; not part of the published evaluation">Your key · {summary.model}</strong>} <span role="status">{status}</span></div></div>
+    <div className="run-bar"><h2 className="visually-hidden">Run comparison</h2>{summary && <p className="task-line" title={summary.task}><span>Task</span>{summary.task}</p>}<div className="run-state">{replay && <strong className="badge">REPLAY</strong>} {summary?.is_sample && <strong className="badge">SAMPLE DATA</strong>} {summary?.own_key && <strong className="badge" title="Run with a visitor's own API key; not part of the published evaluation">Your key · {summary.model}</strong>} <span role="status">{status}</span></div></div>
     {error && <p className="error-message" role="alert">{error}</p>}
     <OutcomeCards events={events} summary={summary} />
     {summary && <PermissionPair summary={summary} finished={finished} />}

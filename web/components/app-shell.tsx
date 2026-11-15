@@ -1,61 +1,51 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ShieldCheck } from "lucide-react";
 import { Suspense, useState, type ReactNode } from "react";
-import ClickSpark from "@/components/reactbits/ClickSpark";
 import StaggeredMenu from "@/components/reactbits/StaggeredMenu";
+import DotGrid from "@/components/reactbits/DotGrid";
 import { arrivedFromEntrance } from "@/lib/landing/phases";
 import "@/app/app-theme.css";
 
-const Galaxy = dynamic(() => import("@/components/reactbits/Galaxy"), { ssr: false });
-const DitheringBackground = dynamic(() => import("@/components/dithering-background"), { ssr: false });
-
 const pages = [["/console", "Console"], ["/lab", "Trap Lab"], ["/scan", "Scan"], ["/runs", "Runs"], ["/stats", "Stats"]] as const;
 const also = [{ label: "Health", link: "/health" }, { label: "Arena", link: "/arena/index.html?traps=none", external: true }];
-const STARS = ["#f3eee3", "#E8C59E", "#d9541e"];
-const SPARKS = ["#d9541e", "#f3eee3"];
 
 function Menu({ pathname, sybilEnabled = false }: { pathname: string; sybilEnabled?: boolean }) {
-  const navigation = sybilEnabled ? [...pages, ["/sybil", "Sybil Playground"] as const] : pages;
+  const navigation = sybilEnabled ? [...pages, ["/sybil", "Sybil"] as const] : pages;
   const here = (href: string) => pathname === href || pathname.startsWith(href + "/");
-  const dashboard = pathname === "/console";
   const section = [...navigation, ["/health", "Health"] as const].find(([href]) => here(href))?.[1];
-  return <div id={dashboard ? "console-menu-home" : undefined}><StaggeredMenu
+  return <StaggeredMenu
     isFixed
     position="right"
-    colors={dashboard ? ["#2B3D55", "#B8925A"] : ["#3a1d12", "#d9541e"]}
-    accentColor={dashboard ? "#B8925A" : "#d9541e"}
-    menuButtonColor={dashboard ? "#142033" : "#f3eee3"}
-    openMenuButtonColor={dashboard ? "#142033" : "#f3eee3"}
+    colors={["#132131", "#1f3347"]}
+    accentColor="#c2a15a"
+    menuButtonColor="#f2eee6"
+    openMenuButtonColor="#f2eee6"
     socialsTitle="Also"
     socialItems={also}
     items={navigation.map(([link, label]) => ({ label, link, ariaLabel: label, current: here(link) }))}
-    logo={<Link href="/console" className="console-brand" aria-label="Aegis console"><ShieldCheck size={22} aria-hidden="true" /><b>AEGIS</b>{section && <span>{section}</span>}</Link>}
-  /></div>;
+    // eslint-disable-next-line @next/next/no-img-element
+    logo={<Link href="/console" className="console-brand" aria-label="Aegis console"><img src="/landing/logo-white-trimmed.png" alt="" width={23} height={24} /><b>AEGIS</b>{section && <span>{section}</span>}</Link>}
+  />;
 }
 
 function CurrentMenu({ sybilEnabled }: { sybilEnabled: boolean }) {
   return <Menu pathname={usePathname()} sybilEnabled={sybilEnabled} />;
 }
 
-function Background() {
-  const dashboard = usePathname() === "/console";
-  return <div className="console-sky" aria-hidden="true">{dashboard ? <DitheringBackground /> :
-    <Galaxy starColors={STARS} density={0.55} starSpeed={0.3} speed={0.5} glowIntensity={0.22} twinkleIntensity={0.2} rotationSpeed={0.02} mouseInteraction={false} clickWarp={false} intro={false} opacity={0.6} dpr={1} />
-  }</div>;
+// Pearl dots at ~10% over navy; gold near the cursor. Off on run pages so it never competes with live evidence.
+function Dots() {
+  if (usePathname().startsWith("/runs/")) return null;
+  return <DotGrid className="console-dots" baseColor="#1f262d" activeColor="#c2a15a" dotSize={3} gap={28} clickShock={false} />;
 }
 
 export function AppShell({ children, sybilEnabled = false }: { children: ReactNode; sybilEnabled?: boolean }) {
   const [arriving] = useState(arrivedFromEntrance);
   return <div className="app-theme console-shell" data-arriving={arriving || undefined}>
     <a className="skip-content" href="#app-content">Skip to content</a>
-    <Suspense fallback={<div className="console-sky" aria-hidden="true" />}><Background /></Suspense>
     <Suspense fallback={<Menu pathname="" sybilEnabled={sybilEnabled} />}><CurrentMenu sybilEnabled={sybilEnabled} /></Suspense>
-    <ClickSpark sparkColor={SPARKS} sparkSize={9} sparkRadius={22} sparkCount={8} duration={420}>
-      <main id="app-content" className="console-content" tabIndex={-1}>{children}</main>
-    </ClickSpark>
+    <Suspense fallback={null}><Dots /></Suspense>
+    <main id="app-content" className="console-content" tabIndex={-1}>{children}</main>
   </div>;
 }

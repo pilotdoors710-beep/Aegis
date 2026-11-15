@@ -34,6 +34,27 @@ Template:
 - Added long bounded retries for manifest and file-size requests, plus a regression test.
 - The source remains incomplete and can be resumed from `.sybil-data/source/`.
 
+### 2026-11-15 · Dev A · Claude Code · running runs show as running
+- `/console`: a preset with a queued/running run shows "Running" (or "Queued") instead of "Launch"/"Starting…"; clicking opens the live run. Rechecks every 5 s while any run is active.
+- `/runs`: in-progress rows open the live view; finished rows still open the replay.
+- Typecheck + lint pass; checked in a headless browser against a real running run. Not committed (same uncommitted `web/` work).
+
+### 2026-11-15 · Dev A · Claude Code · console: fewer lines, more content
+- Took cues from Linear, Stripe and Raycast: areas are now tone-step tiles, not hairlines; the header line is gone.
+- `/console` has a visible headline with the main demo (no Sample button), a four-step pipeline tile, a "Key traps" tile (T11 cloaked, T03, T05, T04) beside live-run stats and experimental, then the permission board, "More traps", and your key last.
+- Typecheck, lint and 18 Node tests pass; checked at 1440, 1280×720 and 390 wide. Not committed (same uncommitted `web/` work as below).
+
+### 2026-11-15 · Dev A · Claude Code · console redesign (flat, full width)
+- Rewrote `web/app/app-theme.css` from scratch: landing navy/cream/gold, no cards or glass, hairline dividers, one 8px spacing scale (`--s1..--s8`).
+- Console is a sticky hero beside a preset index; runs are two columns split by a hairline; Lab, Scan, Runs, Stats, Sybil and Health are flattened. Buttons say one or two words; the logo replaces icons; the menu keeps "Menu +" / "Close ×".
+- Removed glass refraction, dithering shader and their browser scripts (`verify-glass/dithering/performance.py`).
+- Typecheck, lint and 18 Node tests pass. `pnpm build` not run (a dev server was using `.next`). Nothing committed: landing files are still the teammate's uncommitted work.
+
+### 2026-11-15 · Dev A · Claude Code · particle logo on the landing hero
+- Added `web/app/(landing)/particle-logo.tsx`: our own version of the paid React Bits "Particle Image" idea (WebGL2, 150k particles computed fully in the shader; most hold the logo shape, a third swirl off and respawn; mouse leaves a wake).
+- Placed on the right half of `/` hero; fades with the wordmark on scroll; hidden under 760px; static under reduced motion.
+- Not committed: `web/` has the teammate's uncommitted landing work in the same files.
+
 ### 2026-11-15 · Codex · Share Sybil artifact with backend
 - Made dataset readiness load and validate the shared backend artifact; added a read-only local Compose mount and hosted image packaging.
 - Made the importer resume three files in parallel and retry longer across network outages.

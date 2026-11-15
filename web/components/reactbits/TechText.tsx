@@ -67,7 +67,9 @@ export interface TechTextProps {
 
 type Settings = Required<Omit<TechTextProps, 'className' | 'style'>>;
 
-const LABEL_FONT = '10px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+// Canvas can't read CSS variables, so resolve the site's mono face at draw time.
+const labelFont = () =>
+  `10px ${getComputedStyle(document.documentElement).getPropertyValue('--font-azeret-mono').trim() || 'monospace'}`;
 const FALLOFF_STEPS = 8;
 const SPRING = 320;
 const INHERIT = /^(currentcolor|inherit)$/i;
@@ -575,7 +577,7 @@ const TechText = ({
       if (s.specks > 0) drawSpecks(s, a, accent);
 
       if (!s.labels) return;
-      ctx.font = LABEL_FONT;
+      ctx.font = labelFont();
       ctx.textAlign = 'left';
       ctx.textBaseline = 'bottom';
       ctx.fillStyle = accent;
@@ -597,7 +599,7 @@ const TechText = ({
       ctx.strokeStyle = accent;
       ctx.fillStyle = accent;
       ctx.lineWidth = 1;
-      ctx.font = LABEL_FONT;
+      ctx.font = labelFont();
       ctx.textBaseline = 'middle';
       ctx.textAlign = room ? 'left' : 'right';
       view.lines.forEach((line, k) => {
@@ -971,10 +973,10 @@ const TechText = ({
       wake();
     };
 
+    // offsetX/Y are in the element's own (untransformed) space, so hits stay right under a 3D tilt; the canvas fills the container at 0,0.
     const locate = (e: PointerEvent) => {
-      const rect = container.getBoundingClientRect();
-      pointer.x = e.clientX - rect.left;
-      pointer.y = e.clientY - rect.top;
+      pointer.x = e.offsetX;
+      pointer.y = e.offsetY;
     };
     const onMove = (e: PointerEvent) => {
       locate(e);
@@ -1019,8 +1021,7 @@ const TechText = ({
         !reducedMotion &&
         performance.now() - press.time < 450
       ) {
-        const rect = container.getBoundingClientRect();
-        if (Math.hypot(e.clientX - rect.left - press.x, e.clientY - rect.top - press.y) < 6) kick(press.index);
+        if (Math.hypot(e.offsetX - press.x, e.offsetY - press.y) < 6) kick(press.index);
       }
       press.index = -1;
       wake();
