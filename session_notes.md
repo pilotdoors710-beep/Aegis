@@ -22,6 +22,10 @@ Template:
 
 ## Log
 
+### 2026-11-15 · Dev A · Claude Code · rebased UI overhaul onto Codex's Sybil work
+- Rebased "ui overhaul" onto 4 new Codex commits. Kept all new Sybil playground features (scenario form, graph preview, score polling) and restyled them flat to match the overhaul (no cards or icons, `--sN` tokens).
+- Typecheck and lint pass. Pushed to `main`.
+
 ### 2026-11-16 · Codex · Sybil scenario and assessment slice
 - Added typed immutable scenario, bounded graph-view and assessment APIs with one background numerical process, a queue limit and durable database records.
 - Added disconnected, dense, clustered, hub and chain generation, topology/table views, score polling and both shop breakdowns.
