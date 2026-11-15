@@ -265,6 +265,7 @@ TrapType = Literal[
     "clickjacking",
     "prompt_injection",
     "forced_action",
+    "untrusted_shop",
 ]
 Severity = Literal["low", "medium", "high"]
 Decision = Literal["ALLOW", "BLOCK", "REROUTE", "ASK"]
@@ -425,6 +426,7 @@ class Outcome(BaseModel):
     task_completed: bool | None = None
     total: float | None = None
     commitments: list[Commitment] = []
+    shop: str | None = None
 
 
 # --- R2: disposable consent trials (experimental; never the real session) -------------------
@@ -571,7 +573,12 @@ class ExecutedPayload(BaseModel):
 
 
 AskReason = Literal[
-    "final_payment", "uncertain", "retries_exhausted", "guard_unavailable", "cloaked_checkout"
+    "final_payment",
+    "uncertain",
+    "retries_exhausted",
+    "guard_unavailable",
+    "cloaked_checkout",
+    "untrusted_shop",
 ]
 AskStatus = Literal["pending", "approved", "denied", "timed_out", "auto_approved_demo"]
 
@@ -673,6 +680,7 @@ class RunCreate(BaseModel):
     preset_id: str
     auto_approve: bool | None = None  # override; used by deploy/smoke.sh
     llm: OwnLLM | None = None  # in memory for this run only; never stored or echoed
+    sybil_revision_id: str | None = None
 
 
 RunStatus = Literal["queued", "running", "done", "error"]
@@ -702,6 +710,7 @@ class RunSummary(BaseModel):
     model: str | None = None
     is_sample: bool = False
     own_key: bool = False  # visitor's own LLM key: not an eval run
+    sybil_revision_id: str | None = None
 
 
 class AskDecision(BaseModel):

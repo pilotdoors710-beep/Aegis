@@ -22,6 +22,12 @@ Template:
 
 ## Log
 
+### 2026-11-15 - Antigravity - Sybil Stage 2 and Stage 3 complete
+- Completed Stage 2 (Judge Playground): added interactive node and edge inspectors with click and keyboard navigation, graph selection highlights, and verified JSON/CSV/SVG exports and draft editor.
+- Completed Stage 3 (Agent Integration): added two-shop arena fixture (shops=two), shop-tagged order outcomes, topological trust policy enforcement (R >= 60, S >= 0.5) with separate untrusted_shop ASK gate, and denial feedback redirection.
+- Wired live 'Compare' run launcher (sybil-two-shop preset + frozen revision assessment verification) directly from /sybil.
+- Regenerated frontend API types from FastAPI OpenAPI spec; verified all Sybil & contract tests, web node tests, and TypeScript typecheck.
+
 ### 2026-11-15 · Codex · landing headline font
 - Changed the landing headline to plain text with bold italic sans-serif styling.
 - Kept its gold color and reveal effect.

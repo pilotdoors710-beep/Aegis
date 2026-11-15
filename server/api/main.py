@@ -61,6 +61,7 @@ from aegis.schemas import (
     SybilCounterfactualResult,
     SybilDatasetStatus,
     SybilGenerate,
+    SybilGraphEvidence,
     SybilGraphView,
     SybilScenarioCreate,
     SybilScenarioRevision,
@@ -69,7 +70,7 @@ from aegis.schemas import (
 from aegis.security import ScanGuard, arena_origin, install_guard, validate_scan_url, validate_url
 from aegis.snapshot import screenshot_b64, take_snapshot
 from aegis.sybil_dataset import load_dataset
-from aegis.sybil_runtime import SybilRuntime, assessment_identity
+from aegis.sybil_runtime import SybilRuntime, assessment_identity, graph_evidence
 from aegis.sybil_scenario import generate
 from aegis.trials import run_trials
 
@@ -534,7 +535,12 @@ async def _parse(task: str, router: LLMRouter) -> tuple[Ledger, list[str]]:
 ledger_parser: Callable[[str, LLMRouter], Awaitable[tuple[Ledger, list[str]]]] = _parse
 
 
-async def _run(run_id: str, preset: Preset, router: LLMRouter) -> None:
+async def _run(
+    run_id: str,
+    preset: Preset,
+    router: LLMRouter,
+    graph_evidence: SybilGraphEvidence | None = None,
+) -> None:
     global _run_slots
     assert _browser is not None
     _run_slots = _run_slots or asyncio.Semaphore(settings.max_concurrent_runs)
@@ -550,6 +556,7 @@ async def _run(run_id: str, preset: Preset, router: LLMRouter) -> None:
                              arena_origin()),
             allowed_origin=arena_origin(), ledger=ledger, unresolved=unresolved,
             shield=preset.shield,
+            graph_evidence=graph_evidence,
         )  # fmt: skip
 
 
@@ -558,6 +565,23 @@ async def create_run(body: RunCreate) -> RunCreated:
     preset = next((p for p in PRESETS if p.id == body.preset_id), None)
     if preset is None:
         raise HTTPException(status_code=404, detail=f"unknown preset {body.preset_id!r}")
+    evidence: SybilGraphEvidence | None = None
+    if body.sybil_revision_id:
+        dataset = _sybil_dataset()
+        scenario = await _sybil_scenario(body.sybil_revision_id, dataset)
+        assessment_id = assessment_identity(scenario.revision.id)
+        assessment = _sybil.assessment(assessment_id)
+        if not assessment:
+            try:
+                assessment = await _bus.store.get_sybil_assessment(assessment_id)
+            except Exception as error:
+                log.warning("read Sybil assessment for run failed: %s", error)
+        if not assessment or assessment.status != "complete" or not assessment.converged:
+            raise HTTPException(
+                400,
+                "A complete, converged Sybil assessment is required before launching an agent comparison",
+            )
+        evidence = graph_evidence(assessment)
     ahead = sum(r.status in ("queued", "running") for r in _bus.summaries())
     position = max(0, ahead - settings.max_concurrent_runs + 1)
     run_id = uuid.uuid4().hex[:12]
@@ -568,8 +592,11 @@ async def create_run(body: RunCreate) -> RunCreated:
         created_at=datetime.now(UTC),
         model=f"{own.provider}:{own.model}" if own else settings.agent_models.split(",")[0] or None,
         own_key=own is not None,
+        sybil_revision_id=body.sybil_revision_id,
     ), AskGate(auto_approve=auto))  # fmt: skip
-    task = asyncio.create_task(_run(run_id, preset, OwnKeyRouter(own) if own else _router))
+    task = asyncio.create_task(
+        _run(run_id, preset, OwnKeyRouter(own) if own else _router, graph_evidence=evidence)
+    )
     _tasks.add(task)  # keep a reference so the task is not garbage-collected
     task.add_done_callback(_tasks.discard)
     return RunCreated(run_id=run_id, status="queued" if position else "running",

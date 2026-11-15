@@ -446,7 +446,7 @@ export interface components {
              * Reason
              * @enum {string}
              */
-            reason: "final_payment" | "uncertain" | "retries_exhausted" | "guard_unavailable" | "cloaked_checkout";
+            reason: "final_payment" | "uncertain" | "retries_exhausted" | "guard_unavailable" | "cloaked_checkout" | "untrusted_shop";
             action?: components["schemas"]["Action"] | null;
             /**
              * Findings
@@ -840,7 +840,7 @@ export interface components {
             /** Detector */
             detector: string;
             /** Trap Type */
-            trap_type: ("hidden_info" | "preselection" | "trick_wording" | "obstruction" | "urgency" | "social_proof" | "disguised_ad" | "fake_control" | "clickjacking" | "prompt_injection" | "forced_action") | "guard_unavailable";
+            trap_type: ("hidden_info" | "preselection" | "trick_wording" | "obstruction" | "urgency" | "social_proof" | "disguised_ad" | "fake_control" | "clickjacking" | "prompt_injection" | "forced_action" | "untrusted_shop") | "guard_unavailable";
             /**
              * Severity
              * @enum {string}
@@ -1008,6 +1008,8 @@ export interface components {
              * @default []
              */
             commitments: components["schemas"]["Commitment"][];
+            /** Shop */
+            shop?: string | null;
         };
         /**
          * OwnLLM
@@ -1089,6 +1091,8 @@ export interface components {
             /** Auto Approve */
             auto_approve?: boolean | null;
             llm?: components["schemas"]["OwnLLM"] | null;
+            /** Sybil Revision Id */
+            sybil_revision_id?: string | null;
         };
         /** RunCreated */
         RunCreated: {
@@ -1141,6 +1145,8 @@ export interface components {
              * @default false
              */
             own_key: boolean;
+            /** Sybil Revision Id */
+            sybil_revision_id?: string | null;
         };
         /** ScanReport */
         ScanReport: {

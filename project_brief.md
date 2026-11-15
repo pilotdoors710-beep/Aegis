@@ -619,12 +619,13 @@ deny feeds back for reconsideration under the existing retry limit. Payment, sub
 data-sharing and ledger approvals remain separate. Graph failure never releases uncertain
 sensitive actions. Existing runs work without the extension.
 
-Default comparison: Unprotected vs Aegis+graph; evaluation also compares current Aegis vs
-current Aegis+graph. Freeze fixture/task/graph/model/action budget per comparison. Outcome
-shop identity comes from visible confirmation. Run four evaluation arms (Unprotected, current
-Aegis, graph only, current Aegis+graph): 12 held-out scenarios × 4 × 3 = 144 agent-side runs,
-subject to timing/quota pilot and any predeclared reduction. Disable LLM cache and separate
-fallback models. Structural benchmark: 6 families × 3 sizes × 2 credit levels × 5 seeds =
+Default presentation: compare Unprotected, Aegis, and Aegis+graph together on the same task,
+fixture, graph, model, and action budget. Outcome shop identity comes from visible confirmation.
+Run three evaluation arms (Unprotected, current Aegis, current Aegis+graph): 12 held-out
+scenarios × 3 × 3 = 108 agent-side runs, subject to timing/quota pilot and any predeclared
+reduction. Disable LLM cache and separate fallback models. Keep graph-only as a diagnostic arm
+only if the timing/quota pilot supports it; do not replace the three-arm product comparison.
+Structural benchmark: 6 families × 3 sizes × 2 credit levels × 5 seeds =
 180 attacks plus 30 controls; compare counts, ordinary PageRank, seeded support, full score
 and weight ablations. Report selection, completion/safe completion, executed commitments,
 expected/uncertainty approvals, unnecessary escalation, human assistance, latency/tokens,
