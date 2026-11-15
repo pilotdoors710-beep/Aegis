@@ -74,7 +74,9 @@ def test_valid_artifact_retains_real_ids_degrees_and_anchors(artifact):
     assert dataset.base.dataset_id == manifest["id"]
     assert dataset.base.graph.edges == tuple((i, 8) for i in range(8))
     assert dataset.base.anchors == tuple(map(str, range(8)))
-    assert dataset.base.recommendations == ()
+    # Simulated honest baseline: chosen from clean structure only, never an anchor.
+    assert dataset.base.recommendations == (("8", "A"),)
+    assert dataset.base.content_hash != manifest["id"]  # baseline is part of the identity
 
 
 def test_worker_assessment_uses_validated_artifact(artifact):

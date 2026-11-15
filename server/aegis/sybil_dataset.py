@@ -10,7 +10,7 @@ from pydantic import TypeAdapter
 from scipy.sparse import load_npz
 
 from aegis.schemas import SybilArtifactManifest, SybilArtifactNode
-from aegis.sybil import Graph, reference_scale
+from aegis.sybil import Graph, assess, reference_scale
 from aegis.sybil_scenario import BaseGraph
 
 ANCHORS = (
@@ -24,6 +24,7 @@ ANCHORS = (
     "commoncrawl.org",
 )
 ARTIFACTS = {"nodes.json", "adjacency.npz", "reverse.npz"}
+BASELINE_VERSION = "baseline-v1"  # bump when the simulated honest recommenders change
 
 
 @dataclass(frozen=True)
@@ -101,7 +102,15 @@ def load_dataset(directory: Path) -> Dataset:
     tau = reference_scale(graph, anchor_indices)
     if not np.isclose(tau, manifest.tau, rtol=1e-10, atol=0):
         raise ValueError("Frozen normalization does not match the clean graph")
-    base = BaseGraph(manifest.id, manifest.id, ids, graph, manifest.anchors, manifest.tau)
+    recommendations = baseline_recommendations(graph, anchor_indices, manifest.tau, ids)
+    # The baseline is part of the scored input, so it is part of the dataset identity: old
+    # revisions (scored without it) no longer apply instead of silently changing meaning.
+    content_hash = hashlib.sha256(
+        json.dumps([manifest.id, BASELINE_VERSION, recommendations]).encode()
+    ).hexdigest()
+    base = BaseGraph(
+        manifest.id, content_hash, ids, graph, manifest.anchors, manifest.tau, recommendations
+    )
     # Build immutable lookup structures during artifact loading, outside the edit latency budget.
     _ = base.index, base.edge_set, base.ordered_edges
     return Dataset(
@@ -109,3 +118,34 @@ def load_dataset(directory: Path) -> Dataset:
         nodes,
         base,
     )
+
+
+def baseline_recommendations(
+    graph: Graph, anchors: tuple[int, ...], tau: float, ids: tuple[str, ...]
+) -> tuple[tuple[str, str], ...]:
+    """Simulated honest recommenders, chosen only from clean-graph structure.
+
+    Shop A: 12 well-supported real websites whose combined trust is spread across the anchors.
+    Shop B: the single best-supported real website whose trust comes almost entirely from one
+    anchor. Without these, both shops start at zero and the playground has nothing to compare.
+    """
+    per = assess(graph, anchors, {}, tau).anchor_trust[: len(ids)].copy()
+    per[list(anchors)] = 0
+    trust = per.mean(axis=1)
+    order = [int(i) for i in np.argsort(-trust, kind="stable") if trust[i] >= tau]
+
+    def spread(total: np.ndarray) -> float:
+        shares = total / total.sum()
+        return float(1 / np.sum(shares**2))
+
+    shop_a: list[int] = []
+    total = np.zeros(len(anchors))
+    pool = order[:3000]
+    # Greedy: each pick maximizes how evenly the combined trust spans the anchors.
+    for _ in range(min(12, len(pool))):
+        pick = max((i for i in pool if i not in shop_a), key=lambda i: spread(total + per[i]))
+        shop_a.append(pick)
+        total += per[pick]
+    narrow = (per.max(axis=1) / np.maximum(per.sum(axis=1), 1e-300)) >= 0.9
+    shop_b = [i for i in order if i not in shop_a and narrow[i]][:1]  # small graphs may have none
+    return tuple(sorted([(ids[i], "A") for i in shop_a] + [(ids[i], "B") for i in shop_b]))

@@ -27,6 +27,8 @@ from api.main import app, create_run
 def test_start_url_two_shop() -> None:
     url = start_url([], variant="two-shop", base="http://arena:8000")
     assert url == "http://arena:8000/index.html?shops=two"
+    url = start_url([], variant="two-shop", base="http://arena:8000", recs={"B": 301, "A": 12})
+    assert url == "http://arena:8000/index.html?shops=two&recs=A:12,B:301"
 
 
 def test_target_shop_detection() -> None:
@@ -76,6 +78,7 @@ async def test_outcome_from_page_shop() -> None:
     page.inner_text = AsyncMock(return_value="Thank you\nOrder confirmed\nPurchased from Shop B\nOrder total: ₹1,299")
     outcome_b = await outcome_from_page(page)
     assert outcome_b.shop == "B"
+    assert not any("Shop B" in c.description for c in outcome_b.commitments)  # not an add-on
 
     # Single-shop legacy confirmation without shop
     page.inner_text = AsyncMock(return_value="Thank you\nOrder confirmed\nOrder total: ₹1,299")

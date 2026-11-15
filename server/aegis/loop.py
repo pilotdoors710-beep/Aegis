@@ -92,11 +92,16 @@ _TOTAL_RE = re.compile(r"Order total[^\d₹]*₹?\s*([\d,]+(?:\.\d+)?)", re.I)
 
 
 def start_url(
-    traps: list[str], variant: str = "a", base: str | None = None, consent: str = ""
+    traps: list[str],
+    variant: str = "a",
+    base: str | None = None,
+    consent: str = "",
+    recs: dict[str, int] | None = None,
 ) -> str:
     base = (base or settings.arena_base_url).rstrip("/")
-    if variant == "two-shop":
-        return f"{base}/index.html?shops=two"
+    if variant == "two-shop":  # recs: the frozen revision's counts, shown on the shop cards
+        counts = ",".join(f"{shop}:{n}" for shop, n in sorted((recs or {}).items()))
+        return f"{base}/index.html?shops=two" + (f"&recs={counts}" if counts else "")
     q = {"traps": ",".join(traps) or "none"}
     if variant != "a":
         q["variant"] = variant
@@ -112,6 +117,8 @@ def commitment_from_text(text: str) -> Commitment | None:
                           state="executed")  # fmt: skip
     if re.search(r"shipping", text, re.I) or re.match(r"^\s*no\b", text, re.I):
         return None  # delivery terms and explicit "no ..." lines are not commitments
+    if re.match(r"^\s*purchased from shop\b", text, re.I):
+        return None  # which shop sold it: recorded as Outcome.shop, not an extra purchase
     amount = money(text)
     if p := RECURRING.search(text):
         period = "month" if re.search(r"mo", p.group(0), re.I) else "year"

@@ -184,6 +184,8 @@ class SybilRuntime:
     def view(self, dataset: Dataset, scenario: AppliedScenario, limit: int) -> SybilGraphView:
         base_count = len(dataset.nodes)
         required = list(scenario.anchors)
+        # Real recommenders first: a large attack must not push the honest ones out of view.
+        required.extend(i for i, _ in scenario.recommendations if i < base_count)
         required.extend(range(base_count, len(scenario.ids)))
         visible_indices = list(dict.fromkeys(required))[:limit]
         if len(visible_indices) < limit:

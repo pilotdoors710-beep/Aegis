@@ -176,9 +176,12 @@ async def _sybil_scenario(revision_id: str, dataset):
     if revision is None:
         raise HTTPException(404, "Sybil scenario revision not found")
     try:
-        return _sybil.create(dataset, revision.edits)
+        scenario = _sybil.create(dataset, revision.edits)
     except ValueError as error:
         raise HTTPException(409, "Stored scenario does not match the active dataset") from error
+    if scenario.revision.id != revision_id:  # saved under an older dataset/baseline version
+        raise HTTPException(409, "This revision was scored on an older dataset version")
+    return scenario
 
 
 @app.post("/sybil/scenarios", response_model=SybilScenarioRevision, status_code=201)
@@ -552,7 +555,9 @@ async def _run(
         await _bus.update(run_id, ledger=ledger)
         await run_pair(
             _browser, _bus, run_id, task=preset.task, make_agent=lambda: agent_factory(router),
-            url=validate_url(start_url(preset.traps, preset.variant, consent=preset.consent),
+            url=validate_url(start_url(preset.traps, preset.variant, consent=preset.consent,
+                                       recs=graph_evidence and {shop: e.recommendation_count
+                                             for shop, e in graph_evidence.shops.items()}),
                              arena_origin()),
             allowed_origin=arena_origin(), ledger=ledger, unresolved=unresolved,
             shield=preset.shield,
