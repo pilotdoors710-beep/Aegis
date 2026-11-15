@@ -200,7 +200,7 @@ export function SybilReadiness() {
   const [datasets, setDatasets] = useState<Dataset[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
-  const [count, setCount] = useState(10);
+  const [count, setCount] = useState(300); // more than Shop A's 12 real fans, so the attack visibly misleads the unprotected agent
   const [target, setTarget] = useState<"A" | "B">("B");
   const [pattern, setPattern] = useState<
     "disconnected" | "dense" | "clusters" | "hub" | "chain"
