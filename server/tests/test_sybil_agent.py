@@ -159,7 +159,7 @@ async def test_untrusted_shop_policy_enforcement(monkeypatch) -> None:
     monkeypatch.setattr("aegis.loop.check_fast", AsyncMock(return_value=([], 5)))
 
     # AskGate with auto_approve=False (denies any ask)
-    gate = AskGate(timeout_s=0)
+    gate = AskGate(timeout_s=0.01)
 
     events = []
     async for ev in run_side(
@@ -233,6 +233,7 @@ async def test_create_run_sybil_validation(monkeypatch) -> None:
     mock_sybil.assessment = MagicMock(return_value=complete_assessment)
     monkeypatch.setattr("api.main._sybil", mock_sybil)
     monkeypatch.setattr("api.main._browser", MagicMock())
+    monkeypatch.setattr("api.main._run", AsyncMock())
 
     # Create run with sybil_revision_id
     created = await create_run(RunCreate(preset_id="sybil-two-shop", sybil_revision_id=revision_id))
