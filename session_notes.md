@@ -22,6 +22,11 @@ Template:
 
 ## Log
 
+### 2026-11-15 · Dev A · Claude Code · Sybil page UI
+- Removed the big Sybil header; scores + Compare now sit right under the graph; the JSON editor is folded into "Advanced" at the bottom.
+- Graph is now a canvas with spring physics (d3-force): scroll/buttons to zoom, drag to pan or move sites, Full screen, Fit. Export is PNG now.
+- Checked in a headless browser: no errors; 300 fake sites for Shop B still score 0.0.
+
 ### 2026-11-15 · Dev A · Claude Code · PC-only hosting
 - Backend runs only on Dev A's PC via Tailscale Funnel. Removed the Hugging Face deploy script, Caddy and the Oracle VM steps.
 - `deploy/oracle-setup.md` is now `deploy/pc-setup.md`; brief §3 and `web/README.md` updated to match.

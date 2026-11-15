@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, type Schema } from "@/lib/api";
 import styles from "./sybil.module.css";
+import { SybilGraph, type SelectedEdge } from "./graph";
 
 type Dataset = Schema["SybilDatasetStatus"];
 type Revision = Schema["SybilScenarioRevision"];
@@ -21,11 +22,6 @@ function download(name: string, content: string, type: string) {
   URL.revokeObjectURL(url);
 }
 
-interface SelectedEdge {
-  source: string;
-  target: string;
-  provenance: string;
-}
 
 function GraphPreview({
   view,
@@ -42,134 +38,16 @@ function GraphPreview({
   onSelectEdge: (edge: SelectedEdge) => void;
   onClearSelection: () => void;
 }) {
-  const plotted = useMemo(() => {
-    const minX = Math.min(...view.nodes.map((node) => node.x));
-    const maxX = Math.max(...view.nodes.map((node) => node.x));
-    const minY = Math.min(...view.nodes.map((node) => node.y));
-    const maxY = Math.max(...view.nodes.map((node) => node.y));
-    const scale = (value: number, low: number, high: number, size: number) =>
-      20 + ((value - low) / (high - low || 1)) * size;
-    return new Map(
-      view.nodes.map((node) => [
-        node.id,
-        {
-          ...node,
-          px: scale(node.x, minX, maxX, 620),
-          py: scale(node.y, minY, maxY, 280),
-        },
-      ]),
-    );
-  }, [view.nodes]);
-  const shops = { A: { x: 750, y: 105 }, B: { x: 750, y: 245 } };
   return (
     <>
-      <svg
-        id="sybil-graph"
-        className={styles.graph}
-        viewBox="0 0 800 340"
-        role="img"
-        aria-label={`Graph subset with ${view.displayed_nodes} websites and ${view.displayed_edges} links`}
-        onClick={onClearSelection}
-      >
-        <g className={styles.observedEdges}>
-          {view.edges.slice(0, 1000).map((edge) => {
-            const source = plotted.get(edge.source);
-            const target = plotted.get(edge.target);
-            if (!source || !target) return null;
-            const isSelected =
-              selectedEdge?.source === edge.source && selectedEdge?.target === edge.target;
-            return (
-              <line
-                key={`${edge.source}-${edge.target}`}
-                x1={source.px}
-                y1={source.py}
-                x2={target.px}
-                y2={target.py}
-                style={{ cursor: "pointer" }}
-                className={[
-                  edge.provenance === "simulated" ? styles.simulatedEdge : undefined,
-                  isSelected ? styles.selectedEdge : undefined,
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSelectEdge({
-                    source: edge.source,
-                    target: edge.target,
-                    provenance: edge.provenance,
-                  });
-                }}
-              />
-            );
-          })}
-        </g>
-        <g className={styles.recommendationEdges}>
-          {view.recommendations.map((recommendation) => {
-            const source = plotted.get(recommendation.website);
-            const target = shops[recommendation.shop];
-            return source ? (
-              <line
-                key={`${recommendation.website}-${recommendation.shop}`}
-                x1={source.px}
-                y1={source.py}
-                x2={target.x}
-                y2={target.y}
-              />
-            ) : null;
-          })}
-        </g>
-        {(["A", "B"] as const).map((shop) => (
-          <g key={shop} transform={`translate(${shops[shop].x - 34} ${shops[shop].y - 18})`}>
-            <rect width="68" height="36" rx="5" />
-            <text x="34" y="23">
-              Shop {shop}
-            </text>
-          </g>
-        ))}
-        {[...plotted.values()].map((node) => {
-          const isSelected = selectedNodeId === node.id;
-          const nodeClass = [
-            node.anchor
-              ? styles.anchorNode
-              : node.provenance === "simulated"
-                ? styles.simulatedNode
-                : styles.observedNode,
-            isSelected ? styles.selectedNode : undefined,
-          ]
-            .filter(Boolean)
-            .join(" ");
-          return node.anchor ? (
-            <rect
-              key={node.id}
-              className={nodeClass}
-              x={node.px - 5}
-              y={node.py - 5}
-              width="10"
-              height="10"
-              transform={`rotate(45 ${node.px} ${node.py})`}
-              style={{ cursor: "pointer" }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelectNode(node.id);
-              }}
-            />
-          ) : (
-            <circle
-              key={node.id}
-              className={nodeClass}
-              cx={node.px}
-              cy={node.py}
-              r={isSelected ? 6 : node.provenance === "simulated" ? 4 : 3}
-              style={{ cursor: "pointer" }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelectNode(node.id);
-              }}
-            />
-          );
-        })}
-      </svg>
+      <SybilGraph
+        view={view}
+        selectedNodeId={selectedNodeId}
+        selectedEdge={selectedEdge}
+        onSelectNode={onSelectNode}
+        onSelectEdge={onSelectEdge}
+        onClearSelection={onClearSelection}
+      />
       <details className={styles.nodeTable}>
         <summary>Keyboard graph table</summary>
         <div className={styles.tableScroll}>
@@ -601,14 +479,16 @@ export function SybilReadiness() {
 
   function exportGraph() {
     const graph = document.getElementById("sybil-graph");
-    if (!graph) return;
-    const copy = graph.cloneNode(true) as SVGElement;
-    copy.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-    download(
-      `sybil-${revision?.id.slice(0, 12)}-graph.svg`,
-      new XMLSerializer().serializeToString(copy),
-      "image/svg+xml",
-    );
+    if (!(graph instanceof HTMLCanvasElement)) return;
+    graph.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `sybil-${revision?.id.slice(0, 12)}-graph.png`;
+      link.click();
+      URL.revokeObjectURL(url);
+    });
   }
 
   async function launchComparison() {
@@ -629,14 +509,7 @@ export function SybilReadiness() {
 
   return (
     <div className={styles.page}>
-      <header className="page-head">
-        <span className="label">Experimental · recommendation graph</span>
-        <h1>Sybil Playground</h1>
-        <p className="lede">
-          Change a recommendation network. Inspect structural support. Compare the agent’s choice.
-        </p>
-        <p>Real website-link background. Shop recommendations and attack edits are simulated.</p>
-      </header>
+      <h1 className="sr-only">Sybil Playground</h1>
       <section className={styles.strip} aria-label="Dataset status" aria-live="polite">
         <span>{dataset?.release ?? "Checking pinned release"}</span>
         <span>{error ? "Error" : dataset?.status ?? "Checking"}</span>
@@ -647,6 +520,7 @@ export function SybilReadiness() {
         <span>Mode: Challenge</span>
         <span>Revision: {revision?.id.slice(0, 12) ?? "none"}</span>
         <span>Scores: {assessment?.status ?? "none"}</span>
+        <span>Real website-link background · shop recommendations and attack edits are simulated</span>
       </section>
       {error && (
         <div className={styles.alert} role="alert">
@@ -736,7 +610,7 @@ export function SybilReadiness() {
           </dl>
           <p>Generation uses seed 1. Repeating the same settings produces the same immutable revision.</p>
         </section>
-        <section className={styles.empty} aria-labelledby="graph-title">
+        <section className={view ? styles.graphSection : styles.empty} aria-labelledby="graph-title">
           {!view ? (
             <>
               <h2 id="graph-title">{ready ? "Create a scenario" : "Real graph unavailable"}</h2>
@@ -821,7 +695,39 @@ export function SybilReadiness() {
           )}
         </section>
       </div>
+      <section className={styles.comparison} aria-label="Shop comparison">
+        <Score shop="A" assessment={assessment} />
+        <Score shop="B" assessment={assessment} />
+        <div>
+          <button
+            className="primary-button"
+            disabled={
+              !ready ||
+              !revision ||
+              assessment?.status !== "complete" ||
+              !assessment.converged ||
+              busy
+            }
+            onClick={() => void launchComparison()}
+            aria-describedby="comparison-reason"
+            aria-label="Run agent comparison"
+          >
+            {busy ? "Starting…" : "Compare"}
+          </button>
+          <p id="comparison-reason">
+            {assessment?.status === "complete" && assessment.converged
+              ? "Launch paired browser comparison with this frozen graph revision."
+              : "Complete, converged assessment required to run agent comparison."}
+          </p>
+        </div>
+      </section>
+      <p className={styles.disclosure}>
+        A heuristic measure of structural support and tested sensitivity. Not a probability that this
+        shop is safe.
+      </p>
       {revision && (
+        <details className={styles.advanced}>
+          <summary>Advanced: edit the scenario as JSON</summary>
         <section className={styles.editor} aria-labelledby="editor-title">
           <div className={styles.editorHead}>
             <div>
@@ -882,7 +788,7 @@ export function SybilReadiness() {
               Export score CSV
             </button>
             <button className="secondary-button" disabled={!view} onClick={exportGraph}>
-              Export graph SVG
+              Export graph PNG
             </button>
           </div>
           {counterfactual && (
@@ -896,37 +802,8 @@ export function SybilReadiness() {
             </div>
           )}
         </section>
+        </details>
       )}
-      <section className={styles.comparison} aria-label="Shop comparison">
-        <Score shop="A" assessment={assessment} />
-        <Score shop="B" assessment={assessment} />
-        <div>
-          <button
-            className="primary-button"
-            disabled={
-              !ready ||
-              !revision ||
-              assessment?.status !== "complete" ||
-              !assessment.converged ||
-              busy
-            }
-            onClick={() => void launchComparison()}
-            aria-describedby="comparison-reason"
-            aria-label="Run agent comparison"
-          >
-            {busy ? "Starting…" : "Compare"}
-          </button>
-          <p id="comparison-reason">
-            {assessment?.status === "complete" && assessment.converged
-              ? "Launch paired browser comparison with this frozen graph revision."
-              : "Complete, converged assessment required to run agent comparison."}
-          </p>
-        </div>
-      </section>
-      <p className={styles.disclosure}>
-        A heuristic measure of structural support and tested sensitivity. Not a probability that this
-        shop is safe.
-      </p>
     </div>
   );
 }
