@@ -613,7 +613,8 @@ the agent does not browse them. No attack labels or expected winners in DOM or p
 Use the same base system prompt/action schema and approximately 350 tokens of separately
 labelled system-produced graph evidence; reserve prompt space. LLM chooses the shop.
 
-Prototype policy passes only a full, converged assessment with R>=60 and S>=0.5; otherwise
+Prototype policy passes only a full, converged assessment with R>=60, S>=0.5 and L>=0.5
+(L floor added 16 Nov: bought bridges inflated E enough to pass R>=60 within budget); otherwise
 ASK before entering the proposed shop. Allow is scoped to shop/run/frozen revision only;
 deny feeds back for reconsideration under the existing retry limit. Payment, subscription,
 data-sharing and ledger approvals remain separate. Graph failure never releases uncertain

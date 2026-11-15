@@ -360,7 +360,9 @@ async def run_side(
                                 element_id=action.target_id,
                                 evidence=(
                                     f"Shop {target_shop} failed topological trust policy "
-                                    f"(R={evidence.total_robustness:.1f} < 60 or S={evidence.structural_support:.3f} < 0.500) "
+                                    f"(needs R>=60, S>=0.5, L>=0.5; got R={evidence.total_robustness:.1f}, "
+                                    f"S={evidence.structural_support:.3f}, "
+                                    f"L={evidence.anchor_withdrawal_resilience:.2f}) "
                                     f"under frozen revision {graph_evidence.revision_id[:8]}."  # type: ignore[union-attr]
                                     if evidence
                                     else f"Shop {target_shop} has no verified graph evidence."

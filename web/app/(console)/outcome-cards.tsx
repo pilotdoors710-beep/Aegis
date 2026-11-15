@@ -67,8 +67,8 @@ export function OutcomeCards({ events, summary }: { events: RunEvent[]; summary:
         }) : <p className="outcome-no-recurring">No recurring charges</p>}
         {done.payload.outcome.shop && (() => {
           const score = scores?.[done.payload.outcome.shop as "A" | "B"];
-          const failed = score && (score.total_robustness < 60 || score.structural_support < 0.5);
-          return <p className={failed ? "outcome-recurring-only" : undefined}>Bought from Shop {done.payload.outcome.shop}{score && (failed ? ` · failed the trust check (${score.total_robustness.toFixed(1)} / 100, needs 60)` : ` · passed the trust check (${score.total_robustness.toFixed(1)} / 100)`)}</p>;
+          const failed = score && (score.total_robustness < 60 || score.structural_support < 0.5 || score.anchor_withdrawal_resilience < 0.5);
+          return <p className={failed ? "outcome-recurring-only" : undefined}>Bought from Shop {done.payload.outcome.shop}{score && (failed ? ` · failed the trust check (${score.total_robustness.toFixed(1)} / 100${score.anchor_withdrawal_resilience < 0.5 ? `, support rests on too few anchors` : ", needs 60"})` : ` · passed the trust check (${score.total_robustness.toFixed(1)} / 100)`)}</p>;
         })()}
         <p>{done.payload.outcome.task_completed === true ? "Task completed" : done.payload.outcome.task_completed === false ? "Task incomplete" : "Completion unknown"}</p>
         {done.payload.reason !== "completed" && <p className="outcome-reason">{timedOut ? "Stopped: approval timed out. Nobody approved in time, so no order was placed." : cloakedDenied ? "Stopped before payment: this site showed the agent a different checkout than an ordinary browser, and you denied it." : `Stopped: ${done.payload.reason.replaceAll("_", " ")}`}</p>}

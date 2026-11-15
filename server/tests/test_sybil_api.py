@@ -258,3 +258,28 @@ def test_graph_evidence_applies_both_policy_thresholds() -> None:
     evidence = graph_evidence(assessment)
     assert evidence.shops["A"].policy_passed is True
     assert evidence.shops["B"].policy_passed is False
+
+
+def test_bridge_inflated_score_still_fails_anchor_floor() -> None:
+    # Measured chain + 6 bridges attack on the real graph: R and S pass, L does not.
+    revision_id = "e" * 64
+    attacked = {
+        "recommendation_count": 301,
+        "trust_weighted_support": 0.0018,
+        "structural_support": 0.999,
+        "effective_anchors": 1.2,
+        "anchor_breadth": 0.03,
+        "anchor_withdrawal_resilience": 0.11,
+        "tested_connection_resilience": 1.0,
+        "total_robustness": 62.9,
+        "tested_edges": [],
+    }
+    assessment = SybilAssessmentRecord.model_validate(
+        {
+            "id": assessment_identity(revision_id),
+            "revision_id": revision_id,
+            "status": "complete",
+            "scores": {"B": attacked},
+        }
+    )
+    assert graph_evidence(assessment).shops["B"].policy_passed is False

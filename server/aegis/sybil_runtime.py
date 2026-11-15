@@ -101,8 +101,11 @@ def graph_evidence(assessment: SybilAssessmentRecord) -> SybilGraphEvidence:
                 anchor_withdrawal_resilience=score.anchor_withdrawal_resilience,
                 tested_connection_resilience=score.tested_connection_resilience,
                 total_robustness=score.total_robustness,
+                # L floor: buying bridges inflates E (and so R) but cannot fake many anchors.
                 policy_passed=(
-                    score.total_robustness >= 60 and score.structural_support >= 0.5
+                    score.total_robustness >= 60
+                    and score.structural_support >= 0.5
+                    and score.anchor_withdrawal_resilience >= 0.5
                 ),
             )
             for shop, score in assessment.scores.items()
