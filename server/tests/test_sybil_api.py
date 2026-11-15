@@ -107,12 +107,18 @@ async def test_scenario_revision_and_bounded_view(monkeypatch):
         replacement = SybilRuntime()
         monkeypatch.setattr("api.main._sybil", replacement)
         restored = await client.get(f"/sybil/scenarios/{revision['id']}")
+        generated = await client.post(
+            "/sybil/datasets/test/generate",
+            json={"count": 10, "seed": 7, "pattern": "chain", "density": 0.1, "target": "A"},
+        )
     assert fetched.json() == revision
     assert restored.json() == revision
     assert view.status_code == 200
     assert view.json()["displayed_nodes"] == 3
     assert view.json()["subset"] is True
     assert any(v["provenance"] == "simulated" for v in view.json()["nodes"])
+    assert generated.status_code == 201
+    assert generated.json()["budget"]["internal_links"] == 9
     runtime.shutdown()
     replacement.shutdown()
 

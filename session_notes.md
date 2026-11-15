@@ -24,7 +24,7 @@ Template:
 
 ### 2026-11-16 · Codex · Sybil scenario and assessment slice
 - Added typed immutable scenario, bounded graph-view and assessment APIs with one background numerical process, a queue limit and durable database records.
-- Added the first working playground edit: disconnected simulated recommenders, topology/table view, score polling and both shop breakdowns.
+- Added disconnected, dense, clustered, hub and chain generation, topology/table views, score polling and both shop breakdowns.
 - Regenerated frontend API types; 54 targeted tests, backend lint, frontend types and frontend lint pass.
 - The main graph and labels finished downloading. The transpose resumed from 1.49 GB and is still downloading; extraction remains next.
 - Next: finish extraction/benchmarks, apply the new database migration, then add full attack patterns and agent integration.

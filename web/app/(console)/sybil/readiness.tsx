@@ -55,6 +55,8 @@ export function SybilReadiness() {
   const [attempt, setAttempt] = useState(0);
   const [count, setCount] = useState(10);
   const [target, setTarget] = useState<"A" | "B">("B");
+  const [pattern, setPattern] = useState<"disconnected" | "dense" | "clusters" | "hub" | "chain">("disconnected");
+  const [density, setDensity] = useState(0.1);
   const [revision, setRevision] = useState<Revision | null>(null);
   const [view, setView] = useState<GraphView | null>(null);
   const [assessment, setAssessment] = useState<Assessment | null>(null);
@@ -83,12 +85,16 @@ export function SybilReadiness() {
     setBusy(true); setError(null); setAssessment(null);
     try {
       const nodes = Array.from({ length: count }, (_, i) => `sim:judge-${i}`);
-      const next = await api.createSybilScenario({
-        dataset_id: dataset.dataset_id, mode: "challenge", injected_nodes: nodes,
-        added_links: [], removed_links: [], removed_recommendations: [], compromised: [],
-        cooperating_links: [], restart: 0.15,
-        recommendations: nodes.map((website) => ({ website, shop: target })),
-      });
+      const next = pattern === "disconnected"
+        ? await api.createSybilScenario({
+          dataset_id: dataset.dataset_id, mode: "challenge", injected_nodes: nodes,
+          added_links: [], removed_links: [], removed_recommendations: [], compromised: [],
+          cooperating_links: [], restart: 0.15,
+          recommendations: nodes.map((website) => ({ website, shop: target })),
+        })
+        : await api.generateSybilScenario(dataset.dataset_id, {
+          count, seed: 1, pattern, density, target,
+        });
       setRevision(next);
       const [nextView, job] = await Promise.all([api.sybilView(next.id), api.createSybilAssessment(next.id)]);
       setView(nextView); setAssessment(job);
@@ -102,7 +108,7 @@ export function SybilReadiness() {
     <section className={`console-card ${styles.strip}`} aria-label="Dataset status" aria-live="polite"><span><Database size={18} aria-hidden="true" /> {dataset?.release ?? "Checking pinned release"}</span><span>{error ? "Error" : dataset?.status ?? "Checking"}</span><span>Imported: {dataset?.imported_nodes.toLocaleString() ?? "—"} nodes / {dataset?.imported_edges.toLocaleString() ?? "—"} edges</span><span>Mode: Challenge</span><span>Revision: {revision?.id.slice(0, 12) ?? "none"}</span><span>Scores: {assessment?.status ?? "none"}</span></section>
     {error && <div className="console-card" role="alert"><p>{error}</p><button className="secondary-button" onClick={() => { setError(null); setAttempt((value) => value + 1); }}>Retry dataset check</button></div>}
     <div className={styles.workspace}>
-      <section className="console-card" aria-labelledby="scenario-title"><h2 id="scenario-title">Attack controls</h2><form onSubmit={createScenario} className={styles.controls}><label>Target shop<select value={target} onChange={(event) => setTarget(event.target.value as "A" | "B")} disabled={!ready || busy}><option value="A">Shop A</option><option value="B">Shop B</option></select></label><label>Disconnected recommending websites<input type="number" min="10" max="1000" value={count} onChange={(event) => setCount(Number(event.target.value))} disabled={!ready || busy} /></label><button className="primary-button" disabled={!ready || busy}>{busy ? "Creating…" : "Create revision"}</button></form><dl className={styles.facts}><div><dt>Injected websites</dt><dd>{revision?.budget.injected_websites ?? 0} / 1,000</dd></div><div><dt>Internal links</dt><dd>{revision?.budget.internal_links ?? 0} / 100,000</dd></div><div><dt>External credits</dt><dd>{revision?.budget.external_credits ?? 0} / 25</dd></div></dl><p>This first control demonstrates that recommendation count alone does not create seeded support.</p></section>
+      <section className="console-card" aria-labelledby="scenario-title"><h2 id="scenario-title">Attack controls</h2><form onSubmit={createScenario} className={styles.controls}><label>Target shop<select value={target} onChange={(event) => setTarget(event.target.value as "A" | "B")} disabled={!ready || busy}><option value="A">Shop A</option><option value="B">Shop B</option></select></label><label>Connection pattern<select value={pattern} onChange={(event) => setPattern(event.target.value as typeof pattern)} disabled={!ready || busy}><option value="disconnected">Disconnected</option><option value="dense">Dense cluster</option><option value="clusters">Multiple clusters</option><option value="hub">Hub and spoke</option><option value="chain">Chain</option></select></label><label>Generated recommending websites<input type="number" min="10" max="1000" value={count} onChange={(event) => setCount(Number(event.target.value))} disabled={!ready || busy} /></label><label>Internal density<input type="range" min="0" max="1" step="0.05" value={density} onChange={(event) => setDensity(Number(event.target.value))} disabled={!ready || busy || !["dense", "clusters"].includes(pattern)} /><span>{Math.round(density * 100)}%</span></label><button className="primary-button" disabled={!ready || busy}>{busy ? "Creating…" : "Create revision"}</button></form><dl className={styles.facts}><div><dt>Injected websites</dt><dd>{revision?.budget.injected_websites ?? 0} / 1,000</dd></div><div><dt>Internal links</dt><dd>{revision?.budget.internal_links ?? 0} / 100,000</dd></div><div><dt>External credits</dt><dd>{revision?.budget.external_credits ?? 0} / 25</dd></div></dl><p>Generation uses seed 1. Repeating the same settings produces the same immutable revision.</p></section>
       <section className={`console-card ${styles.empty}`} aria-labelledby="graph-title">{!view ? <><Network size={36} aria-hidden="true" /><h2 id="graph-title">{ready ? "Create a scenario" : "Real graph unavailable"}</h2><p>{dataset?.reason ?? "Waiting for the dataset service."}</p></> : <><h2 id="graph-title">Topology subset</h2><p>Displaying {view.displayed_nodes.toLocaleString()} of {view.total_nodes.toLocaleString()} nodes and {view.displayed_edges.toLocaleString()} of {view.total_edges.toLocaleString()} links.</p><GraphPreview view={view} /></>}</section>
       <section className="console-card" aria-labelledby="evidence-title"><h2 id="evidence-title">Evidence inspector</h2><p>{assessment?.status === "complete" ? `Converged in ${assessment.iterations} iterations (${assessment.elapsed_ms?.toFixed(0)} ms).` : assessment?.reason ?? "Create a revision to calculate evidence."}</p><details className={styles.formula}><summary>Inspect the score formula</summary><p><code>R = 100S (0.40 + 0.20D + 0.20L + 0.20E)</code></p><p>Formula sybil-v1 · restart 0.15.</p></details></section>
     </div>

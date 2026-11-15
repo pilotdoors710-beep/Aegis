@@ -38,6 +38,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sybil/datasets/{dataset_id}/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Generate Sybil Scenario */
+        post: operations["generate_sybil_scenario_sybil_datasets__dataset_id__generate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sybil/scenarios/{revision_id}": {
         parameters: {
             query?: never;
@@ -1314,6 +1331,36 @@ export interface components {
             /** Source Url */
             source_url: string;
         };
+        /** SybilGenerate */
+        SybilGenerate: {
+            /**
+             * Count
+             * @default 100
+             */
+            count: number;
+            /**
+             * Seed
+             * @default 1
+             */
+            seed: number;
+            /**
+             * Pattern
+             * @default dense
+             * @enum {string}
+             */
+            pattern: "dense" | "clusters" | "hub" | "chain";
+            /**
+             * Density
+             * @default 0.1
+             */
+            density: number;
+            /**
+             * Target
+             * @default B
+             * @enum {string}
+             */
+            target: "A" | "B";
+        };
         /** SybilGraphEdge */
         SybilGraphEdge: {
             /** Source */
@@ -1741,6 +1788,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["SybilScenarioCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SybilScenarioRevision"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_sybil_scenario_sybil_datasets__dataset_id__generate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SybilGenerate"];
             };
         };
         responses: {

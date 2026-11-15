@@ -487,8 +487,8 @@ may expose explicit unavailable states for development; this is not the release 
 Implementation checkpoint (16 November): pure sparse scoring, tested download/resume preflight,
 strict artifact validation, immutable scenario rules, typed scenario/view/assessment endpoints,
 a bounded one-process assessment queue and the first gated `/sybil` editing path are implemented.
-The UI can add disconnected simulated recommenders, inspect a bounded topology/table and poll
-both shops' score components. Stage 1 is incomplete: the transpose download, WebGraph extraction
+The UI can add disconnected or seeded dense/cluster/hub/chain recommenders, inspect a bounded
+topology/table and poll both shops' score components. Stage 1 is incomplete: the transpose download, WebGraph extraction
 and real-data benchmarks remain. Scenario/assessment persistence and restart recovery are coded,
 but the new database migration has not yet been applied to the deployed backend. No
 graph-assisted browser comparison is available. Live source metadata

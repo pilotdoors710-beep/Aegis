@@ -59,6 +59,7 @@ from aegis.schemas import (
     ScanRequest,
     SybilAssessmentRecord,
     SybilDatasetStatus,
+    SybilGenerate,
     SybilGraphView,
     SybilScenarioCreate,
     SybilScenarioRevision,
@@ -68,6 +69,7 @@ from aegis.security import ScanGuard, arena_origin, install_guard, validate_scan
 from aegis.snapshot import screenshot_b64, take_snapshot
 from aegis.sybil_dataset import load_dataset
 from aegis.sybil_runtime import SybilRuntime, assessment_identity
+from aegis.sybil_scenario import generate
 from aegis.trials import run_trials
 
 log = logging.getLogger("aegis.api")
@@ -185,6 +187,27 @@ async def create_sybil_scenario(body: SybilScenarioCreate, request: Request):
     dataset = _sybil_dataset()
     try:
         revision = _sybil.create(dataset, body).revision
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from error
+    try:
+        await _bus.store.save_sybil_dataset(dataset.manifest)
+        await _bus.store.save_sybil_scenario(revision)
+    except Exception as error:
+        raise HTTPException(503, "Scenario persistence failed") from error
+    return revision
+
+
+@app.post(
+    "/sybil/datasets/{dataset_id}/generate",
+    response_model=SybilScenarioRevision,
+    status_code=201,
+)
+async def generate_sybil_scenario(dataset_id: str, body: SybilGenerate):
+    dataset = _sybil_dataset()
+    if dataset.base.dataset_id != dataset_id:
+        raise HTTPException(404, "Sybil dataset not found")
+    try:
+        revision = _sybil.create(dataset, generate(dataset_id, body)).revision
     except ValueError as error:
         raise HTTPException(422, str(error)) from error
     try:

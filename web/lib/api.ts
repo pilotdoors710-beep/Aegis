@@ -22,6 +22,10 @@ export const api = {
   createSybilScenario: (body: Schema["SybilScenarioCreate"]) => request<Schema["SybilScenarioRevision"]>("/sybil/scenarios", {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
   }),
+  generateSybilScenario: (datasetId: string, body: Schema["SybilGenerate"]) => request<Schema["SybilScenarioRevision"]>(
+    `/sybil/datasets/${encodeURIComponent(datasetId)}/generate`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+  ),
   sybilView: (id: string, limit = 150, signal?: AbortSignal) => request<Schema["SybilGraphView"]>(
     `/sybil/scenarios/${encodeURIComponent(id)}/view?limit=${limit}`, { signal },
   ),
