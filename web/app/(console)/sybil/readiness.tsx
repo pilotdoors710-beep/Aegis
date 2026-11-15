@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { api, type Schema } from "@/lib/api";
 import styles from "./sybil.module.css";
@@ -269,7 +269,9 @@ export function SybilReadiness() {
   const [history, setHistory] = useState<Revision[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [busy, setBusy] = useState(false);
-  const [run, setRun] = useState<{ id: string; queue: number } | null>(null);
+  const [run, setRun] = useState<{ id: string; queue: number; ended: boolean } | null>(null);
+  const running = run !== null && !run.ended;
+  const endRun = useCallback(() => setRun((current) => current && { ...current, ended: true }), []);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<SelectedEdge | null>(null);
 
@@ -560,7 +562,7 @@ export function SybilReadiness() {
         preset_id: "sybil-two-shop",
         sybil_revision_id: revision.id,
       });
-      setRun({ id: created.run_id, queue: created.queue_position });
+      setRun({ id: created.run_id, queue: created.queue_position, ended: false });
       window.setTimeout(() => document.getElementById("sybil-run")?.scrollIntoView({ behavior: "smooth" }), 50);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Launching comparison run failed.");
@@ -802,13 +804,14 @@ export function SybilReadiness() {
               !revision ||
               assessment?.status !== "complete" ||
               !assessment.converged ||
-              busy
+              busy ||
+              running
             }
             onClick={() => void launchComparison()}
             aria-describedby="comparison-reason"
             aria-label="Run agent comparison"
           >
-            {busy ? "Starting…" : "Compare"}
+            {busy ? "Starting…" : running ? "Running…" : "Compare"}
           </button>
           <p id="comparison-reason">
             {assessment?.status === "complete" && assessment.converged
@@ -819,7 +822,7 @@ export function SybilReadiness() {
       </section>
       {run && (
         <section id="sybil-run" aria-label="Agent comparison run">
-          <RunView key={run.id} runId={run.id} queue={run.queue} showSybil={false} />
+          <RunView key={run.id} runId={run.id} queue={run.queue} showSybil={false} onEnd={endRun} />
           <Link className="secondary-button" href={`/runs/${encodeURIComponent(run.id)}?replay=1`}>
             Open in Runs
           </Link>

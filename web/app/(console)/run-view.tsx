@@ -129,8 +129,9 @@ export function RunComparison({ summary, events, status, error, replay = false, 
   </section>;
 }
 
-export function RunView({ runId, queue = 0, showSybil }: { runId: string; queue?: number; showSybil?: boolean }) {
+export function RunView({ runId, queue = 0, showSybil, onEnd }: { runId: string; queue?: number; showSybil?: boolean; onEnd?: () => void }) {
   const stream = useRunStream(runId);
+  useEffect(() => { if (stream.status === "complete" || stream.status === "error") onEnd?.(); }, [stream.status, onEnd]);
   const ask = pendingAsk(stream.events);
   const canReview = stream.summary && (stream.summary.is_sample || (stream.summary.status !== "done" && stream.summary.status !== "error"));
   return <>{queue > 0 && !stream.events.length && stream.status !== "error" && <p role="status">Queued at launch: position {queue}. Waiting for this run to start.</p>}<RunComparison {...stream} showSybil={showSybil} />{ask && stream.summary && canReview && <ApprovalDialog key={ask.payload.ask_id} ask={ask} sample={stream.summary.is_sample} connected={stream.status === "streaming"} />}</>;
