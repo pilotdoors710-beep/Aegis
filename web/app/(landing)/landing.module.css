@@ -223,9 +223,9 @@
 }
 
 .heroDescription {
-  font-family: var(--font-landing-script), cursive;
-  font-size: clamp(20px, 1.8vw, 24px);
-  font-weight: 400;
+  font-family: var(--font-coolvetica), sans-serif;
+  font-size: clamp(16px, 1.35vw, 18px);
+  font-weight: 700;
   line-height: 1.45;
   letter-spacing: 0.01em;
   color: rgb(245 241 232 / 92%);
@@ -256,7 +256,7 @@
   }
 
   .heroDescription {
-    font-size: 19px;
+    font-size: 16px;
     line-height: 1.4;
   }
 }
@@ -272,7 +272,7 @@
   }
 
   .heroDescription {
-    font-size: 18px;
+    font-size: 15px;
     line-height: 1.35;
   }
 }

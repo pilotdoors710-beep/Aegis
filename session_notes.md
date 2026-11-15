@@ -22,6 +22,10 @@ Template:
 
 ## Log
 
+### 2026-11-15 · Codex · double-struck landing paragraph
+- Changed the landing paragraph to match the user's double-struck sample and kept it smaller.
+- Typecheck passes; prior Great Vibes font asset remains bundled from the earlier change.
+
 ### 2026-11-15 · Codex · landing paragraph script font
 - Changed the paragraph below "PROTECT YOUR AGENTS LIKE NEVER BEFORE" to a bundled Great Vibes script font matching the requested sample.
 - Kept the paragraph readable on desktop, phone and short screens; the font license is included.
