@@ -17,7 +17,7 @@ export default function StatsPage() {
   const ratio = (value: Schema["Count"]) => <span className="ratio">{value.count} / {value.of}<i style={{ "--r": value.of ? value.count / value.of : 0 } as CSSProperties} /></span>;
   const label = stats?.label === "sample" ? "SAMPLE DATA" : stats?.label === "pilot" ? "PILOT — not a result" : "FINAL";
   return <>
-    <header className="page-head"><h1>Measured outcomes</h1><p className="lede">Counts and denominators stay visible alongside each configuration.</p></header>
+    <header className="page-head"><span className="label">Evaluation</span><h1>Measured outcomes</h1><p className="lede">Counts and denominators stay visible alongside each configuration.</p></header>
     {error && <p role="alert" className="error-message">Could not load statistics: {error}</p>}
     {!stats && !error && <p role="status">Loading evaluation data…</p>}
     {stats && <><div className="banner"><strong className="badge">{label}</strong><span>{stats.label === "sample" ? "Illustrative values only. These are not measured Aegis results." : stats.label === "pilot" ? "Preliminary measurements; excluded from final claims." : "Exploratory, arena only."} · Generated {new Date(stats.generated_at).toLocaleString()} · N={stats.n} · {stats.model ?? "Model not specified"}</span></div>

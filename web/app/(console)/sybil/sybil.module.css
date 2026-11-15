@@ -3,10 +3,10 @@
 .page h2 { font-size: 1rem; }
 .strip { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s4); padding-block: var(--s2); border-block: 1px solid var(--line); font: 400 .8125rem var(--mono); color: var(--muted); }
 .alert { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s2); color: var(--danger); }
-.workspace { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.7fr) minmax(0, 1fr); }
-.workspace > section { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; padding-right: var(--s4); }
-.workspace > section + section { padding-left: var(--s4); border-left: 1px solid var(--line); }
-.workspace > section:last-child { padding-right: 0; }
+.workspace { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.7fr) minmax(0, 1fr); gap: var(--s2); align-items: start; }
+/* Same raised tile as the console. */
+.workspace > section, .comparison { min-width: 0; padding: var(--s4); background: var(--raise); border-radius: 12px; }
+.workspace > section { display: flex; flex-direction: column; gap: var(--s2); }
 .workspace p { color: var(--muted); font-size: .9375rem; }
 .empty { justify-content: center; align-items: center; min-height: 340px; text-align: center; }
 .empty p { max-width: 55ch; }
@@ -18,7 +18,7 @@
 .formula code { overflow-wrap: anywhere; font-family: var(--mono); }
 .formula dt { margin-top: var(--s2); font-weight: 600; }
 .formula dd { color: var(--muted); font-size: .875rem; margin-top: var(--s1); }
-.comparison { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--s4); align-items: center; padding-top: var(--s3); border-top: 1px solid var(--line); }
+.comparison { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--s4); align-items: center; }
 .comparison > div { display: grid; gap: var(--s1); }
 .controls { display: grid; gap: var(--s2); }
 .controls label { display: grid; gap: var(--s1); color: var(--muted); font-size: .8125rem; }
@@ -45,8 +45,7 @@
 .disclosure { color: var(--muted); font-size: .875rem; max-width: 75ch; }
 @media (max-width: 1100px) {
   .workspace { grid-template-columns: 1fr; }
-  .workspace > section, .workspace > section + section { padding: var(--s3) 0; border-left: 0; }
-  .workspace > section + section { border-top: 1px solid var(--line); }
+  .workspace > section, .comparison { padding: var(--s3); }
   .empty { min-height: 260px; }
 }
 @media (max-width: 600px) { .comparison { grid-template-columns: 1fr; } }

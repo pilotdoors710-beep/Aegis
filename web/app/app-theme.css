@@ -73,7 +73,13 @@
 .app-theme h3 { font-size: 1rem; font-weight: 600; line-height: 1.4; }
 .app-theme h4 { font: 400 .8125rem/1.4 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 .app-theme #console-heading { outline: none; }
-.app-theme .page-head { max-width: 64rem; margin-bottom: var(--s6); }
+.app-theme .page-head { display: grid; gap: var(--s3); max-width: 64rem; margin-bottom: var(--s6); }
+/* Sibling pages open like the console hero: eyebrow, display heading. */
+.app-theme .page-head h1 { font-size: clamp(2.5rem, 5vw, 4.5rem); max-width: 18ch; }
+.app-theme .page-head :is(.lede,.facts) { margin: 0; }
+.app-theme .page-head .lede { font-size: 1.0625rem; }
+/* Content blocks on sibling pages use the console's raised tile surface. */
+.app-theme :is(.lab-form,.scan-form,.result > .verdict,.result > .comparison-grid,.scan-result,.table-scroll,.health-card) { padding: var(--s4); background: var(--raise); border-radius: 12px; animation: console-arrive 600ms cubic-bezier(.16,1,.3,1) both; }
 .app-theme .lede { margin-top: var(--s2); max-width: 68ch; color: var(--muted); font-size: 1rem; line-height: 1.6; }
 .app-theme .label { display: block; font: 400 .8125rem/1.4 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 .app-theme .muted { color: var(--muted); }
@@ -279,7 +285,7 @@
 .app-theme .two-view .two-view-note { color: var(--muted); font-size: .75rem; }
 
 /* Trap Lab and Scan */
-.app-theme .lab-form { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); margin-bottom: var(--s6); border-block: 1px solid var(--line); }
+.app-theme .lab-form { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); margin-bottom: var(--s6); }
 .app-theme .lab-column { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s3) var(--s4) var(--s3) 0; }
 .app-theme .lab-column + .lab-column { padding-left: var(--s4); border-left: 1px solid var(--line); }
 .app-theme .lab-column:last-child { padding-right: 0; }
@@ -287,7 +293,7 @@
 .app-theme .lab-column legend + * { clear: both; }
 .app-theme .lab-column > .muted { font-size: .875rem; }
 .app-theme .lab-column .primary-button { margin-top: auto; min-height: 48px; }
-.app-theme .result { display: grid; gap: var(--s4); }
+.app-theme .result { display: grid; gap: var(--s2); }
 .app-theme .verdict { display: grid; gap: var(--s1); }
 .app-theme .verdict h2 { font-size: 3rem; line-height: 1.1; }
 .app-theme .verdict.good h2 { color: var(--ok); }
@@ -296,7 +302,7 @@
 .app-theme .lab-receipt .badge { justify-self: start; }
 .app-theme .lab-receipt ul { padding-left: var(--s2); }
 .app-theme .lab-receipt .ok { font-weight: 600; color: var(--ok); }
-.app-theme .scan-form { display: grid; gap: var(--s2); margin-bottom: var(--s6); padding-bottom: var(--s3); border-bottom: 1px solid var(--line); }
+.app-theme .scan-form { display: grid; gap: var(--s2); margin-bottom: var(--s6); }
 .app-theme .scan-bar { display: flex; gap: var(--s1); }
 .app-theme .scan-bar input { min-height: 48px; font-size: 1.125rem; }
 .app-theme .scan-bar .primary-button { min-height: 48px; min-width: 120px; }
@@ -310,15 +316,15 @@
 
 /* Runs, stats, health */
 .app-theme .banner { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s1) var(--s2); margin-bottom: var(--s3); font-size: .875rem; color: var(--muted); }
-.app-theme .table-scroll { overflow: auto; max-height: 70svh; margin-top: var(--s3); border-top: 1px solid var(--line-strong); }
+.app-theme .table-scroll { overflow: auto; max-height: 70svh; margin-top: var(--s3); padding-block: 0 var(--s2); }
 .app-theme table { width: 100%; border-collapse: separate; border-spacing: 0; text-align: left; font-size: .875rem; font-variant-numeric: tabular-nums; }
 .app-theme th, .app-theme td { padding: var(--s2) var(--s3) var(--s2) 0; white-space: nowrap; border-bottom: 1px solid var(--line); vertical-align: top; }
 .app-theme td.wrap { white-space: normal; min-width: 24ch; }
-.app-theme thead th { position: sticky; top: 0; z-index: 2; background: var(--bg); font: 400 .75rem var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
-.app-theme tbody th { position: sticky; left: 0; z-index: 1; background: var(--bg); font-weight: 600; }
+.app-theme thead th { position: sticky; top: 0; z-index: 2; background: var(--raise); font: 400 .75rem var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.app-theme tbody th { position: sticky; left: 0; z-index: 1; background: var(--raise); font-weight: 600; }
 .app-theme tbody th a { text-decoration: underline; text-decoration-color: var(--gold); text-underline-offset: 4px; }
 .app-theme thead th:first-child { left: 0; z-index: 3; }
-.app-theme tbody tr:hover :is(td, th) { background: #0f1a26; }
+.app-theme tbody tr:hover :is(td, th) { background: #14212f; }
 .app-theme caption { caption-side: bottom; text-align: left; padding-block: var(--s2); font-size: .75rem; color: var(--muted); }
 .app-theme .ratio { display: inline-grid; gap: var(--s1); min-width: 72px; }
 .app-theme .ratio i { display: block; height: 3px; border-radius: 2px; background: linear-gradient(to right, var(--gold) calc(var(--r) * 100%), var(--line) 0); }
@@ -362,7 +368,7 @@
   .app-theme :is(.comparison-grid,.permission-pair-grid,.pair,.own-key-fields) { grid-template-columns: 1fr; }
   .app-theme :is(.comparison-grid,.permission-pair-grid) > *, .app-theme :is(.comparison-grid,.permission-pair-grid) > * + * { padding: 0 0 var(--s3); border-left: 0; }
   .app-theme :is(.comparison-grid,.permission-pair-grid) > * + * { padding-top: var(--s3); border-top: 1px solid var(--line); }
-  .app-theme .tile { padding: var(--s3); }
+  .app-theme :is(.tile,.lab-form,.scan-form,.result > .verdict,.result > .comparison-grid,.scan-result,.table-scroll,.health-card) { padding: var(--s3); }
   .app-theme .run-bar { flex-wrap: wrap; }
   .app-theme .run-bar .task-line { flex-basis: 100%; order: 3; white-space: normal; }
   .app-theme .two-view-grid { grid-template-columns: 1fr; }
@@ -388,3 +394,17 @@
   .app-theme .sm-panel-item[aria-current="page"] { outline: 2px solid Highlight; }
   .app-theme .highlight-layer rect { stroke: Mark; fill: transparent; }
 }
+
+/* Runs list: whole page scrolls, so no inner scroll box hiding rows. */
+.app-theme .runs-table { max-height: none; }
+.app-theme .runs-table tbody th { white-space: normal; min-width: 16rem; }
+.app-theme .run-name { display: grid; gap: var(--s1); }
+.app-theme .runs-table .run-task { color: var(--muted); font-weight: 400; }
+.app-theme .run-outcome { display: grid; gap: var(--s1); white-space: normal; min-width: 10rem; }
+.app-theme .run-extra { color: var(--danger); }
+.app-theme .run-allowed { color: var(--steel); }
+.app-theme .run-muted, .app-theme .run-time { color: var(--muted); }
+.app-theme .run-status { font: 400 .75rem/1.8 var(--mono); text-transform: uppercase; letter-spacing: .04em; }
+.app-theme .run-status.is-done { color: var(--ok); }
+.app-theme .run-status.is-error { color: var(--danger); }
+.app-theme .run-status:is(.is-running,.is-queued) { color: var(--gold); }

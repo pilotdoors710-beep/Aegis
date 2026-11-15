@@ -37,7 +37,7 @@ export default function ScanPage() {
   const label = (id: string) => report?.findings.find((f) => f.element_id === id)?.trap_type ?? "";
 
   return <>
-    <header className="page-head"><h1>What would an agent walk into here?</h1>
+    <header className="page-head"><span className="label">Read-only page scan</span><h1>What would an agent walk into here?</h1>
       <p className="lede">Aegis opens the page once in a throwaway browser, without clicking anything, and runs the same fast checks that guard every agent action: hidden instructions to AI, fake close buttons, invisible overlays and pressure tactics. Only public websites can be scanned.</p>
       <ul className="facts"><li>Read-only</li><li>No AI model</li><li>Public pages only</li></ul></header>
 

@@ -103,7 +103,7 @@ export function SybilReadiness() {
   }
 
   return <div className={styles.page}>
-    <header className="page-head"><h1>Sybil Playground</h1><p className="lede">Change a recommendation network. Inspect structural support. Compare the agent’s choice.</p><p>Real website-link background. Shop recommendations and attack edits are simulated.</p></header>
+    <header className="page-head"><span className="label">Experimental · recommendation graph</span><h1>Sybil Playground</h1><p className="lede">Change a recommendation network. Inspect structural support. Compare the agent’s choice.</p><p>Real website-link background. Shop recommendations and attack edits are simulated.</p></header>
     <section className={styles.strip} aria-label="Dataset status" aria-live="polite"><span>{dataset?.release ?? "Checking pinned release"}</span><span>{error ? "Error" : dataset?.status ?? "Checking"}</span><span>Imported: {dataset?.imported_nodes.toLocaleString() ?? "—"} nodes / {dataset?.imported_edges.toLocaleString() ?? "—"} edges</span><span>Mode: Challenge</span><span>Revision: {revision?.id.slice(0, 12) ?? "none"}</span><span>Scores: {assessment?.status ?? "none"}</span></section>
     {error && <div className={styles.alert} role="alert"><p>{error}</p><button className="secondary-button" onClick={() => { setError(null); setAttempt((value) => value + 1); }} aria-label="Retry the dataset check">Retry</button></div>}
     <div className={styles.workspace}>

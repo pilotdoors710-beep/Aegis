@@ -59,7 +59,7 @@ export default function LabPage() {
   const actions = report?.branches.reduce((n, b) => n + b.disposable_actions, 0) ?? 0;
 
   return <>
-    <header className="page-head"><h1>You write the trick. Aegis reads the receipts.</h1>
+    <header className="page-head"><span className="label">Experimental · disposable trials</span><h1>You write the trick. Aegis reads the receipts.</h1>
       <p className="lede">Write any checkbox label and secretly choose what it really does. Aegis never sees your choice. It places a simulated order in two throwaway copies of the checkout, one with the box each way, and compares both receipts with the user&apos;s permission. No AI model is involved in the trial.</p>
       <ul className="facts"><li>Experimental</li><li>Disposable consent trials</li><li>Arena only</li><li>No AI model</li></ul></header>
 

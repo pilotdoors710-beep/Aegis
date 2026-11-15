@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Suspense, useState, type ReactNode } from "react";
 import StaggeredMenu from "@/components/reactbits/StaggeredMenu";
 import DotGrid from "@/components/reactbits/DotGrid";
+import TargetCursor from "@/components/reactbits/TargetCursor";
 import { arrivedFromEntrance } from "@/lib/landing/phases";
 import "@/app/app-theme.css";
 
@@ -40,6 +41,16 @@ function Dots() {
   return <DotGrid className="console-dots" baseColor="#1f262d" activeColor="#c2a15a" dotSize={3} gap={28} clickShock={false} />;
 }
 
+// Every interactive element gets the reticle; disabled controls are skipped.
+const CURSOR_TARGETS =
+  'a[href], button:not(:disabled), [role="button"], [role="tab"], [role="link"], [role="menuitem"], [role="checkbox"], [role="switch"], input:not(:disabled):not([type="hidden"]), select:not(:disabled), textarea:not(:disabled), label[for], summary, [tabindex]:not([tabindex="-1"]), .cursor-target';
+
+// Reticle cursor on the console landing only.
+function Cursor() {
+  if (usePathname() !== "/console") return null;
+  return <TargetCursor targetSelector={CURSOR_TARGETS} spinDuration={2} hideDefaultCursor parallaxOn />;
+}
+
 export function AppShell({ children, sybilEnabled = false }: { children: ReactNode; sybilEnabled?: boolean }) {
   const [arriving] = useState(arrivedFromEntrance);
   return <div className="app-theme console-shell" data-arriving={arriving || undefined}>
@@ -47,5 +58,6 @@ export function AppShell({ children, sybilEnabled = false }: { children: ReactNo
     <Suspense fallback={<Menu pathname="" sybilEnabled={sybilEnabled} />}><CurrentMenu sybilEnabled={sybilEnabled} /></Suspense>
     <Suspense fallback={null}><Dots /></Suspense>
     <main id="app-content" className="console-content" tabIndex={-1}>{children}</main>
+    <Suspense fallback={null}><Cursor /></Suspense>
   </div>;
 }
