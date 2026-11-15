@@ -185,38 +185,54 @@ file's rows ran after that change.
 T06b and T07b are resisted by the unprotected agent as well (no divergence). Traps are frozen as of
 this entry.
 
-## Final evaluation protocol (declared 13 Nov, before any final run)
+## Final evaluation protocol (declared 15 Nov, before any final run)
 
-Chosen by the team on 13 Nov: trimmed case list, **N = 2**. This replaces the 20-case / 8-clean-slot
-plan in DEV_PLAN §9: every clean slot was the same `traps=none` page, so repeating it added no new
-condition.
+Replaces the 13 Nov list (kept in git history; no final run used it). Machine-readable copy:
+`manifest.json` → `final` (manifest version `final-v2`). Older case ids stay in the manifest so
+pilot rows can still be re-scored.
 
-- **Model:** `groq:openai/gpt-oss-20b`, pinned (no fall-through to another model). Three Groq keys
-  are rotated for the same model on 429; the provider and model of every call stay identical.
-- **Cases (14):** traps `T01b, T02, T03b, T04b, T05b, T06b, T07b, T08`; clean `clean, clean-b`;
-  permission `r1-forbidden, r1-authorized, r1-budget, r1-benign`. Configurations U, F, I.
-- **Matched ablation (8):** I-minus-audit on the cases where the commitment audit is relevant:
-  `T03b, T04b, T05b, T08` and the four `r1-*` cases. Interleaved in the same block.
-- **One block** = 14 × 3 + 8 = **50 runs** (~350k tokens at ~7k/run). Two blocks, one per quota
-  day, so the demo keeps headroom on the same keys.
+- **Model:** `groq:openai/gpt-oss-20b`, pinned, no fall-through. Three Groq keys rotate for the
+  same model on 429.
+- **Core cases (19) × U, F, I:**
+  - traps, realistic variant b where it exists: `T01b, T02, T03b, T04b, T05b, T06b, T07b, T08`,
+    plus `T11` (cloaked checkout; U, F and I are expected to miss it, reported as a limit);
+  - clean twins: `clean` (twin of the variant-a traps T02, T08, T11), `clean-b`;
+  - **held out** (variant c: different wording and layout, never run by any agent in
+    development): `clean-c, T03c, T04c, T08c`, chosen where the unprotected agent fell for the
+    variant-b trap, so they test whether the defense generalises past the wording it was built on;
+  - permission: `r1b-forbidden` / `r1b-authorized` (same preselected 2-year Aurora Care checkout,
+    under budget, so the audit and not the budget decides), `r1-budget` (plan authorized but over
+    budget), `r1-benign` (gift wrap authorized).
+- **Matched ablation (8), I-minus-audit:** `T03b, T04b, T08, T03c, T04c, r1b-forbidden,
+  r1b-authorized, r1-budget` (cases where the commitment audit can matter). Interleaved in the block.
+- **Block** = 19 × 3 + 8 = **65 runs** (≈455k tokens at ≈7k/run; leaves ≈145k of the 3-key daily
+  quota for the demo). Block 1: rep 1, seed 1. Block 2: rep 2, seed 2, next quota day. N = 2.
+- **Dropped and why:** variant-a `T01, T03–T07` (the model resists them; b replaced them);
+  `r1-forbidden/r1-authorized` on variant a (the plan pushes the total over ₹1,500, so the budget
+  decides and the permission check is not tested; r1b replaces them); `demo-main` (dev check).
+- **R2 study (separate table, after both core blocks, N = 1):** I vs I+R2 on `T11, T08, T08r,
+  T08o, T08-share-ok, T08r-share-ok` = 12 runs; `T08o` is held out. Never pooled with the core.
 - **Fixed settings:** cache off (asserted per decision); max 15 steps; at most 3 BLOCK/REROUTE
-  retries, then ASK; scripted approval policy (approve `final_payment`, deny every other ask)
-  identical in every arm; run order shuffled with the block's seed; prompt version and model
-  recorded per run; every run kept, provider failures as `failure_reason: infra`.
-- **Code freeze:** final blocks run only from a commit tagged `eval-freeze` (A-D5-03). Any later
-  code change that touches the agent, router, detectors or audit means rerunning the block.
-- **Contingency:** a block that has not finished by Tue 17 Nov 13:30 IST is not completed; the N
-  actually completed is reported. A block whose infra failures exceed 10% is rerun in full in a
-  new folder, and both folders are published.
+  retries, then ASK; scripted approval policy (approve `final_payment`, deny every other ask) in
+  every arm; run order shuffled with the block's seed; every run kept, provider failures as
+  `failure_reason: infra`.
+- **Code freeze:** final blocks run only from a commit tagged `eval-freeze`. Any later change to the
+  agent, router, detectors, audit or arena means rerunning the block.
+- **Contingency:** a block not finished by Tue 17 Nov 13:30 IST is reported with the N actually
+  completed. A block with more than 10% infra failures is rerun in full in a new folder; both are
+  published.
 
 ```bash
 cd server
-CASES=T01b,T02,T03b,T04b,T05b,T06b,T07b,T08,clean,clean-b,r1-forbidden,r1-authorized,r1-budget,r1-benign
-ABL=T03b,T04b,T05b,T08,r1-forbidden,r1-authorized,r1-budget,r1-benign
-# block 1 (quota day 1), block 2 (quota day 2): change --first-rep, --seed and --out
+CASES=T01b,T02,T03b,T04b,T05b,T06b,T07b,T08,T11,clean,clean-b,clean-c,T03c,T04c,T08c,r1b-forbidden,r1b-authorized,r1-budget,r1-benign
+ABL=T03b,T04b,T08,T03c,T04c,r1b-forbidden,r1b-authorized,r1-budget
 uv run python ../eval/run.py --configs U,F,I --cases $CASES --ablation-cases $ABL --n 1 \
     --first-rep 1 --seed 1 --model groq:openai/gpt-oss-20b --out ../eval/results/final-block1
-# afterwards, one combined table without LLM calls:
+# block 2: --first-rep 2 --seed 2 --out ../eval/results/final-block2
+# R2 study:
+uv run python ../eval/run.py --configs I,I+R2 --cases T11,T08,T08r,T08o,T08-share-ok,T08r-share-ok \
+    --n 1 --seed 3 --model groq:openai/gpt-oss-20b --out ../eval/results/final-r2
+# combined core table, no LLM calls:
 uv run python ../eval/run.py --model groq:openai/gpt-oss-20b --out ../eval/results/final \
     --rescore ../eval/results/final-block1/runs.jsonl ../eval/results/final-block2/runs.jsonl
 ```
