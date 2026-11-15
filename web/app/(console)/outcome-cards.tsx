@@ -24,6 +24,7 @@ function difference(left: DoneEvent, right: DoneEvent) {
   const parts: string[] = [];
   if (a.total != null && b.total != null && a.total !== b.total) parts.push(`${rupees(Math.abs(a.total - b.total))} ${a.total > b.total ? "more" : "less"} paid without Aegis`);
   else if ((a.total == null) !== (b.total == null)) parts.push(a.total == null ? "Only the protected agent paid" : "Only the unprotected agent paid");
+  if (a.shop && b.shop && a.shop !== b.shop) parts.push(`Bought from Shop ${a.shop} without Aegis, Shop ${b.shop} with Aegis`);
   const [ra, rb] = [recurringOf(a.commitments ?? []).length, recurringOf(b.commitments ?? []).length];
   if (ra !== rb) parts.push(`${ra} recurring charge${ra === 1 ? "" : "s"} without Aegis, ${rb} with`);
   if (parts.length) return parts.join(" · ");
@@ -57,6 +58,7 @@ export function OutcomeCards({ events, summary }: { events: RunEvent[]; summary:
           const line = <p className={`outcome-recurring${only ? " outcome-recurring-only" : ""}`}>+ {recurringLabel(item)}<span>{item.description.split(" · ")[0]}{only && " · only on this side"}</span></p>;
           return <div key={index} className="outcome-arc">{line}</div>;
         }) : <p className="outcome-no-recurring">No recurring charges</p>}
+        {done.payload.outcome.shop && <p>Bought from Shop {done.payload.outcome.shop}</p>}
         <p>{done.payload.outcome.task_completed === true ? "Task completed" : done.payload.outcome.task_completed === false ? "Task incomplete" : "Completion unknown"}</p>
         {done.payload.reason !== "completed" && <p className="outcome-reason">{timedOut ? "Stopped: approval timed out. Nobody approved in time, so no order was placed." : cloakedDenied ? "Stopped before payment: this site showed the agent a different checkout than an ordinary browser, and you denied it." : `Stopped: ${done.payload.reason.replaceAll("_", " ")}`}</p>}
         {(["proposed", "approved", "executed"] as const).map((state) => {

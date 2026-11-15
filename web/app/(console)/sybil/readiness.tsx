@@ -1,10 +1,11 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { api, type Schema } from "@/lib/api";
 import styles from "./sybil.module.css";
 import { SybilGraph, type SelectedEdge } from "./graph";
+import { RunView } from "../run-view";
 
 type Dataset = Schema["SybilDatasetStatus"];
 type Revision = Schema["SybilScenarioRevision"];
@@ -22,74 +23,6 @@ function download(name: string, content: string, type: string) {
   URL.revokeObjectURL(url);
 }
 
-
-function GraphPreview({
-  view,
-  selectedNodeId,
-  selectedEdge,
-  onSelectNode,
-  onSelectEdge,
-  onClearSelection,
-}: {
-  view: GraphView;
-  selectedNodeId: string | null;
-  selectedEdge: SelectedEdge | null;
-  onSelectNode: (id: string) => void;
-  onSelectEdge: (edge: SelectedEdge) => void;
-  onClearSelection: () => void;
-}) {
-  return (
-    <>
-      <SybilGraph
-        view={view}
-        selectedNodeId={selectedNodeId}
-        selectedEdge={selectedEdge}
-        onSelectNode={onSelectNode}
-        onSelectEdge={onSelectEdge}
-        onClearSelection={onClearSelection}
-      />
-      <details className={styles.nodeTable}>
-        <summary>Keyboard graph table</summary>
-        <div className={styles.tableScroll}>
-          <table>
-            <thead>
-              <tr>
-                <th>Website</th>
-                <th>Type</th>
-                <th>Anchor</th>
-                <th>Retained / original outdegree</th>
-              </tr>
-            </thead>
-            <tbody>
-              {view.nodes.slice(0, 100).map((node) => (
-                <tr
-                  key={node.id}
-                  tabIndex={0}
-                  className={node.id === selectedNodeId ? styles.selectedRow : undefined}
-                  style={{ cursor: "pointer" }}
-                  onClick={() => onSelectNode(node.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      onSelectNode(node.id);
-                    }
-                  }}
-                >
-                  <td>{node.label}</td>
-                  <td>{node.provenance}</td>
-                  <td>{node.anchor ? "Yes" : "No"}</td>
-                  <td>
-                    {node.retained_outdegree} / {node.original_outdegree}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </details>
-    </>
-  );
-}
 
 function NodeInspector({
   node,
@@ -264,7 +197,6 @@ function ScoreDeltas({ result }: { result: Counterfactual }) {
 }
 
 export function SybilReadiness() {
-  const router = useRouter();
   const [datasets, setDatasets] = useState<Dataset[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -282,6 +214,7 @@ export function SybilReadiness() {
   const [history, setHistory] = useState<Revision[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [busy, setBusy] = useState(false);
+  const [run, setRun] = useState<{ id: string; queue: number } | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<SelectedEdge | null>(null);
 
@@ -324,6 +257,19 @@ export function SybilReadiness() {
   const dataset = datasets?.[0];
   const ready = dataset?.status === "available" && Boolean(dataset.dataset_id);
 
+  // Opened from a run (/sybil?revision=...): load that saved revision, its graph and scores.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("revision");
+    if (!ready || !id) return;
+    api
+      .sybilScenario(id)
+      .then((saved) => showRevision(saved))
+      .catch((cause: unknown) =>
+        setError(cause instanceof Error ? cause.message : "Saved revision could not be loaded."),
+      );
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the dataset becomes ready
+  }, [ready]);
+
   const selectedNode = useMemo(
     () => view?.nodes.find((n) => n.id === selectedNodeId) ?? null,
     [view, selectedNodeId],
@@ -349,6 +295,7 @@ export function SybilReadiness() {
     setError(null);
     setAssessment(null);
     setCounterfactual(null);
+    setRun(null);
     setSelectedNodeId(null);
     setSelectedEdge(null);
     try {
@@ -360,6 +307,8 @@ export function SybilReadiness() {
       setView(nextView);
       setAssessment(job);
       setDraft(JSON.stringify(next.edits, null, 2));
+      // Keep the URL pointing at this revision so runs (and reloads) can come back to it.
+      window.history.replaceState(null, "", `/sybil?revision=${next.id}`);
       if (remember) {
         const nextHistory = [...history.slice(0, historyIndex + 1), next];
         setHistory(nextHistory);
@@ -500,9 +449,11 @@ export function SybilReadiness() {
         preset_id: "sybil-two-shop",
         sybil_revision_id: revision.id,
       });
-      router.push(`/runs/${created.run_id}`);
+      setRun({ id: created.run_id, queue: created.queue_position });
+      window.setTimeout(() => document.getElementById("sybil-run")?.scrollIntoView({ behavior: "smooth" }), 50);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Launching comparison run failed.");
+    } finally {
       setBusy(false);
     }
   }
@@ -625,7 +576,7 @@ export function SybilReadiness() {
                 {view.displayed_edges.toLocaleString()} of{" "}
                 {view.total_edges.toLocaleString()} links. Click any node or edge to inspect.
               </p>
-              <GraphPreview
+              <SybilGraph
                 view={view}
                 selectedNodeId={selectedNodeId}
                 selectedEdge={selectedEdge}
@@ -721,6 +672,14 @@ export function SybilReadiness() {
           </p>
         </div>
       </section>
+      {run && (
+        <section id="sybil-run" aria-label="Agent comparison run">
+          <RunView key={run.id} runId={run.id} queue={run.queue} showSybil={false} />
+          <Link className="secondary-button" href={`/runs/${encodeURIComponent(run.id)}?replay=1`}>
+            Open in Runs
+          </Link>
+        </section>
+      )}
       <p className={styles.disclosure}>
         A heuristic measure of structural support and tested sensitivity. Not a probability that this
         shop is safe.

@@ -1,7 +1,9 @@
 "use client";
 
 import { memo, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import Counter from "@/components/reactbits/Counter";
+import { api } from "@/lib/api";
 import { useRunStream } from "@/lib/events";
 import type { RunEvent, Schema } from "@/lib/api";
 import { approvalLabels, latestAsks, pendingAsk } from "@/lib/run-evidence";
@@ -53,6 +55,22 @@ const EventRow = memo(function EventRow({ event, inspected, sample, onSelect }: 
   </li>;
 });
 
+// A Sybil run was judged against one frozen graph revision: show its scores and link back to it.
+function SybilRevision({ revisionId }: { revisionId: string }) {
+  const [assessment, setAssessment] = useState<Schema["SybilAssessmentRecord"] | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    // The server returns the stored assessment for this revision; it does not recompute.
+    api.createSybilAssessment(revisionId).then(setAssessment, () => setFailed(true));
+  }, [revisionId]);
+  const scores = assessment?.status === "complete" ? assessment.scores : null;
+  return <section className="permission-pair" aria-label="Sybil graph revision"><h2>Shop trust scores used in this run</h2>
+    <p>Frozen graph revision {revisionId.slice(0, 12)}. <Link href={`/sybil?revision=${revisionId}`}>Open graph and scores</Link></p>
+    {scores ? <dl>{(["A", "B"] as const).map((shop) => <div key={shop}><dt>Shop {shop}</dt><dd>{scores[shop].total_robustness.toFixed(1)} / 100</dd></div>)}</dl>
+      : <p>{failed ? "Scores could not be loaded." : assessment?.reason ?? "Loading scores…"}</p>}
+  </section>;
+}
+
 type PaneProps = { mode: RunEvent["mode"]; events: RunEvent[]; summary: Schema["RunSummary"] | null; replayStep?: number };
 const AgentPane = memo(function AgentPane({ mode, events: side, summary, replayStep }: PaneProps) {
   const [selected, setSelected] = useState<VerdictEvent | null>(null);
@@ -91,7 +109,7 @@ const AgentPane = memo(function AgentPane({ mode, events: side, summary, replayS
 }, (previous, next) => previous.mode === next.mode && previous.summary === next.summary && previous.replayStep === next.replayStep &&
   previous.events.length === next.events.length && previous.events.every((event, index) => event === next.events[index]));
 
-export function RunComparison({ summary, events, status, error, replay = false, replayStep }: { summary: Schema["RunSummary"] | null; events: RunEvent[]; status: string; error?: string | null; replay?: boolean; replayStep?: number }) {
+export function RunComparison({ summary, events, status, error, replay = false, replayStep, showSybil = true }: { summary: Schema["RunSummary"] | null; events: RunEvent[]; status: string; error?: string | null; replay?: boolean; replayStep?: number; showSybil?: boolean }) {
   const sides = useMemo(() => {
     const split: Record<RunEvent["mode"], RunEvent[]> = { shielded: [], unshielded: [] };
     for (const event of events) split[event.mode].push(event);
@@ -104,15 +122,16 @@ export function RunComparison({ summary, events, status, error, replay = false, 
     {error && <p className="error-message" role="alert">{error}</p>}
     <OutcomeCards events={events} summary={summary} />
     {summary && <PermissionPair summary={summary} finished={finished} />}
+    {showSybil && summary?.sybil_revision_id && <SybilRevision revisionId={summary.sybil_revision_id} />}
     <div className="comparison-grid">{(["unshielded", "shielded"] as const).map((mode) => <AgentPane key={mode} mode={mode} events={sides[mode]} summary={summary} replayStep={replayStep} />)}</div>
     {asks.length > 0 && <section className="approval-history" aria-label="Approval history"><h2>Approval history</h2>{asks.map((ask) => <p key={ask.payload.ask_id}>{summary?.is_sample ? "Recorded sample · " : replay ? "Recorded response · " : ""}{approvalLabels[ask.payload.status]} · {ask.payload.reason.replaceAll("_", " ")}</p>)}</section>}
     <EvidenceCards events={events} />
   </section>;
 }
 
-export function RunView({ runId, queue = 0 }: { runId: string; queue?: number }) {
+export function RunView({ runId, queue = 0, showSybil }: { runId: string; queue?: number; showSybil?: boolean }) {
   const stream = useRunStream(runId);
   const ask = pendingAsk(stream.events);
   const canReview = stream.summary && (stream.summary.is_sample || (stream.summary.status !== "done" && stream.summary.status !== "error"));
-  return <>{queue > 0 && !stream.events.length && stream.status !== "error" && <p role="status">Queued at launch: position {queue}. Waiting for this run to start.</p>}<RunComparison {...stream} />{ask && stream.summary && canReview && <ApprovalDialog key={ask.payload.ask_id} ask={ask} sample={stream.summary.is_sample} connected={stream.status === "streaming"} />}</>;
+  return <>{queue > 0 && !stream.events.length && stream.status !== "error" && <p role="status">Queued at launch: position {queue}. Waiting for this run to start.</p>}<RunComparison {...stream} showSybil={showSybil} />{ask && stream.summary && canReview && <ApprovalDialog key={ask.payload.ask_id} ask={ask} sample={stream.summary.is_sample} connected={stream.status === "streaming"} />}</>;
 }

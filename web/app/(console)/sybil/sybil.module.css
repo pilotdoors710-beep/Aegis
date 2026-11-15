@@ -41,12 +41,9 @@
 .advanced { border-top: 1px solid var(--line); padding-top: var(--s3); }
 .advanced > summary { cursor: pointer; color: var(--muted); font-size: .875rem; }
 .advanced[open] > summary { margin-bottom: var(--s2); }
-.selectedRow { background: color-mix(in srgb, var(--accent) 15%, transparent); }
 .inspector { display: flex; flex-direction: column; gap: var(--s2); }
 .inspectorHead { display: flex; justify-content: space-between; align-items: center; gap: var(--s2); }
 .inspectorHead button { font-size: .8125rem; }
-.nodeTable { width: 100%; text-align: left; }
-.nodeTable summary { cursor: pointer; }
 .editor { display: grid; gap: var(--s3); padding: var(--s4) 0; border-top: 1px solid var(--line); }
 .editorHead { display: flex; justify-content: space-between; gap: var(--s3); align-items: start; }
 .editorHead p { color: var(--muted); font-size: .875rem; margin-top: var(--s1); }
@@ -55,9 +52,6 @@
 .jsonLabel textarea { width: 100%; min-height: 220px; resize: vertical; border: 1px solid var(--line); padding: var(--s2); background: var(--bg); color: var(--fg); font: .78rem/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; }
 .delta { border-left: 3px solid var(--accent); padding-left: var(--s2); }
 .delta p + p { margin-top: var(--s1); }
-.tableScroll { max-height: 280px; overflow: auto; margin-top: var(--s1); }
-.tableScroll table { width: 100%; border-collapse: collapse; font-size: .78rem; }
-.tableScroll th, .tableScroll td { padding: var(--s1); border-bottom: 1px solid var(--line); text-align: left; }
 .disclosure { color: var(--muted); font-size: .875rem; max-width: 75ch; }
 @media (max-width: 1100px) {
   .workspace { grid-template-columns: 1fr; }

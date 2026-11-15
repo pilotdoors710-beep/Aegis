@@ -26,6 +26,9 @@ export const api = {
     `/sybil/datasets/${encodeURIComponent(datasetId)}/generate`,
     { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
   ),
+  sybilScenario: (id: string, signal?: AbortSignal) => request<Schema["SybilScenarioRevision"]>(
+    `/sybil/scenarios/${encodeURIComponent(id)}`, { signal },
+  ),
   sybilView: (id: string, limit = 150, signal?: AbortSignal) => request<Schema["SybilGraphView"]>(
     `/sybil/scenarios/${encodeURIComponent(id)}/view?limit=${limit}`, { signal },
   ),
