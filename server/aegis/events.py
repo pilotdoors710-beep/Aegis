@@ -55,6 +55,9 @@ from aegis.schemas import (
     SideOutcomes,
     SnapshotEvent,
     SnapshotPayload,
+    SybilArtifactManifest,
+    SybilAssessmentRecord,
+    SybilScenarioRevision,
     TickedOption,
     Verdict,
     VerdictEvent,
@@ -411,6 +414,9 @@ class MemoryStore:
     def __init__(self) -> None:
         self.runs: dict[str, RunSummary] = {}
         self.events: dict[str, list[Event]] = {}
+        self.sybil_datasets: dict[str, SybilArtifactManifest] = {}
+        self.sybil_scenarios: dict[str, SybilScenarioRevision] = {}
+        self.sybil_assessments: dict[str, SybilAssessmentRecord] = {}
         self.on_error: PersistError | None = None
 
     async def save_run(self, summary: RunSummary) -> None:
@@ -427,6 +433,21 @@ class MemoryStore:
 
     async def get_events(self, run_id: str) -> list[Event]:
         return list(self.events.get(run_id, []))
+
+    async def save_sybil_dataset(self, manifest: SybilArtifactManifest) -> None:
+        self.sybil_datasets[manifest.id] = manifest
+
+    async def save_sybil_scenario(self, revision: SybilScenarioRevision) -> None:
+        self.sybil_scenarios[revision.id] = revision
+
+    async def get_sybil_scenario(self, revision_id: str) -> SybilScenarioRevision | None:
+        return self.sybil_scenarios.get(revision_id)
+
+    async def save_sybil_assessment(self, assessment: SybilAssessmentRecord) -> None:
+        self.sybil_assessments[assessment.id] = assessment
+
+    async def get_sybil_assessment(self, assessment_id: str) -> SybilAssessmentRecord | None:
+        return self.sybil_assessments.get(assessment_id)
 
     async def flush(self) -> None:
         pass
@@ -554,6 +575,47 @@ class PgStore:
         )
         return [_EVENT.validate_python(r[0]) for r in rows]
 
+    async def save_sybil_dataset(self, manifest: SybilArtifactManifest) -> None:
+        await self._sql(
+            "insert into sybil_datasets (id, manifest) values (%s, %s) "
+            "on conflict (id) do update set manifest = excluded.manifest",
+            (manifest.id, Jsonb(manifest.model_dump(mode="json"))),
+        )
+
+    async def save_sybil_scenario(self, revision: SybilScenarioRevision) -> None:
+        await self._sql(
+            "insert into sybil_scenarios (id, dataset_id, revision) values (%s, %s, %s) "
+            "on conflict (id) do nothing",
+            (revision.id, revision.dataset_id, Jsonb(revision.model_dump(mode="json"))),
+        )
+
+    async def get_sybil_scenario(self, revision_id: str) -> SybilScenarioRevision | None:
+        rows = await self._sql(
+            "select revision from sybil_scenarios where id = %s", (revision_id,), fetch=True
+        )
+        return SybilScenarioRevision.model_validate(rows[0][0]) if rows else None
+
+    async def save_sybil_assessment(self, assessment: SybilAssessmentRecord) -> None:
+        await self._sql(
+            "insert into sybil_assessments (id, revision_id, status, assessment) "
+            "values (%s, %s, %s, %s) on conflict (id) do update set "
+            "status = excluded.status, assessment = excluded.assessment, updated_at = now()",
+            (
+                assessment.id,
+                assessment.revision_id,
+                assessment.status,
+                Jsonb(assessment.model_dump(mode="json")),
+            ),
+        )
+
+    async def get_sybil_assessment(self, assessment_id: str) -> SybilAssessmentRecord | None:
+        rows = await self._sql(
+            "select assessment from sybil_assessments where id = %s",
+            (assessment_id,),
+            fetch=True,
+        )
+        return SybilAssessmentRecord.model_validate(rows[0][0]) if rows else None
+
     async def flush(self) -> None:
         await self._q.join()
 
@@ -563,6 +625,12 @@ class PgStore:
             await self._sql(
                 "update runs set status = 'error', summary = jsonb_set(summary, '{status}', "
                 "'\"error\"') where status in ('queued', 'running')"
+            )
+            await self._sql(
+                "update sybil_assessments set status = 'unavailable', assessment = "
+                "jsonb_set(jsonb_set(assessment, '{status}', '\"unavailable\"'), "
+                "'{reason}', '\"Backend restarted before this assessment finished.\"') "
+                "where status in ('queued', 'running')"
             )
         except Exception as e:  # DB down or migration not applied: start anyway, live-only
             log.warning("could not mark interrupted runs: %s", e)

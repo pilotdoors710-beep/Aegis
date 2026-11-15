@@ -67,7 +67,7 @@ from aegis.schemas import (
 from aegis.security import ScanGuard, arena_origin, install_guard, validate_scan_url, validate_url
 from aegis.snapshot import screenshot_b64, take_snapshot
 from aegis.sybil_dataset import load_dataset
-from aegis.sybil_runtime import SybilRuntime
+from aegis.sybil_runtime import SybilRuntime, assessment_identity
 from aegis.trials import run_trials
 
 log = logging.getLogger("aegis.api")
@@ -88,9 +88,11 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         _router.cache = PgCache(store)
         await store.mark_interrupted()
     _bus = RunBus(store)
+    _sybil.on_assessment = store.save_sybil_assessment
     try:
         yield
     finally:
+        _sybil.on_assessment = None
         _sybil.shutdown()
         await store.close()
         await _browser.close()
@@ -125,6 +127,10 @@ async def sybil_datasets() -> list[SybilDatasetStatus]:
                 source_url="https://index.commoncrawl.org/graphinfo.json",
             )
         ]
+    try:
+        await _bus.store.save_sybil_dataset(dataset.manifest)
+    except Exception as error:
+        log.warning("persist Sybil dataset failed: %s", error)
     return [
         SybilDatasetStatus(
             release=dataset.manifest.release,
@@ -155,32 +161,51 @@ def _sybil_dataset():
         raise HTTPException(503, "Validated Sybil graph artifact is unavailable") from error
 
 
+async def _sybil_scenario(revision_id: str, dataset):
+    if scenario := _sybil.get(revision_id):
+        return scenario
+    try:
+        revision = await _bus.store.get_sybil_scenario(revision_id)
+    except Exception as error:
+        log.warning("read Sybil scenario failed: %s", error)
+        revision = None
+    if revision is None:
+        raise HTTPException(404, "Sybil scenario revision not found")
+    try:
+        return _sybil.create(dataset, revision.edits)
+    except ValueError as error:
+        raise HTTPException(409, "Stored scenario does not match the active dataset") from error
+
+
 @app.post("/sybil/scenarios", response_model=SybilScenarioRevision, status_code=201)
 async def create_sybil_scenario(body: SybilScenarioCreate, request: Request):
     content_length = request.headers.get("content-length", "0")
     if not content_length.isdigit() or int(content_length) > 2 * 1024 * 1024:
         raise HTTPException(413, "Sybil edit payload exceeds 2 MiB")
+    dataset = _sybil_dataset()
     try:
-        return _sybil.create(_sybil_dataset(), body).revision
+        revision = _sybil.create(dataset, body).revision
     except ValueError as error:
         raise HTTPException(422, str(error)) from error
+    try:
+        await _bus.store.save_sybil_dataset(dataset.manifest)
+        await _bus.store.save_sybil_scenario(revision)
+    except Exception as error:
+        raise HTTPException(503, "Scenario persistence failed") from error
+    return revision
 
 
 @app.get("/sybil/scenarios/{revision_id}", response_model=SybilScenarioRevision)
 async def get_sybil_scenario(revision_id: str):
-    _sybil_dataset()
-    scenario = _sybil.get(revision_id)
-    if scenario is None:
-        raise HTTPException(404, "Sybil scenario revision not found")
+    dataset = _sybil_dataset()
+    scenario = await _sybil_scenario(revision_id, dataset)
     return scenario.revision
 
 
 @app.get("/sybil/scenarios/{revision_id}/view", response_model=SybilGraphView)
 async def get_sybil_view(revision_id: str, limit: int = Query(1500, ge=1, le=5000)):
     dataset = _sybil_dataset()
-    scenario = _sybil.get(revision_id)
-    if scenario is None:
-        raise HTTPException(404, "Sybil scenario revision not found")
+    scenario = await _sybil_scenario(revision_id, dataset)
     return _sybil.view(dataset, scenario, limit)
 
 
@@ -190,14 +215,26 @@ async def get_sybil_view(revision_id: str, limit: int = Query(1500, ge=1, le=500
     status_code=202,
 )
 async def create_sybil_assessment(revision_id: str):
-    _sybil_dataset()
-    scenario = _sybil.get(revision_id)
-    if scenario is None:
-        raise HTTPException(404, "Sybil scenario revision not found")
+    dataset = _sybil_dataset()
+    scenario = await _sybil_scenario(revision_id, dataset)
+    assessment_id = assessment_identity(revision_id)
     try:
-        return _sybil.submit(str(settings.sybil_data_dir.resolve()), scenario)
+        stored = await _bus.store.get_sybil_assessment(assessment_id)
+    except Exception as error:
+        log.warning("read Sybil assessment failed: %s", error)
+        stored = None
+    if stored is not None and stored.status in ("complete", "unavailable"):
+        _sybil.remember_assessment(stored)
+        return stored
+    try:
+        assessment = _sybil.submit(str(settings.sybil_data_dir.resolve()), scenario)
     except OverflowError as error:
         raise HTTPException(429, str(error), headers={"Retry-After": "2"}) from error
+    try:
+        await _bus.store.save_sybil_assessment(assessment)
+    except Exception as error:
+        raise HTTPException(503, "Assessment persistence failed") from error
+    return assessment
 
 
 @app.get("/sybil/assessments/{assessment_id}", response_model=SybilAssessmentRecord)
@@ -205,7 +242,13 @@ async def get_sybil_assessment(assessment_id: str):
     _sybil_dataset()
     assessment = _sybil.assessment(assessment_id)
     if assessment is None:
-        raise HTTPException(404, "Sybil assessment not found")
+        try:
+            assessment = await _bus.store.get_sybil_assessment(assessment_id)
+        except Exception as error:
+            log.warning("read Sybil assessment failed: %s", error)
+        if assessment is None:
+            raise HTTPException(404, "Sybil assessment not found")
+        _sybil.remember_assessment(assessment)
     return assessment
 
 

@@ -75,6 +75,7 @@ async def test_scenario_revision_and_bounded_view(monkeypatch):
         for i in range(3)
     )
     dataset = SimpleNamespace(
+        manifest=SimpleNamespace(id="test"),
         nodes=nodes,
         base=BaseGraph(
             "test",
@@ -103,12 +104,17 @@ async def test_scenario_revision_and_bounded_view(monkeypatch):
         revision = created.json()
         fetched = await client.get(f"/sybil/scenarios/{revision['id']}")
         view = await client.get(f"/sybil/scenarios/{revision['id']}/view?limit=3")
+        replacement = SybilRuntime()
+        monkeypatch.setattr("api.main._sybil", replacement)
+        restored = await client.get(f"/sybil/scenarios/{revision['id']}")
     assert fetched.json() == revision
+    assert restored.json() == revision
     assert view.status_code == 200
     assert view.json()["displayed_nodes"] == 3
     assert view.json()["subset"] is True
     assert any(v["provenance"] == "simulated" for v in view.json()["nodes"])
     runtime.shutdown()
+    replacement.shutdown()
 
 
 async def test_assessment_endpoints_reuse_revision_identity(monkeypatch):

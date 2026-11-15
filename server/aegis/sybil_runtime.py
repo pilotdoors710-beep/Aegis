@@ -2,9 +2,11 @@
 
 import asyncio
 import hashlib
+import logging
 import math
 import multiprocessing
 from collections import Counter
+from collections.abc import Awaitable, Callable
 from concurrent.futures import ProcessPoolExecutor
 from functools import lru_cache
 from pathlib import Path
@@ -22,6 +24,8 @@ from aegis.schemas import (
 from aegis.sybil import FORMULA_VERSION
 from aegis.sybil_dataset import Dataset, load_dataset
 from aegis.sybil_scenario import AppliedScenario, apply, assess_scenario
+
+log = logging.getLogger("aegis.sybil")
 
 
 @lru_cache(maxsize=1)
@@ -86,6 +90,7 @@ class SybilRuntime:
         self._executor: ProcessPoolExecutor | None = None
         self._worker_slot = asyncio.Semaphore(1)
         self._queue_limit = queue_limit
+        self.on_assessment: Callable[[SybilAssessmentRecord], Awaitable[None]] | None = None
 
     def create(self, dataset: Dataset, edits: SybilScenarioCreate) -> AppliedScenario:
         scenario = apply(dataset.base, edits)
@@ -187,6 +192,7 @@ class SybilRuntime:
             self.assessments[assessment_id] = self.assessments[assessment_id].model_copy(
                 update={"status": "running"}
             )
+            await self._persist(assessment_id)
             try:
                 assert self._executor is not None
                 raw = await asyncio.get_running_loop().run_in_executor(
@@ -203,9 +209,20 @@ class SybilRuntime:
                     status="unavailable",
                     reason=f"Assessment worker failed: {type(error).__name__}",
                 )
+            await self._persist(assessment_id)
 
     def assessment(self, assessment_id: str) -> SybilAssessmentRecord | None:
         return self.assessments.get(assessment_id)
+
+    def remember_assessment(self, assessment: SybilAssessmentRecord) -> None:
+        self.assessments[assessment.id] = assessment
+
+    async def _persist(self, assessment_id: str) -> None:
+        if self.on_assessment is not None:
+            try:
+                await self.on_assessment(self.assessments[assessment_id])
+            except Exception as error:
+                log.warning("persist Sybil assessment failed: %s", error)
 
     def shutdown(self) -> None:
         if self._executor is not None:
