@@ -186,15 +186,14 @@ class SybilRuntime:
         required = list(scenario.anchors)
         # Real recommenders first: a large attack must not push the honest ones out of view.
         required.extend(i for i, _ in scenario.recommendations if i < base_count)
+        # Real bridge sources before injected nodes, so a big attack cannot crowd them out.
+        index = dataset.base.index
+        required.extend(
+            index[link.source]
+            for link in scenario.revision.edits.cooperating_links
+            if link.source in index
+        )
         required.extend(range(base_count, len(scenario.ids)))
-        required.extend(u for u, _ in scenario.recommendations)
-        # Ensure any background endpoints of added links (e.g. cooperating bridge sources) are visible
-        added_link_endpoints = [
-            scenario.ids.index(link.source)
-            for link in scenario.revision.edits.added_links
-            if link.source in scenario.ids
-        ]
-        required.extend(added_link_endpoints)
         visible_indices = list(dict.fromkeys(required))[:limit]
         if len(visible_indices) < limit:
             selected = set(visible_indices)

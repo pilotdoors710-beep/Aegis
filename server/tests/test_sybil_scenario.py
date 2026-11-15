@@ -174,3 +174,11 @@ def test_generation_with_bridges(base):
     scenario = apply(base, attack)
     assert scenario.revision.budget.external_credits == 4
     assert len(scenario.revision.edits.cooperating_links) == 2
+
+
+def test_bridges_raise_target_support(base):
+    def support(bridges):
+        config = SybilGenerate(count=10, seed=1, pattern="dense", bridges=bridges)
+        return assess_scenario(base, apply(base, generate("test", config, base))).scores["B"].mass
+
+    assert support(1) > support(0)

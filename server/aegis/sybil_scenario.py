@@ -9,6 +9,8 @@ from collections import Counter
 from dataclasses import dataclass
 from functools import cached_property
 
+import numpy as np
+
 from aegis.schemas import (
     SybilBudget,
     SybilGenerate,
@@ -34,6 +36,11 @@ class BaseGraph:
     @cached_property
     def index(self) -> dict[str, int]:
         return {value: i for i, value in enumerate(self.ids)}
+
+    @cached_property
+    def trust(self) -> np.ndarray:
+        anchors = tuple(self.index[a] for a in self.anchors)
+        return assess(self.graph, anchors, {}, self.tau).trust
 
     @cached_property
     def edge_set(self) -> frozenset[tuple[int, int]]:
@@ -240,20 +247,12 @@ def generate(
     cooperating = []
     if config.bridges > 0 and base is not None:
         anchors = set(base.anchors)
-        has_incoming = {v for _, v in base.graph.edges}
-        candidates = [
-            base.ids[i]
-            for i in range(len(base.ids))
-            if base.ids[i] not in anchors and i in has_incoming
-        ]
-        candidates.sort(key=lambda nid: (-base.graph.original_outdegree[base.index[nid]], nid))
-        if len(candidates) < config.bridges:
-            extra = [
-                base.ids[i]
-                for i in range(len(base.ids))
-                if base.ids[i] not in anchors and base.ids[i] not in candidates
-            ]
-            candidates.extend(extra)
+        degree = base.graph.original_outdegree
+        # An attacker buys the sites whose single extra link carries the most trust.
+        candidates = sorted(
+            (v for v in base.ids if v not in anchors),
+            key=lambda v: (-base.trust[base.index[v]] / (degree[base.index[v]] + 1), v),
+        )
         for source in candidates[: config.bridges]:
             bridge = SybilLink(source=source, target=nodes[0])
             links.append(bridge)
