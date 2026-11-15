@@ -16,6 +16,7 @@ class SybilDatasetStatus(BaseModel):
     """Readiness is separate from the eventual validated artifact manifest."""
 
     release: str
+    dataset_id: str | None = None
     status: Literal["available", "unavailable"] = "unavailable"
     source_nodes: int
     source_edges: int
@@ -145,6 +146,65 @@ class SybilArtifactManifest(BaseModel):
     source_url: str
     artifacts: dict[str, str]
     limitations: str
+
+
+class SybilGraphNode(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid", allow_inf_nan=False)
+    id: str
+    label: str
+    provenance: Literal["observed", "simulated"]
+    anchor: bool = False
+    original_outdegree: int = Field(ge=0)
+    retained_outdegree: int = Field(ge=0)
+    x: float
+    y: float
+
+
+class SybilGraphEdge(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    source: str
+    target: str
+    provenance: Literal["observed", "simulated"]
+
+
+class SybilGraphView(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    revision_id: str
+    total_nodes: int
+    total_edges: int
+    displayed_nodes: int
+    displayed_edges: int
+    nodes: tuple[SybilGraphNode, ...]
+    edges: tuple[SybilGraphEdge, ...]
+    recommendations: tuple[SybilRecommendation, ...]
+    subset: bool
+
+
+class SybilShopScore(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid", allow_inf_nan=False)
+    recommendation_count: int = Field(ge=0)
+    trust_weighted_support: float = Field(ge=0)
+    structural_support: float = Field(ge=0, le=1)
+    effective_anchors: float = Field(ge=0)
+    anchor_breadth: float = Field(ge=0, le=1)
+    anchor_withdrawal_resilience: float = Field(ge=0, le=1)
+    tested_connection_resilience: float = Field(ge=0, le=1)
+    total_robustness: float = Field(ge=0, le=100)
+    tested_edges: tuple[SybilLink, ...]
+
+
+class SybilAssessmentRecord(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid", allow_inf_nan=False)
+    id: str = Field(pattern=r"^[a-f0-9]{64}$")
+    revision_id: str = Field(pattern=r"^[a-f0-9]{64}$")
+    status: Literal["queued", "running", "complete", "unavailable"]
+    formula_version: Literal["sybil-v1"] = "sybil-v1"
+    converged: bool | None = None
+    residual: float | None = Field(default=None, ge=0)
+    iterations: int | None = Field(default=None, ge=0, le=300)
+    elapsed_ms: float | None = Field(default=None, ge=0)
+    scores: dict[Literal["A", "B"], SybilShopScore] | None = None
+    reason: str | None = None
 
 
 TrapType = Literal[

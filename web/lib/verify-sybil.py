@@ -1,8 +1,4 @@
-"""Readiness UI checks; run against SYBIL_ENABLED=true web development preview.
-
-From server/: .venv/Scripts/python.exe ../web/lib/verify-sybil.py
-This uses typed mocked readiness, installed Chrome, and no LLM or real graph.
-"""
+"""Unavailable-state browser check for the gated Sybil playground."""
 
 import asyncio
 import os
@@ -38,7 +34,9 @@ async def main():
             headers = {"Access-Control-Allow-Origin": BASE}
             if unavailable:
                 await route.fulfill(
-                    status=404, json={"detail": "Sybil Playground is disabled"}, headers=headers
+                    status=404,
+                    json={"detail": "Sybil Playground is disabled"},
+                    headers=headers,
                 )
             else:
                 await route.fulfill(json=[dataset.model_dump()], headers=headers)
@@ -47,23 +45,24 @@ async def main():
         for width, height in [(1280, 720), (390, 844)]:
             await page.set_viewport_size({"width": width, "height": height})
             await page.goto(BASE + "/sybil")
-            await page.get_by_text("Data unavailable", exact=True).wait_for()
+            await page.get_by_text("Real graph unavailable", exact=True).wait_for()
+            assert await page.get_by_role("button", name="Create revision").is_disabled()
             assert await page.get_by_role("button", name="Run agent comparison").is_disabled()
-            assert await page.get_by_text("Unavailable", exact=True).count() == 2
             assert await page.evaluate("document.documentElement.scrollWidth <= innerWidth")
             await page.get_by_text("Inspect the score formula", exact=True).click()
-            await page.get_by_text("S · Structural support", exact=True).wait_for(state="visible")
+            await page.get_by_text("Formula sybil-v1 · restart 0.15.", exact=True).wait_for(
+                state="visible"
+            )
             await page.screenshot(path=str(OUTPUT / f"{width}.png"), full_page=True)
         unavailable = True
-        # Navigation (rather than reload) preserves the console's existing entrance behavior.
         await page.goto(BASE + "/sybil?retry=1")
         await page.get_by_role("button", name="Retry dataset check").wait_for()
         unavailable = False
         await page.get_by_role("button", name="Retry dataset check").click()
-        await page.get_by_text("Data unavailable", exact=True).wait_for()
+        await page.get_by_text("Real graph unavailable", exact=True).wait_for()
         assert not errors, errors
         await browser.close()
-    print("Sybil readiness: desktop, phone, unavailable scores, formula and retry passed.")
+    print("Sybil readiness: desktop, phone, unavailable state, formula and retry passed.")
 
 
 if __name__ == "__main__":

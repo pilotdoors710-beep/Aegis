@@ -7,6 +7,7 @@ from scipy.sparse import csr_array, save_npz
 
 from aegis.sybil import Graph, reference_scale
 from aegis.sybil_dataset import ANCHORS, file_hash, load_dataset
+from aegis.sybil_runtime import calculate_assessment
 
 
 def sign(path, manifest):
@@ -74,6 +75,23 @@ def test_valid_artifact_retains_real_ids_degrees_and_anchors(artifact):
     assert dataset.base.graph.edges == tuple((i, 8) for i in range(8))
     assert dataset.base.anchors == tuple(map(str, range(8)))
     assert dataset.base.recommendations == ()
+
+
+def test_worker_assessment_uses_validated_artifact(artifact):
+    path, manifest = artifact
+    result = calculate_assessment(
+        str(path),
+        json.dumps(
+            {
+                "dataset_id": manifest["id"],
+                "mode": "research",
+                "recommendations": [{"website": "8", "shop": "A"}],
+            }
+        ),
+    )
+    assert result["status"] == "complete"
+    assert result["revision_id"]
+    assert result["scores"]["A"]["recommendation_count"] == 1
 
 
 def test_missing_manifest_is_not_a_ready_dataset(tmp_path):

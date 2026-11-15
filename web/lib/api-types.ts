@@ -21,6 +21,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sybil/scenarios": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Sybil Scenario */
+        post: operations["create_sybil_scenario_sybil_scenarios_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sybil/scenarios/{revision_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Sybil Scenario */
+        get: operations["get_sybil_scenario_sybil_scenarios__revision_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sybil/scenarios/{revision_id}/view": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Sybil View */
+        get: operations["get_sybil_view_sybil_scenarios__revision_id__view_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sybil/scenarios/{revision_id}/assessments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Sybil Assessment */
+        post: operations["create_sybil_assessment_sybil_scenarios__revision_id__assessments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sybil/assessments/{assessment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Sybil Assessment */
+        get: operations["get_sybil_assessment_sybil_assessments__assessment_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -1137,6 +1222,62 @@ export interface components {
              */
             removed: components["schemas"]["RemovedText"][];
         };
+        /** SybilAssessmentRecord */
+        SybilAssessmentRecord: {
+            /** Id */
+            id: string;
+            /** Revision Id */
+            revision_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "complete" | "unavailable";
+            /**
+             * Formula Version
+             * @default sybil-v1
+             * @constant
+             */
+            formula_version: "sybil-v1";
+            /** Converged */
+            converged?: boolean | null;
+            /** Residual */
+            residual?: number | null;
+            /** Iterations */
+            iterations?: number | null;
+            /** Elapsed Ms */
+            elapsed_ms?: number | null;
+            /** Scores */
+            scores?: {
+                [key: string]: components["schemas"]["SybilShopScore"];
+            } | null;
+            /** Reason */
+            reason?: string | null;
+        };
+        /** SybilBudget */
+        SybilBudget: {
+            /** Injected Websites */
+            injected_websites: number;
+            /** Internal Links */
+            internal_links: number;
+            /** External Credits */
+            external_credits: number;
+            /**
+             * Website Limit
+             * @default 1000
+             */
+            website_limit: number;
+            /**
+             * Internal Link Limit
+             * @default 100000
+             */
+            internal_link_limit: number;
+            /**
+             * Credit Limit
+             * @default 25
+             */
+            credit_limit: number;
+        };
         /**
          * SybilDatasetStatus
          * @description Readiness is separate from the eventual validated artifact manifest.
@@ -1144,6 +1285,8 @@ export interface components {
         SybilDatasetStatus: {
             /** Release */
             release: string;
+            /** Dataset Id */
+            dataset_id?: string | null;
             /**
              * Status
              * @default unavailable
@@ -1170,6 +1313,198 @@ export interface components {
             reason: string;
             /** Source Url */
             source_url: string;
+        };
+        /** SybilGraphEdge */
+        SybilGraphEdge: {
+            /** Source */
+            source: string;
+            /** Target */
+            target: string;
+            /**
+             * Provenance
+             * @enum {string}
+             */
+            provenance: "observed" | "simulated";
+        };
+        /** SybilGraphNode */
+        SybilGraphNode: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /**
+             * Provenance
+             * @enum {string}
+             */
+            provenance: "observed" | "simulated";
+            /**
+             * Anchor
+             * @default false
+             */
+            anchor: boolean;
+            /** Original Outdegree */
+            original_outdegree: number;
+            /** Retained Outdegree */
+            retained_outdegree: number;
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+        };
+        /** SybilGraphView */
+        SybilGraphView: {
+            /** Revision Id */
+            revision_id: string;
+            /** Total Nodes */
+            total_nodes: number;
+            /** Total Edges */
+            total_edges: number;
+            /** Displayed Nodes */
+            displayed_nodes: number;
+            /** Displayed Edges */
+            displayed_edges: number;
+            /** Nodes */
+            nodes: components["schemas"]["SybilGraphNode"][];
+            /** Edges */
+            edges: components["schemas"]["SybilGraphEdge"][];
+            /** Recommendations */
+            recommendations: components["schemas"]["SybilRecommendation"][];
+            /** Subset */
+            subset: boolean;
+        };
+        /** SybilLink */
+        SybilLink: {
+            /** Source */
+            source: string;
+            /** Target */
+            target: string;
+        };
+        /** SybilRecommendation */
+        SybilRecommendation: {
+            /** Website */
+            website: string;
+            /**
+             * Shop
+             * @enum {string}
+             */
+            shop: "A" | "B";
+        };
+        /**
+         * SybilScenarioCreate
+         * @description Complete active edit set relative to a dataset, never an imperative edit history.
+         */
+        SybilScenarioCreate: {
+            /** Dataset Id */
+            dataset_id: string;
+            /**
+             * Mode
+             * @default challenge
+             * @enum {string}
+             */
+            mode: "challenge" | "research";
+            /**
+             * Injected Nodes
+             * @default []
+             */
+            injected_nodes: string[];
+            /**
+             * Added Links
+             * @default []
+             */
+            added_links: components["schemas"]["SybilLink"][];
+            /**
+             * Removed Links
+             * @default []
+             */
+            removed_links: components["schemas"]["SybilLink"][];
+            /**
+             * Recommendations
+             * @default []
+             */
+            recommendations: components["schemas"]["SybilRecommendation"][];
+            /**
+             * Removed Recommendations
+             * @default []
+             */
+            removed_recommendations: components["schemas"]["SybilRecommendation"][];
+            /**
+             * Compromised
+             * @default []
+             */
+            compromised: string[];
+            /**
+             * Cooperating Links
+             * @default []
+             */
+            cooperating_links: components["schemas"]["SybilLink"][];
+            /** Anchors */
+            anchors?: string[] | null;
+            /**
+             * Restart
+             * @default 0.15
+             */
+            restart: number;
+            weights?: components["schemas"]["SybilWeights"];
+        };
+        /** SybilScenarioRevision */
+        SybilScenarioRevision: {
+            /** Id */
+            id: string;
+            /** Dataset Id */
+            dataset_id: string;
+            /** Dataset Hash */
+            dataset_hash: string;
+            edits: components["schemas"]["SybilScenarioCreate"];
+            budget: components["schemas"]["SybilBudget"];
+            /**
+             * Policy Version
+             * @default sybil-challenge-v1
+             */
+            policy_version: string;
+        };
+        /** SybilShopScore */
+        SybilShopScore: {
+            /** Recommendation Count */
+            recommendation_count: number;
+            /** Trust Weighted Support */
+            trust_weighted_support: number;
+            /** Structural Support */
+            structural_support: number;
+            /** Effective Anchors */
+            effective_anchors: number;
+            /** Anchor Breadth */
+            anchor_breadth: number;
+            /** Anchor Withdrawal Resilience */
+            anchor_withdrawal_resilience: number;
+            /** Tested Connection Resilience */
+            tested_connection_resilience: number;
+            /** Total Robustness */
+            total_robustness: number;
+            /** Tested Edges */
+            tested_edges: components["schemas"]["SybilLink"][];
+        };
+        /** SybilWeights */
+        SybilWeights: {
+            /**
+             * Base
+             * @default 0.4
+             */
+            base: number;
+            /**
+             * Breadth
+             * @default 0.2
+             */
+            breadth: number;
+            /**
+             * Withdrawal
+             * @default 0.2
+             */
+            withdrawal: number;
+            /**
+             * Connection
+             * @default 0.2
+             */
+            connection: number;
         };
         /** TickedOption */
         TickedOption: {
@@ -1392,6 +1727,165 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SybilDatasetStatus"][];
+                };
+            };
+        };
+    };
+    create_sybil_scenario_sybil_scenarios_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SybilScenarioCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SybilScenarioRevision"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_sybil_scenario_sybil_scenarios__revision_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                revision_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SybilScenarioRevision"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_sybil_view_sybil_scenarios__revision_id__view_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                revision_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SybilGraphView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_sybil_assessment_sybil_scenarios__revision_id__assessments_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                revision_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SybilAssessmentRecord"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_sybil_assessment_sybil_assessments__assessment_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                assessment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SybilAssessmentRecord"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

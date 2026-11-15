@@ -22,6 +22,13 @@ Template:
 
 ## Log
 
+### 2026-11-16 · Codex · Sybil scenario and assessment slice
+- Added typed immutable scenario, bounded graph-view and assessment APIs with one background numerical process and a queue limit.
+- Added the first working playground edit: disconnected simulated recommenders, topology/table view, score polling and both shop breakdowns.
+- Regenerated frontend API types; 54 targeted tests, backend lint, frontend types and frontend lint pass.
+- The main graph and labels finished downloading. The transpose resumed from 1.49 GB and is still downloading; extraction remains next.
+- Next: finish extraction/benchmarks, persist scenarios and assessments, then add full attack patterns and agent integration.
+
 ### 2026-11-16 · Codex · Resume Common Crawl source
 - Retried the transfer from saved byte ranges; the files resumed, but DNS failed during the metadata preflight.
 - Added long bounded retries for manifest and file-size requests, plus a regression test.

@@ -57,12 +57,17 @@ from aegis.schemas import (
     RunSummary,
     ScanReport,
     ScanRequest,
+    SybilAssessmentRecord,
     SybilDatasetStatus,
+    SybilGraphView,
+    SybilScenarioCreate,
+    SybilScenarioRevision,
     TrialReport,
 )
 from aegis.security import ScanGuard, arena_origin, install_guard, validate_scan_url, validate_url
 from aegis.snapshot import screenshot_b64, take_snapshot
 from aegis.sybil_dataset import load_dataset
+from aegis.sybil_runtime import SybilRuntime
 from aegis.trials import run_trials
 
 log = logging.getLogger("aegis.api")
@@ -70,6 +75,7 @@ log = logging.getLogger("aegis.api")
 _browser: Browser | None = None
 SAMPLE_FRAME_DELAY_S = 0.3
 SAMPLE_ASK_HOLD_S = 4.0  # keep the sample's pending approval dialog readable
+_sybil = SybilRuntime()
 
 
 @asynccontextmanager
@@ -85,6 +91,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
+        _sybil.shutdown()
         await store.close()
         await _browser.close()
         await pw.stop()
@@ -109,29 +116,97 @@ async def sybil_datasets() -> list[SybilDatasetStatus]:
     try:
         dataset = _load_sybil_dataset(str(settings.sybil_data_dir.resolve()))
     except (OSError, ValueError):
-        return [SybilDatasetStatus(
-            release="cc-main-2026-aug-sep-oct",
-            source_nodes=134979706,
-            source_edges=1817202146,
-            reason="Shared graph artifact is missing or failed validation.",
-            source_url="https://index.commoncrawl.org/graphinfo.json",
-        )]
-    return [SybilDatasetStatus(
-        release=dataset.manifest.release,
-        status="available",
-        source_nodes=dataset.manifest.source_counts.nodes,
-        source_edges=dataset.manifest.source_counts.arcs,
-        imported_nodes=dataset.manifest.nodes,
-        imported_edges=dataset.manifest.edges,
-        observation_date=dataset.manifest.created_at.date().isoformat(),
-        reason=f"Validated shared artifact {dataset.manifest.id[:12]}",
-        source_url=dataset.manifest.source_url,
-    )]
+        return [
+            SybilDatasetStatus(
+                release="cc-main-2026-aug-sep-oct",
+                source_nodes=134979706,
+                source_edges=1817202146,
+                reason="Shared graph artifact is missing or failed validation.",
+                source_url="https://index.commoncrawl.org/graphinfo.json",
+            )
+        ]
+    return [
+        SybilDatasetStatus(
+            release=dataset.manifest.release,
+            dataset_id=dataset.manifest.id,
+            status="available",
+            source_nodes=dataset.manifest.source_counts.nodes,
+            source_edges=dataset.manifest.source_counts.arcs,
+            imported_nodes=dataset.manifest.nodes,
+            imported_edges=dataset.manifest.edges,
+            observation_date=dataset.manifest.created_at.date().isoformat(),
+            reason=f"Validated shared artifact {dataset.manifest.id[:12]}",
+            source_url=dataset.manifest.source_url,
+        )
+    ]
 
 
 @lru_cache(maxsize=2)
 def _load_sybil_dataset(directory: str):
     return load_dataset(Path(directory))
+
+
+def _sybil_dataset():
+    if not settings.sybil_enabled:
+        raise HTTPException(404, "Sybil Playground is disabled")
+    try:
+        return _load_sybil_dataset(str(settings.sybil_data_dir.resolve()))
+    except (OSError, ValueError) as error:
+        raise HTTPException(503, "Validated Sybil graph artifact is unavailable") from error
+
+
+@app.post("/sybil/scenarios", response_model=SybilScenarioRevision, status_code=201)
+async def create_sybil_scenario(body: SybilScenarioCreate, request: Request):
+    content_length = request.headers.get("content-length", "0")
+    if not content_length.isdigit() or int(content_length) > 2 * 1024 * 1024:
+        raise HTTPException(413, "Sybil edit payload exceeds 2 MiB")
+    try:
+        return _sybil.create(_sybil_dataset(), body).revision
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from error
+
+
+@app.get("/sybil/scenarios/{revision_id}", response_model=SybilScenarioRevision)
+async def get_sybil_scenario(revision_id: str):
+    _sybil_dataset()
+    scenario = _sybil.get(revision_id)
+    if scenario is None:
+        raise HTTPException(404, "Sybil scenario revision not found")
+    return scenario.revision
+
+
+@app.get("/sybil/scenarios/{revision_id}/view", response_model=SybilGraphView)
+async def get_sybil_view(revision_id: str, limit: int = Query(1500, ge=1, le=5000)):
+    dataset = _sybil_dataset()
+    scenario = _sybil.get(revision_id)
+    if scenario is None:
+        raise HTTPException(404, "Sybil scenario revision not found")
+    return _sybil.view(dataset, scenario, limit)
+
+
+@app.post(
+    "/sybil/scenarios/{revision_id}/assessments",
+    response_model=SybilAssessmentRecord,
+    status_code=202,
+)
+async def create_sybil_assessment(revision_id: str):
+    _sybil_dataset()
+    scenario = _sybil.get(revision_id)
+    if scenario is None:
+        raise HTTPException(404, "Sybil scenario revision not found")
+    try:
+        return _sybil.submit(str(settings.sybil_data_dir.resolve()), scenario)
+    except OverflowError as error:
+        raise HTTPException(429, str(error), headers={"Retry-After": "2"}) from error
+
+
+@app.get("/sybil/assessments/{assessment_id}", response_model=SybilAssessmentRecord)
+async def get_sybil_assessment(assessment_id: str):
+    _sybil_dataset()
+    assessment = _sybil.assessment(assessment_id)
+    if assessment is None:
+        raise HTTPException(404, "Sybil assessment not found")
+    return assessment
 
 
 @app.get("/healthz")

@@ -19,6 +19,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   sybilDatasets: (signal?: AbortSignal) => request<Schema["SybilDatasetStatus"][]>("/sybil/datasets", { signal }),
+  createSybilScenario: (body: Schema["SybilScenarioCreate"]) => request<Schema["SybilScenarioRevision"]>("/sybil/scenarios", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  }),
+  sybilView: (id: string, limit = 150, signal?: AbortSignal) => request<Schema["SybilGraphView"]>(
+    `/sybil/scenarios/${encodeURIComponent(id)}/view?limit=${limit}`, { signal },
+  ),
+  createSybilAssessment: (id: string) => request<Schema["SybilAssessmentRecord"]>(
+    `/sybil/scenarios/${encodeURIComponent(id)}/assessments`, { method: "POST" },
+  ),
+  sybilAssessment: (id: string, signal?: AbortSignal) => request<Schema["SybilAssessmentRecord"]>(
+    `/sybil/assessments/${encodeURIComponent(id)}`, { signal },
+  ),
   presets: (signal?: AbortSignal) => request<Schema["Preset"][]>("/presets", { signal }),
   run: (id: string, signal?: AbortSignal) => request<Schema["RunSummary"]>(`/runs/${encodeURIComponent(id)}`, { signal }),
   runs: (signal?: AbortSignal) => request<Schema["RunSummary"][]>("/runs?limit=20", { signal }),

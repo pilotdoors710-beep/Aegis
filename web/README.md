@@ -1,10 +1,13 @@
 Aegis Shield Console and static Aurora Home arena. Scope and contracts are defined in the root `project_brief.md`.
 
-Sybil implementation, 15 November: the pure backend scoring engine, download preflight and
-typed dataset-readiness endpoint are implemented. The `/sybil` readiness preview is hidden
+Sybil implementation, 16 November: the pure backend scoring engine, download preflight,
+artifact validation, immutable scenario/view/assessment endpoints and first editing path are
+implemented. The `/sybil` playground is hidden
 unless `SYBIL_ENABLED=true` is set on the web server before build and on FastAPI before start.
 Keep this false publicly until the real-data assessment and paired-run release gates pass.
-The preview has no invented background, scores, scenario edits or agent runs.
+Without a validated artifact it shows an unavailable state and never invents background data or
+scores. With an artifact, the first control adds disconnected simulated recommenders and polls a
+real background assessment. Persistence, full editing patterns and agent runs remain unfinished.
 
 The raw Common Crawl files stay local in ignored `.sybil-data/source/`. After extraction, place
 the validated four-file artifact in ignored `server/data/sybil/`. Local Compose mounts that folder
