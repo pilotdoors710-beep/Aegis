@@ -22,6 +22,14 @@ Template:
 
 ## Log
 
+### 2026-11-16 · Dev A · Claude Code · Sybil attack fixes and sybil-v2
+- Did: WakeSlider for internal density; "Take over this site" button (5 credits, 15 for an anchor); Compare shows "Running…" until the run ends.
+- Fixed bridges: they came from the sites with the most links, so they carried almost no trust. They now come from the sites with the most trust per link. The graph view no longer scans all 50k ids for every link.
+- Found a real hole: chain + 6 bridges pushed Shop B to 62.9, and Aegis bought from it. Bought bridges inflated E (connection resilience) to 1.0.
+- Fixed in two layers: the policy now also needs L >= 0.5 (support must survive losing any one anchor); and formula **sybil-v2** computes E by cutting the top 12 outside websites (25 credits / 2) together. On the real graph every attack on B (bridges, 5 takeovers × 100 links, anchor takeover) now stays at 40–43 and fails; Shop A passes at 79.0 (its E dropped 0.95 → 0.23). Brief §14 updated; old v1 scores still load.
+- Works now: tests written first and confirmed failing on v1; all Sybil tests pass. `test_enabled_preview_does_not_claim_imported_data` fails locally only because the real dataset exists here.
+- Next: restart the :8000 backend; tell Codex / Dev B about the §14 and type changes; README must say v1 was beaten and replaced, and that 0.5 / 12 were set after this attack. Idea for later: score breakdown UI (`sybil_score_breakdown.md`, not committed). Limits: E assumes the 25-credit budget; true min-cut is Stage 4.
+
 ### 2026-11-15 · Antigravity · Sybil real-web bridges & Shop A baseline
 - Added real-web bridge link generator (cooperating links) costing 2 credits each (up to 12 links / 24 credits) in attack controls.
 - Added interactive one-click bridge toggle in Node Inspector to connect or disconnect any real website to the attack.
