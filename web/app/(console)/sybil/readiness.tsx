@@ -6,6 +6,7 @@ import { api, type Schema } from "@/lib/api";
 import styles from "./sybil.module.css";
 import { SybilGraph, type SelectedEdge } from "./graph";
 import { RunView } from "../run-view";
+import WakeSlider from "@/components/reactbits/WakeSlider";
 
 type Dataset = Schema["SybilDatasetStatus"];
 type Revision = Schema["SybilScenarioRevision"];
@@ -530,16 +531,23 @@ export function SybilReadiness() {
             </label>
             <label>
               Internal density
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
+              <WakeSlider
+                min={0}
+                max={1}
+                step={0.05}
                 value={density}
-                onChange={(event) => setDensity(Number(event.target.value))}
+                onChange={setDensity}
                 disabled={!ready || busy || !["dense", "clusters"].includes(pattern)}
+                bars={24}
+                height={32}
+                restHeight={8}
+                gap={3}
+                fillColor="#c2a15a"
+                trackColor="#1f262d"
+                ariaLabel="Internal density"
+                formatValue={(value: number) => `${Math.round(value * 100)}%`}
+                showValue
               />
-              <span>{Math.round(density * 100)}%</span>
             </label>
             <button className="primary-button" disabled={!ready || busy}>
               {busy ? "Creating…" : "Create revision"}
