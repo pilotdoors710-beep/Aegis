@@ -22,6 +22,12 @@ Template:
 
 ## Log
 
+### 2026-11-15 · Dev A · Claude Code · final eval manifest
+- Stopped tracking `graphify-out/` (now ignored).
+- Declared the final eval list (`eval/manifest.json` → `final`, `eval/README.md`): 19 cases × U/F/I + 8 ablation runs = 65 per block, N=2; variant c held out (never run by an agent); R2 study separate.
+- Sybil is not in this eval (needs stage 3). Live backend reports the Sybil artifact missing on this PC.
+- Next: Dev A finishes code changes, then tag `eval-freeze` and run block 1.
+
 ### 2026-11-15 - Antigravity - Sybil Stage 2 and Stage 3 complete
 - Completed Stage 2 (Judge Playground): added interactive node and edge inspectors with click and keyboard navigation, graph selection highlights, and verified JSON/CSV/SVG exports and draft editor.
 - Completed Stage 3 (Agent Integration): added two-shop arena fixture (shops=two), shop-tagged order outcomes, topological trust policy enforcement (R >= 60, S >= 0.5) with separate untrusted_shop ASK gate, and denial feedback redirection.
