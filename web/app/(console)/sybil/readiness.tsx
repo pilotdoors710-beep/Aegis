@@ -34,6 +34,9 @@ function NodeInspector({
   canBridge,
   busy,
   onToggleBridge,
+  isCompromised,
+  canTakeOver,
+  onToggleTakeover,
   onClose,
 }: {
   node: GraphNode;
@@ -44,8 +47,12 @@ function NodeInspector({
   canBridge?: boolean;
   busy?: boolean;
   onToggleBridge?: (nodeId: string) => void;
+  isCompromised?: boolean;
+  canTakeOver?: boolean;
+  onToggleTakeover?: (nodeId: string) => void;
   onClose: () => void;
 }) {
+  const takeoverCost = node.anchor ? 15 : 5;
   return (
     <div className={styles.inspector} aria-labelledby="node-inspector-title">
       <div className={styles.inspectorHead}>
@@ -90,7 +97,28 @@ function NodeInspector({
           </dd>
         </div>
       </dl>
-      {node.provenance === "observed" && !node.anchor && onToggleBridge && (
+      {node.provenance === "observed" && onToggleTakeover && (
+        <div style={{ marginTop: "var(--s2)", paddingTop: "var(--s2)", borderTop: "1px solid var(--line)" }}>
+          <button
+            className={isCompromised ? "secondary-button" : "primary-button"}
+            disabled={busy || (!isCompromised && !canTakeOver)}
+            onClick={() => onToggleTakeover(node.id)}
+            style={{ width: "100%" }}
+          >
+            {isCompromised
+              ? `Release this site (-${takeoverCost} credits)`
+              : `Take over this ${node.anchor ? "anchor" : "site"} (+${takeoverCost} credits)`}
+          </button>
+          <p style={{ color: "var(--muted)", fontSize: "0.75rem", marginTop: "var(--s1)" }}>
+            {isCompromised
+              ? "The attacker controls this real website and links it into the attack cluster."
+              : node.anchor
+                ? "Seizes a trusted anchor and links it into the attack cluster (costs 15 credits)."
+                : "Seizes this real website and links it into the attack cluster (costs 5 credits)."}
+          </p>
+        </div>
+      )}
+      {node.provenance === "observed" && !node.anchor && !isCompromised && onToggleBridge && (
         <div style={{ marginTop: "var(--s2)", paddingTop: "var(--s2)", borderTop: "1px solid var(--line)" }}>
           <button
             className={isBridged ? "secondary-button" : "primary-button"}
@@ -407,6 +435,40 @@ export function SybilReadiness() {
     }
   }
 
+  async function toggleTakeover(nodeId: string) {
+    if (!revision) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const edits = revision.edits;
+      const owned = edits.compromised.includes(nodeId);
+      const targetNode = edits.injected_nodes[0];
+      if (!owned && !targetNode) throw new Error("Create an attack with simulated websites first.");
+      // A taken-over site needs no cooperation credit, and the server rejects both at once.
+      const cooperating_links = edits.cooperating_links.filter((l) => l.source !== nodeId);
+      const nextEdits: Schema["SybilScenarioCreate"] = owned
+        ? {
+            ...edits,
+            compromised: edits.compromised.filter((id) => id !== nodeId),
+            cooperating_links,
+            added_links: edits.added_links.filter((l) => l.source !== nodeId),
+          }
+        : {
+            ...edits,
+            compromised: [...edits.compromised, nodeId],
+            cooperating_links,
+            added_links: edits.added_links.some((l) => l.source === nodeId && l.target === targetNode)
+              ? edits.added_links
+              : [...edits.added_links, { source: nodeId, target: targetNode }],
+          };
+      await showRevision(await api.createSybilScenario(nextEdits));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Takeover failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function parseDraft() {
     return JSON.parse(draft) as Schema["SybilScenarioCreate"];
   }
@@ -679,6 +741,14 @@ export function SybilReadiness() {
               canBridge={(revision?.budget.external_credits ?? 0) + 2 <= 25}
               busy={busy}
               onToggleBridge={toggleBridge}
+              isCompromised={revision?.edits.compromised.includes(selectedNode.id)}
+              canTakeOver={
+                (revision?.budget.external_credits ?? 0) +
+                  (selectedNode.anchor ? 15 : 5) -
+                  (revision?.edits.cooperating_links.some((l) => l.source === selectedNode.id) ? 2 : 0) <=
+                25
+              }
+              onToggleTakeover={toggleTakeover}
               onClose={() => setSelectedNodeId(null)}
             />
           ) : selectedEdge ? (
