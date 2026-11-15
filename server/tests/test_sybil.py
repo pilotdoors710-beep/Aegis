@@ -3,7 +3,8 @@
 import numpy as np
 import pytest
 
-from aegis.sybil import Config, Graph, _without_edge_transition, assess, reference_scale
+from aegis.schemas import SybilBudget
+from aegis.sybil import Config, Graph, _without_edges_transition, assess, reference_scale
 
 
 def test_direction_sink_deduplication_and_dense_reference():
@@ -55,8 +56,62 @@ def test_anchor_decomposition_withdrawal_and_connection_intervention():
 )
 def test_fast_edge_removal_matches_graph_rebuild(graph, edge):
     expected = graph.without(edge).transition().toarray()
-    actual = _without_edge_transition(graph.transition(), graph, edge).toarray()
+    actual = _without_edges_transition(graph.transition(), graph, [edge]).toarray()
     np.testing.assert_allclose(actual, expected)
+
+
+def test_fast_multi_edge_removal_matches_graph_rebuild():
+    graph = Graph(5, ((0, 1), (0, 2), (0, 3), (1, 2), (1, 4)), (5, 2, 0, 0, 0))
+    edges = [(0, 1), (0, 3), (1, 2)]
+    expected = graph
+    for edge in edges:
+        expected = expected.without(edge)
+    actual = _without_edges_transition(graph.transition(), graph, edges).toarray()
+    np.testing.assert_allclose(actual, expected.transition().toarray())
+
+
+def _graph(node_count, edges):
+    degree = [0] * node_count
+    for u, _ in edges:
+        degree[u] += 1
+    return Graph(node_count, tuple(edges), tuple(degree))
+
+
+def _bridged_cluster(bridges):
+    # Anchors 0,1 vouch for 12 outside sites (2..13); the first `bridges` link into a
+    # five-site simulated chain (14..18) whose members all recommend B.
+    edges = [(a, s) for a in (0, 1) for s in range(2, 14)]
+    edges += [(s, 14) for s in range(2, 2 + bridges)]
+    edges += [(c, c + 1) for c in range(14, 18)]
+    return _graph(19, edges), {c: ("B",) for c in range(14, 19)}
+
+
+@pytest.mark.parametrize("bridges", [1, 6, 12])
+def test_bought_bridges_do_not_raise_connection_resilience(bridges):
+    graph, recommendations = _bridged_cluster(bridges)
+    score = assess(graph, (0, 1), recommendations, 1e-6).scores["B"]
+    assert score.mass > 0
+    assert score.connection == pytest.approx(0, abs=1e-12)
+
+
+def test_one_source_with_many_links_counts_once():
+    # A taken-over site may add up to 100 links; cutting it removes all of them.
+    edges = [(0, 2), (1, 2), *((2, c) for c in range(3, 103))]
+    score = assess(_graph(103, edges), (0, 1), {c: ("B",) for c in range(3, 103)}, 1e-6)
+    assert score.scores["B"].connection == pytest.approx(0, abs=1e-12)
+
+
+def test_wide_honest_support_survives_the_cut():
+    # 20 independent outside sites each support one recommender; cutting 12 leaves 8.
+    edges = [(a, s) for a in (0, 1) for s in range(2, 22)] + [(s, s + 20) for s in range(2, 22)]
+    score = assess(_graph(42, edges), (0, 1), {r: ("A",) for r in range(22, 42)}, 1e-6)
+    assert score.scores["A"].connection == pytest.approx(8 / 20)
+    assert len(score.scores["A"].tested_edges) == 12
+
+
+def test_cut_size_matches_what_the_credit_budget_can_buy():
+    # Cheapest outside site an attacker can enlist is a 2-credit cooperating link.
+    assert Config().cut_sources == SybilBudget.model_fields["credit_limit"].default // 2
 
 
 def test_single_anchor_dependence_and_frozen_normalization():

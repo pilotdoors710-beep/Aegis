@@ -787,7 +787,7 @@ export function SybilReadiness() {
                   <dt>E · Tested connections</dt>
                   <dd>Support retained after each of up to five influential links is removed.</dd>
                 </dl>
-                <p>Formula sybil-v1 · restart 0.15.</p>
+                <p>Formula sybil-v2 · restart 0.15.</p>
               </details>
             </>
           )}

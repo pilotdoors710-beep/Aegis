@@ -546,11 +546,14 @@ evidence. Recommendations are separate from website transitions.
   `N_eff=1/sum(c²)` and `D=(N_eff-1)/(K-1)` (K=8). This does not establish independent people.
 - `L=min(1,min_i M_without_anchor_i/M)` using exact per-anchor linear decomposition and
   restart redistribution across remaining anchors, with P unchanged.
-- For each shop test up to five highest steady-state-flow edges entering its supporters.
-  Remove each edge in a disposable graph, renormalize that source, recompute, restore.
-  `E=min(1,min_e M_without_edge/M)`, or zero without incoming candidates. This is tested
-  connection resilience, not a worst-case guarantee. Flow is `(1-rho)*p[u]*P[u,v]`.
-- Formula version `sybil-v1`: `R=100*S*(0.40+0.20*D+0.20*L+0.20*E)`.
+- For each shop rank outside websites (not themselves supporters) by total steady-state flow
+  into its supporters. Remove all links from the top 12 together (12 = 25 credits / 2, the
+  most outside websites a Challenge can enlist), renormalize those sources, recompute once.
+  `E=min(1,M_after_cut/M)`, or zero without incoming candidates. Links among supporters are
+  ignored. This is tested connection resilience, not a worst-case guarantee. Flow is
+  `(1-rho)*p[u]*P[u,v]`. (sybil-v1 removed five single edges one at a time; on 16 Nov bought
+  bridges pushed that E to 1.0 and an attacked shop past the policy, so it was replaced.)
+- Formula version `sybil-v2`: `R=100*S*(0.40+0.20*D+0.20*L+0.20*E)`.
   Zero support makes all components zero; numerical failure is unavailable, never zero.
   Round total to one decimal only for display. Freeze weights before held-out evaluation.
 - Always label: "A heuristic measure of structural support and tested sensitivity. Not a

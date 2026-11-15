@@ -199,7 +199,7 @@ class SybilAssessmentRecord(BaseModel):
     id: str = Field(pattern=r"^[a-f0-9]{64}$")
     revision_id: str = Field(pattern=r"^[a-f0-9]{64}$")
     status: Literal["queued", "running", "complete", "unavailable"]
-    formula_version: Literal["sybil-v1"] = "sybil-v1"
+    formula_version: Literal["sybil-v1", "sybil-v2"] = "sybil-v2"  # v1 kept so stored replays load
     converged: bool | None = None
     residual: float | None = Field(default=None, ge=0)
     iterations: int | None = Field(default=None, ge=0, le=300)
@@ -244,7 +244,7 @@ class SybilGraphEvidence(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
     revision_id: str = Field(pattern=r"^[a-f0-9]{64}$")
     assessment_id: str = Field(pattern=r"^[a-f0-9]{64}$")
-    formula_version: Literal["sybil-v1"] = "sybil-v1"
+    formula_version: Literal["sybil-v1", "sybil-v2"] = "sybil-v2"  # v1 kept so stored replays load
     minimum_total: float = 60
     minimum_support: float = 0.5
     shops: dict[Literal["A", "B"], SybilShopEvidence]

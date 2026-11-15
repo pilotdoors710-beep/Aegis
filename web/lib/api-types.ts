@@ -1275,10 +1275,10 @@ export interface components {
             status: "queued" | "running" | "complete" | "unavailable";
             /**
              * Formula Version
-             * @default sybil-v1
-             * @constant
+             * @default sybil-v2
+             * @enum {string}
              */
-            formula_version: "sybil-v1";
+            formula_version: "sybil-v1" | "sybil-v2";
             /** Converged */
             converged?: boolean | null;
             /** Residual */

@@ -11,7 +11,7 @@ from time import perf_counter
 import numpy as np
 from scipy.sparse import csr_array
 
-FORMULA_VERSION = "sybil-v1"
+FORMULA_VERSION = "sybil-v2"
 
 
 @dataclass(frozen=True)
@@ -78,12 +78,16 @@ class Config:
     tolerance: float = 1e-10
     max_iterations: int = 300
     weights: tuple[float, float, float, float] = (0.4, 0.2, 0.2, 0.2)
+    # Outside websites cut together for E: the most a 25-credit Challenge can enlist at 2 each.
+    cut_sources: int = 12
 
     def __post_init__(self):
         if not 0 < self.restart < 1 or not 0 < self.tolerance < 1:
             raise ValueError("Restart and tolerance must lie strictly between zero and one")
         if not 1 <= self.max_iterations <= 300:
             raise ValueError("Iteration cap must be between 1 and 300")
+        if self.cut_sources < 1:
+            raise ValueError("Connection test must cut at least one source")
         if (
             len(self.weights) != 4
             or any(not np.isfinite(w) or w < 0 for w in self.weights)
@@ -103,33 +107,42 @@ class Propagation:
 DEFAULT_CONFIG = Config()
 
 
-def _without_edge_transition(matrix: csr_array, graph: Graph, edge: tuple[int, int]) -> csr_array:
-    """Remove one observed edge and renormalize only its source row."""
-    source, target = edge
-    original = graph.original_outdegree[source]
-    if original < 1:
-        raise ValueError("Cannot remove an edge from a dangling website")
+def _without_edges_transition(
+    matrix: csr_array, graph: Graph, edges: list[tuple[int, int]]
+) -> csr_array:
+    """Remove observed edges and renormalize only their source rows."""
+    by_source: dict[int, set[int]] = {}
+    for source, target in edges:
+        by_source.setdefault(source, set()).add(target)
     updated = matrix.copy()
-    start, end = updated.indptr[source : source + 2]
-    columns = updated.indices[start:end]
-    target_positions = np.flatnonzero(columns == target)
-    if target_positions.size != 1:
-        raise ValueError("Removed edge is absent or duplicated")
-    remaining_degree = original - 1
-    if remaining_degree == 0:
-        mutable = updated.tolil()
-        mutable.rows[source] = [source]
-        mutable.data[source] = [1.0]
-        return mutable.tocsr()
-    retained = columns != graph.node_count
-    omitted = original - int(np.count_nonzero(retained))
-    row = updated.data[start:end]
-    row[retained] = 1.0 / remaining_degree
-    row[target_positions[0]] = 0
-    sink = columns == graph.node_count
-    if np.any(sink):
+    emptied = []
+    for source, targets in by_source.items():
+        original = graph.original_outdegree[source]
+        if original < len(targets):
+            raise ValueError("Cannot remove more edges than a website has")
+        start, end = updated.indptr[source : source + 2]
+        columns = updated.indices[start:end]
+        removed = np.isin(columns, list(targets))
+        if np.count_nonzero(removed) != len(targets):
+            raise ValueError("Removed edge is absent or duplicated")
+        remaining_degree = original - len(targets)
+        if remaining_degree == 0:
+            emptied.append(source)
+            continue
+        sink = columns == graph.node_count
+        retained = ~sink
+        omitted = original - int(np.count_nonzero(retained))
+        row = updated.data[start:end]
+        row[retained] = 1.0 / remaining_degree
+        row[removed] = 0
         row[sink] = omitted / remaining_degree
     updated.eliminate_zeros()
+    if emptied:
+        mutable = updated.tolil()
+        for source in emptied:  # Websites left without links become dangling self-loops.
+            mutable.rows[source] = [source]
+            mutable.data[source] = [1.0]
+        updated = mutable.tocsr()
     return updated
 
 
@@ -230,26 +243,34 @@ def assess(
         breadth = float(np.clip((effective - 1) / (len(anchors) - 1), 0, 1))
         withdrawn = (per_anchor.sum() - per_anchor) / (len(anchors) - 1)
         withdrawal = float(np.clip(withdrawn.min() / mass, 0, 1))
+        # E: cut every link from the outside websites carrying the most trust into the
+        # supporters, all at once. Links among supporters and extra links bought from one
+        # website therefore cannot pad the test.
         links = graph.canonical_edges
-        entering = links[np.isin(links[:, 1], supporters)]
+        entering = links[np.isin(links[:, 1], supporters) & ~np.isin(links[:, 0], supporters)]
+        candidates = []
+        connection = 0.0
         if entering.size:
             original = np.asarray(graph.original_outdegree)
             flows = (1 - config.restart) * trust[entering[:, 0]] / original[entering[:, 0]]
-            order = np.lexsort((entering[:, 1], entering[:, 0], -flows))[:5]
-            candidates = [tuple(map(int, entering[i])) for i in order]
-        else:
-            candidates = []
-        ratios = []
-        for edge in candidates:
+            sources, inverse = np.unique(entering[:, 0], return_inverse=True)
+            source_flow = np.bincount(inverse, weights=flows)
+            cut = sources[np.lexsort((sources, -source_flow))[: config.cut_sources]]
+            removed_edges = entering[np.isin(entering[:, 0], cut)]
+            candidates = [
+                tuple(map(int, removed_edges[removed_edges[:, 0] == u][0])) for u in cut
+            ]
             removed = propagate(
-                _without_edge_transition(matrix, graph, edge), seeds.mean(axis=1), config
+                _without_edges_transition(matrix, graph, [tuple(e) for e in removed_edges]),
+                seeds.mean(axis=1),
+                config,
             )
             if not removed.converged:
                 return Assessment(
                     trust[:-1], result.mass[:-1], removed, None, (perf_counter() - started) * 1000
                 )
-            ratios.append(float(allocation @ removed.mass[supporters]) / mass)
-        connection = float(np.clip(min(ratios), 0, 1)) if ratios else 0.0
+            ratio = float(allocation @ removed.mass[supporters]) / mass
+            connection = float(np.clip(ratio, 0, 1))
         w_base, w_breadth, w_withdrawal, w_connection = config.weights
         total = (
             100

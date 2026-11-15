@@ -50,7 +50,7 @@ async def main():
             assert await page.get_by_role("button", name="Run agent comparison").is_disabled()
             assert await page.evaluate("document.documentElement.scrollWidth <= innerWidth")
             await page.get_by_text("Inspect the score formula", exact=True).click()
-            await page.get_by_text("Formula sybil-v1 · restart 0.15.", exact=True).wait_for(
+            await page.get_by_text("Formula sybil-v2 · restart 0.15.", exact=True).wait_for(
                 state="visible"
             )
             await page.screenshot(path=str(OUTPUT / f"{width}.png"), full_page=True)
@@ -182,7 +182,7 @@ async def main():
                     "id": "e" * 64,
                     "revision_id": "a" * 64,
                     "status": "complete",
-                    "formula_version": "sybil-v1",
+                    "formula_version": "sybil-v2",
                     "converged": True,
                     "residual": 0,
                     "iterations": 8,
