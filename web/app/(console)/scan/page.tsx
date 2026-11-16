@@ -1,5 +1,6 @@
 "use client";
 
+import { SkeletonGroup, Skeleton } from "@/components/skeleton";
 import { useState } from "react";
 import { api, type Schema } from "@/lib/api";
 
@@ -56,7 +57,8 @@ export default function ScanPage() {
     </form>
 
     {error && <p role="alert" className="error-message">{error}</p>}
-    {report && <section className="result" aria-live="polite">
+    {busy && <SkeletonGroup label="Scanning page…"><Skeleton className="skeleton-line is-title" /><Skeleton className="skeleton-frame" /></SkeletonGroup>}
+    {report && !busy && <section className="result" aria-live="polite">
       <div className={`verdict ${report.findings.length ? "" : "good"}`}>
         <h2>{report.findings.length ? `${report.findings.length} thing${report.findings.length > 1 ? "s" : ""} an agent could be tricked by` : "Nothing an agent would be tricked by"}</h2>
         <p>{report.title || report.final_url}</p>

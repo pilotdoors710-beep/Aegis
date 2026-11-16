@@ -1,4 +1,5 @@
 ﻿import { Suspense } from "react";
+import { SkeletonGroup, SkeletonCards } from "@/components/skeleton";
 import { RunSession } from "./run-session";
 
 type Props = {
@@ -13,5 +14,5 @@ async function Session({ params, searchParams }: Props) {
 }
 
 export default function RunPage(props: Props) {
-  return <Suspense fallback={<p role="status">Loading run…</p>}><Session {...props} /></Suspense>;
+  return <Suspense fallback={<SkeletonGroup label="Loading run…"><SkeletonCards n={2} /></SkeletonGroup>}><Session {...props} /></Suspense>;
 }

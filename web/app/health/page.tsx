@@ -1,5 +1,6 @@
 "use client";
 
+import { SkeletonGroup, SkeletonLines, Skeleton } from "@/components/skeleton";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { API_URL } from "@/lib/api";
@@ -28,7 +29,7 @@ export default function Home() {
       <h1>Infrastructure check</h1>
       <p className="lede">Server: {API_URL}</p></header>
       {error && <p role="alert" className="error-message">Server unreachable: {error}</p>}
-      {!data && !error && <p role="status">Contacting server…</p>}
+      {!data && !error && <SkeletonGroup label="Contacting server…"><SkeletonLines n={2} /><Skeleton className="skeleton-frame" /></SkeletonGroup>}
       {data && (
         <section className="health-card">
           <p className="health-success">

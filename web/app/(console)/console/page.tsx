@@ -1,5 +1,6 @@
 "use client";
 
+import { SkeletonGroup, SkeletonCards } from "@/components/skeleton";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type CSSProperties } from "react";
 import { api, ApiError, type Schema } from "@/lib/api";
@@ -190,7 +191,7 @@ export default function ConsolePage() {
     </section>
 
     {error && <p role="alert" className="error-message">{error}</p>}
-    {!presets.length && !error && <p role="status" className="muted">Loading tests…</p>}
+    {!presets.length && !error && <SkeletonGroup label="Loading tests…"><SkeletonCards n={3} /></SkeletonGroup>}
 
     {presets.length > 0 && <div className="bento">
       {headline.length > 0 && <section className="tile tile-wide">

@@ -1,5 +1,6 @@
 "use client";
 
+import { SkeletonGroup, SkeletonLines, Skeleton } from "@/components/skeleton";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { api, type Schema } from "@/lib/api";
@@ -700,7 +701,7 @@ export function SybilReadiness() {
           {!view ? (
             <>
               <h2 id="graph-title">{ready ? "Create a scenario" : "Real graph unavailable"}</h2>
-              <p>{dataset?.reason ?? "Waiting for the dataset service."}</p>
+              {dataset || error ? <p>{dataset?.reason ?? "Waiting for the dataset service."}</p> : <SkeletonGroup label="Checking the dataset…"><SkeletonLines n={2} /><Skeleton className="skeleton-frame" /></SkeletonGroup>}
             </>
           ) : (
             <>

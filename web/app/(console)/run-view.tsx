@@ -1,5 +1,6 @@
 "use client";
 
+import { Skeleton, SkeletonGroup, SkeletonLines } from "@/components/skeleton";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Counter from "@/components/reactbits/Counter";
@@ -34,7 +35,7 @@ function Ledger({ ledger }: { ledger: Schema["Ledger"] | null | undefined }) {
     <div><dt>Subscriptions</dt><dd>{ledger.allow_subscriptions ? "Permitted as requested" : "Not permitted"}</dd></div>
     <div><dt>Shipping</dt><dd>{ledger.shipping_method ?? "Not specified"}</dd></div>
     <div><dt>Data</dt><dd>{ledger.data_allowed?.join(", ") || "No sharing authorized"}</dd></div>
-  </dl></> : <p role="status">Parsing your request…</p>}</aside>;
+  </dl></> : <SkeletonGroup label="Parsing your request…"><SkeletonLines n={4} /></SkeletonGroup>}</aside>;
 }
 
 const EventRow = memo(function EventRow({ event, inspected, sample, onSelect }: {
@@ -67,7 +68,8 @@ function SybilRevision({ revisionId }: { revisionId: string }) {
   return <section className="permission-pair" aria-label="Sybil graph revision"><h2>Shop trust scores used in this run</h2>
     <p>Frozen graph revision {revisionId.slice(0, 12)}. <Link href={`/sybil?revision=${revisionId}`}>Open graph and scores</Link></p>
     {scores ? <dl>{(["A", "B"] as const).map((shop) => <div key={shop}><dt>Shop {shop}</dt><dd>{scores[shop].total_robustness.toFixed(1)} / 100</dd></div>)}</dl>
-      : <p>{failed ? "Scores could not be loaded." : assessment?.reason ?? "Loading scores…"}</p>}
+      
+      : failed ? <p>Scores could not be loaded.</p> : assessment?.reason ? <p>{assessment.reason}</p> : <SkeletonGroup label="Loading scores…"><SkeletonLines n={2} /></SkeletonGroup>}
   </section>;
 }
 
@@ -99,10 +101,10 @@ const AgentPane = memo(function AgentPane({ mode, events: side, summary, replayS
           const [x, y, width, height] = highlight.bbox;
           return <g key={highlight.element_id}><rect x={x} y={y} width={width} height={height} /><text x={Math.max(2, Math.min(x, 1000))} y={Math.max(24, y - 8)}>{highlight.label}</text></g>;
         })}</svg>}
-      </> : <span>Waiting for a browser snapshot</span>}
+      </> : <SkeletonGroup label="Waiting for a browser snapshot" className="skeleton-fill"><Skeleton className="skeleton-fill" /></SkeletonGroup>}
     </div></div>
     {mode === "shielded" && <TwoView report={side.findLast((event): event is VerdictEvent => event.kind === "verdict" && event.payload.two_view?.status === "mismatch")?.payload.two_view} />}
-    {mode === "shielded" ? <Ledger ledger={summary?.ledger} /> : <aside className="ledger-panel ledger-none" aria-label="No protection"><h4>No Aegis checks</h4><p>{summary?.task ?? "Waiting for the task…"}</p><p className="ledger-note">Same model, prompt and starting page. Every proposed action runs as it is.</p></aside>}
+    {mode === "shielded" ? <Ledger ledger={summary?.ledger} /> : <aside className="ledger-panel ledger-none" aria-label="No protection"><h4>No Aegis checks</h4>{summary?.task ? <p>{summary.task}</p> : <SkeletonGroup label="Waiting for the task…"><SkeletonLines n={2} /></SkeletonGroup>}<p className="ledger-note">Same model, prompt and starting page. Every proposed action runs as it is.</p></aside>}
     {inspected && <p className="inspect-bar">Inspecting step {inspected.step}<button className="secondary-button" aria-label="Return to the latest step" onClick={() => setSelected(null)}>Latest</button></p>}
     <ol ref={feed} className="event-feed" aria-label={`${mode} events`}>{side.filter((event) => mode === "shielded" || event.kind !== "verdict").map((event, index) => <EventRow key={index} event={event} inspected={inspected === event} sample={!!summary?.is_sample} onSelect={setSelected} />)}</ol>
   </article>;

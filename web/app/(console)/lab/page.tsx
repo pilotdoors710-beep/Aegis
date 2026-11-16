@@ -1,5 +1,6 @@
 "use client";
 
+import { SkeletonGroup, Skeleton, SkeletonCards } from "@/components/skeleton";
 import { useState } from "react";
 import { api, type Schema } from "@/lib/api";
 
@@ -94,7 +95,8 @@ export default function LabPage() {
     </form>
 
     {error && <p role="alert" className="error-message">Trial failed: {error}</p>}
-    {report && <section className="result" aria-live="polite">
+    {busy && <SkeletonGroup label="Testing both states in disposable copies…"><Skeleton className="skeleton-line is-title" /><SkeletonCards n={2} /></SkeletonGroup>}
+    {report && !busy && <section className="result" aria-live="polite">
       <div className={`verdict ${report.status === "resolved" || report.status === "both_ok" ? "good" : ""}`}>
         <h2>{headline(report)}</h2>
         <p>{report.reason.replace(/\b[a-z_]+:/g, "")}</p>
