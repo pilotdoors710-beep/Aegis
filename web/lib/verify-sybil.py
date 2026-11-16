@@ -45,12 +45,12 @@ async def main():
         for width, height in [(1280, 720), (390, 844)]:
             await page.set_viewport_size({"width": width, "height": height})
             await page.goto(BASE + "/sybil")
-            await page.get_by_text("Real graph unavailable", exact=True).wait_for()
-            assert await page.get_by_role("button", name="Create revision").is_disabled()
+            await page.get_by_text("Web data not loaded", exact=True).wait_for()
+            assert await page.get_by_role("button", name="Build attack").is_disabled()
             assert await page.get_by_role("button", name="Run agent comparison").is_disabled()
             assert await page.evaluate("document.documentElement.scrollWidth <= innerWidth")
-            await page.get_by_text("Inspect the score formula", exact=True).click()
-            await page.get_by_text("Formula sybil-v2 · restart 0.15.", exact=True).wait_for(
+            await page.get_by_text("How the score works", exact=True).click()
+            await page.get_by_text("Score version sybil-v2.", exact=True).wait_for(
                 state="visible"
             )
             await page.screenshot(path=str(OUTPUT / f"{width}.png"), full_page=True)
@@ -59,7 +59,7 @@ async def main():
         await page.get_by_role("button", name="Retry the dataset check").wait_for()
         unavailable = False
         await page.get_by_role("button", name="Retry the dataset check").click()
-        await page.get_by_text("Real graph unavailable", exact=True).wait_for()
+        await page.get_by_text("Web data not loaded", exact=True).wait_for()
 
         await page.unroute("**/sybil/datasets", respond)
         edits = {
@@ -218,12 +218,12 @@ async def main():
 
         await page.route("**/sybil/**", respond_available)
         await page.goto(BASE + "/sybil")
-        await page.get_by_label("Connection pattern").select_option(label="Dense cluster")
-        await page.get_by_role("button", name="Create revision").click()
-        await page.get_by_role("heading", name="Revision editor").wait_for()
-        await page.get_by_role("button", name="Preview score delta").click()
-        await page.get_by_text("Counterfactual: complete in 42 ms", exact=True).wait_for()
-        await page.get_by_role("button", name="Create immutable revision").click()
+        await page.get_by_label("How the fake sites link together").select_option(label="One tight group")
+        await page.get_by_role("button", name="Build attack").click()
+        await page.get_by_role("heading", name="JSON editor").wait_for()
+        await page.get_by_role("button", name="Preview score change").click()
+        await page.get_by_text("Preview: complete in 42 ms", exact=True).wait_for()
+        await page.get_by_role("button", name="Apply").click()
         await page.get_by_role("button", name="Undo").click()
         await page.get_by_text("Revision: aaaaaaaaaaaa", exact=True).wait_for()
         async with page.expect_download() as download_info:

@@ -16,9 +16,6 @@ type GraphView = Schema["SybilGraphView"];
 type GraphNode = Schema["SybilGraphNode"];
 type Assessment = Schema["SybilAssessmentRecord"];
 type Counterfactual = Schema["SybilCounterfactualResult"];
-type BottleneckWitness = Schema["SybilBottleneckWitness"];
-type AttackSearchResult = Schema["SybilAttackSearchResult"];
-type BenchmarkSummary = Schema["SybilBenchmarkSummary"];
 
 function download(name: string, content: string, type: string) {
   const url = URL.createObjectURL(new Blob([content], { type }));
@@ -65,36 +62,36 @@ function NodeInspector({
   return (
     <div className={styles.inspector} aria-labelledby="node-inspector-title">
       <div className={styles.inspectorHead}>
-        <h3 id="node-inspector-title">Node: {node.label}</h3>
+        <h3 id="node-inspector-title">Website: {node.label}</h3>
         <button className="secondary-button" onClick={onClose} aria-label="Close node inspector">
           Clear
         </button>
       </div>
       <dl className={styles.facts}>
         <div>
-          <dt>Identity</dt>
+          <dt>ID</dt>
           <dd>{node.id}</dd>
         </div>
         <div>
-          <dt>Provenance</dt>
-          <dd>{node.provenance}</dd>
+          <dt>Source</dt>
+          <dd>{node.provenance === "simulated" ? "Fake (made by the attack)" : "Real (from web data)"}</dd>
         </div>
         <div>
-          <dt>Curated anchor</dt>
-          <dd>{node.anchor ? "Yes (seed anchor)" : "No"}</dd>
+          <dt>Trusted site</dt>
+          <dd>{node.anchor ? "Yes" : "No"}</dd>
         </div>
         <div>
-          <dt>Outdegree (retained / original)</dt>
+          <dt>Outgoing links (kept / total)</dt>
           <dd>
             {node.retained_outdegree} / {node.original_outdegree}
           </dd>
         </div>
         <div>
-          <dt>Incoming links (in view)</dt>
+          <dt>Links pointing here (shown)</dt>
           <dd>{incomingCount}</dd>
         </div>
         <div>
-          <dt>Outgoing links (in view)</dt>
+          <dt>Links going out (shown)</dt>
           <dd>{outgoingCount}</dd>
         </div>
         <div>
@@ -113,10 +110,10 @@ function NodeInspector({
           onClick={() => onToggleTakeover(node.id)}
           label={options.compromised
             ? `Release this site (-${options.takeoverCost} credits)`
-            : `Take over this ${node.anchor ? "anchor" : "site"} (+${options.takeoverCost} credits)`}
+            : `Take over this ${node.anchor ? "trusted site" : "site"} (+${options.takeoverCost} credits)`}
           note={options.compromised
-            ? "The attacker controls this real website and links it into the attack cluster."
-            : `Seizes ${node.anchor ? "a trusted anchor" : "this real website"} and links it into the attack cluster.`}
+            ? "The attacker controls this real site and points it at the fake sites."
+            : `The attacker takes over this ${node.anchor ? "trusted" : "real"} site and points it at the fake sites.`}
         />
       )}
       {options && !node.anchor && !options.compromised && (
@@ -125,11 +122,11 @@ function NodeInspector({
           disabled={busy || !options.canBridge}
           onClick={() => onToggleBridge(node.id)}
           label={options.bridged
-            ? `Disconnect real-web bridge (-${options.bridgeCost} credits)`
-            : `Bridge to attack (+${options.bridgeCost} credits)`}
+            ? `Remove paid link (-${options.bridgeCost} credits)`
+            : `Pay this site to link in (+${options.bridgeCost} credits)`}
           note={options.bridged
-            ? "This real website has a cooperating link pointing into the attack cluster."
-            : "Creates a cooperating link from this real website into the attack cluster."}
+            ? "This real site links to the fake sites because the attacker paid it."
+            : "The attacker pays this real site to add one link to the fake sites."}
         />
       )}
     </div>
@@ -151,7 +148,7 @@ function EdgeInspector({
     <div className={styles.inspector} aria-labelledby="edge-inspector-title">
       <div className={styles.inspectorHead}>
         <h3 id="edge-inspector-title">
-          Edge: {edge.source} → {edge.target}
+          Link: {edge.source} → {edge.target}
         </h3>
         <button className="secondary-button" onClick={onClose} aria-label="Close edge inspector">
           Clear
@@ -165,16 +162,12 @@ function EdgeInspector({
           </dd>
         </div>
         <div>
-          <dt>Provenance</dt>
+          <dt>Source</dt>
           <dd>
             {edge.provenance === "simulated"
-              ? "Simulated (attack link)"
-              : "Observed (web graph)"}
+              ? "Fake (added by the attack)"
+              : "Real (from web data)"}
           </dd>
-        </div>
-        <div>
-          <dt>Sensitivity testing</dt>
-          <dd>Cut with the other top 12 outside sources if it is one of them</dd>
         </div>
       </dl>
     </div>
@@ -196,31 +189,27 @@ function Score({ shop, assessment }: { shop: "A" | "B"; assessment: Assessment |
             <dd>{score.recommendation_count}</dd>
           </div>
           <div>
-            <dt>Structural support</dt>
+            <dt>Trust</dt>
             <dd>{(score.structural_support * 100).toFixed(1)}</dd>
           </div>
           <div>
-            <dt>Anchor breadth</dt>
+            <dt>Spread</dt>
             <dd>{(score.anchor_breadth * 100).toFixed(1)}</dd>
           </div>
           <div>
-            <dt>Anchor withdrawal</dt>
+            <dt>Without top trusted site</dt>
             <dd>{(score.anchor_withdrawal_resilience * 100).toFixed(1)}</dd>
           </div>
           <div>
-            <dt>Tested connections</dt>
+            <dt>After cutting top links</dt>
             <dd>{(score.tested_connection_resilience * 100).toFixed(1)}</dd>
-          </div>
-          <div>
-            <dt>Trust support</dt>
-            <dd>{score.trust_weighted_support.toExponential(3)}</dd>
           </div>
         </dl>
       ) : (
         <p>
           {assessment?.status === "unavailable"
             ? assessment.reason
-            : "Assessment pending."}
+            : "Calculating…"}
         </p>
       )}
     </div>
@@ -236,7 +225,7 @@ function ScoreDeltas({ result }: { result: Counterfactual }) {
         const delta = deltas[shop];
         return (
           <p key={shop}>
-            Shop {shop}: total {delta.total_robustness.toFixed(1)} · support{" "}
+            Shop {shop}: score {delta.total_robustness.toFixed(1)} · trust{" "}
             {(delta.structural_support * 100).toFixed(1)} points · rank{" "}
             {delta.rank > 0 ? "+" : ""}
             {delta.rank}
@@ -271,10 +260,6 @@ export function SybilReadiness() {
   const endRun = useCallback(() => setRun((current) => current && { ...current, ended: true }), []);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<SelectedEdge | null>(null);
-  const [witness, setWitness] = useState<BottleneckWitness | null>(null);
-  const [searchResult, setSearchResult] = useState<AttackSearchResult | null>(null);
-  const [benchmarkSummary, setBenchmarkSummary] = useState<BenchmarkSummary | null>(null);
-  const [stage4Busy, setStage4Busy] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -323,7 +308,7 @@ export function SybilReadiness() {
       .sybilScenario(id)
       .then((saved) => showRevision(saved))
       .catch((cause: unknown) =>
-        setError(cause instanceof Error ? cause.message : "Saved revision could not be loaded."),
+        setError(cause instanceof Error ? cause.message : "Could not load the saved attack."),
       );
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the dataset becomes ready
   }, [ready]);
@@ -356,7 +341,6 @@ export function SybilReadiness() {
     setRun(null);
     setSelectedNodeId(null);
     setSelectedEdge(null);
-    setWitness(null);
     try {
       const [nextView, job] = await Promise.all([
         api.sybilView(next.id),
@@ -374,7 +358,7 @@ export function SybilReadiness() {
         setHistoryIndex(nextHistory.length - 1);
       }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Revision loading failed.");
+      setError(cause instanceof Error ? cause.message : "Could not load this attack.");
     } finally {
       setBusy(false);
     }
@@ -397,7 +381,7 @@ export function SybilReadiness() {
       });
       await showRevision(next);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Scenario creation failed.");
+      setError(cause instanceof Error ? cause.message : "Could not build the attack.");
     } finally {
       setBusy(false);
     }
@@ -417,7 +401,7 @@ export function SybilReadiness() {
   }
 
   const onToggleBridge = (site: string) =>
-    revision && void submitEdits(() => toggleBridge(revision.edits, site), "Toggling bridge failed.");
+    revision && void submitEdits(() => toggleBridge(revision.edits, site), "Could not change the paid link.");
   const onToggleTakeover = (site: string) =>
     revision && void submitEdits(() => toggleTakeover(revision.edits, site), "Takeover failed.");
 
@@ -425,7 +409,7 @@ export function SybilReadiness() {
     return JSON.parse(draft) as Schema["SybilScenarioCreate"];
   }
 
-  const applyDraft = () => submitEdits(parseDraft, "Scenario edit failed.");
+  const applyDraft = () => submitEdits(parseDraft, "Could not apply the edit.");
 
   async function previewDraft() {
     if (!revision) return;
@@ -435,7 +419,7 @@ export function SybilReadiness() {
     try {
       setCounterfactual(await api.sybilCounterfactual(revision.id, parseDraft()));
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Counterfactual failed.");
+      setError(cause instanceof Error ? cause.message : "Preview failed.");
     } finally {
       setBusy(false);
     }
@@ -505,69 +489,9 @@ export function SybilReadiness() {
       setRun({ id: created.run_id, queue: created.queue_position, ended: false });
       window.setTimeout(() => document.getElementById("sybil-run")?.scrollIntoView({ behavior: "smooth" }), 50);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Launching comparison run failed.");
+      setError(cause instanceof Error ? cause.message : "Could not start the comparison.");
     } finally {
       setBusy(false);
-    }
-  }
-
-  async function runWitness(targetShop: "A" | "B") {
-    if (!revision) return;
-    setStage4Busy(`witness-${targetShop}`);
-    setError(null);
-    try {
-      const res = await api.sybilBottleneck(revision.id, targetShop);
-      setWitness(res);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Bottleneck witness calculation failed.");
-    } finally {
-      setStage4Busy(null);
-    }
-  }
-
-  async function runSearch() {
-    if (!dataset?.dataset_id) return;
-    setStage4Busy("search");
-    setError(null);
-    try {
-      const res = await api.sybilAttackSearch(dataset.dataset_id, {
-        target: "B",
-        max_proposals: 500,
-        max_seconds: 60,
-        seed: 1,
-      });
-      setSearchResult(res);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Adversarial search failed.");
-    } finally {
-      setStage4Busy(null);
-    }
-  }
-
-  async function loadSearchedAttack() {
-    if (!searchResult?.best_revision_id) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const saved = await api.sybilScenario(searchResult.best_revision_id);
-      await showRevision(saved);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Failed to load searched scenario.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function runBenchmark(sample: boolean) {
-    setStage4Busy(sample ? "benchmark-sample" : "benchmark-full");
-    setError(null);
-    try {
-      const res = await api.sybilBenchmark(sample);
-      setBenchmarkSummary(res);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Structural benchmark failed.");
-    } finally {
-      setStage4Busy(null);
     }
   }
 
@@ -581,7 +505,7 @@ export function SybilReadiness() {
           {dataset?.imported_edges.toLocaleString() ?? "—"} links
         </span>
         {!error && dataset && dataset.status !== "available" && <span>Dataset {dataset.status}</span>}
-        <span>Real website links · shop recommendations and attack edits are simulated</span>
+        <span>Real website links. The shop recommendations and the attack are made up.</span>
       </section>
       {error && (
         <div className={styles.alert} role="alert">
@@ -614,21 +538,21 @@ export function SybilReadiness() {
               </select>
             </label>
             <label>
-              Connection pattern
+              How the fake sites link together
               <select
                 value={pattern}
                 onChange={(event) => setPattern(event.target.value as typeof pattern)}
                 disabled={!ready || busy}
               >
-                <option value="disconnected">Disconnected</option>
-                <option value="dense">Dense cluster</option>
-                <option value="clusters">Multiple clusters</option>
-                <option value="hub">Hub and spoke</option>
-                <option value="chain">Chain</option>
+                <option value="disconnected">Not linked</option>
+                <option value="dense">One tight group</option>
+                <option value="clusters">Several groups</option>
+                <option value="hub">One central site</option>
+                <option value="chain">A chain</option>
               </select>
             </label>
             <label>
-              Generated recommending websites
+              Fake sites recommending the shop
               <input
                 type="number"
                 min="10"
@@ -639,7 +563,7 @@ export function SybilReadiness() {
               />
             </label>
             <label>
-              Internal density
+              How tightly they link
               <WakeSlider
                 min={0}
                 max={1}
@@ -653,13 +577,13 @@ export function SybilReadiness() {
                 gap={3}
                 fillColor="#c2a15a"
                 trackColor="#1f262d"
-                ariaLabel="Internal density"
+                ariaLabel="How tightly the fake sites link"
                 formatValue={(value: number) => `${Math.round(value * 100)}%`}
                 showValue
               />
             </label>
             <label>
-              Real-web bridge links
+              Real sites paid to link in
               <WakeSlider
                 min={0}
                 max={12}
@@ -673,52 +597,50 @@ export function SybilReadiness() {
                 gap={3}
                 fillColor="#c2a15a"
                 trackColor="#1f262d"
-                ariaLabel="Real-web bridge links"
-                formatValue={(value: number) => `${value} ${value === 1 ? "bridge" : "bridges"}`}
+                ariaLabel="Real sites paid to link in"
+                formatValue={(value: number) => `${value} ${value === 1 ? "site" : "sites"}`}
                 showValue
               />
             </label>
             <button className="primary-button" disabled={!ready || busy}>
-              {busy ? "Creating…" : "Create revision"}
+              {busy ? "Building…" : "Build attack"}
             </button>
           </form>
           <dl className={styles.facts}>
             <div>
-              <dt>Injected websites</dt>
+              <dt>Fake sites</dt>
               <dd>{revision?.budget.injected_websites ?? 0} / 1,000</dd>
             </div>
             <div>
-              <dt>Internal links</dt>
+              <dt>Links between fake sites</dt>
               <dd>{revision?.budget.internal_links ?? 0} / 100,000</dd>
             </div>
             <div>
-              <dt>External credits</dt>
+              <dt>Credits spent</dt>
               <dd>{revision ? `${revision.budget.external_credits} / ${revision.budget.credit_limit}` : "—"}</dd>
             </div>
           </dl>
-          <p>Generation uses seed 1. Repeating the same settings produces the same immutable revision.</p>
+          <p>The same settings always build the same attack.</p>
         </section>
         <section className={view ? styles.graphSection : styles.empty} aria-labelledby="graph-title">
           {!view ? (
             <>
-              <h2 id="graph-title">{ready ? "Create a scenario" : "Real graph unavailable"}</h2>
+              <h2 id="graph-title">{ready ? "Build an attack to start" : "Web data not loaded"}</h2>
               {dataset || error ? <p>{dataset?.reason ?? "Waiting for the dataset service."}</p> : <SkeletonGroup label="Checking the dataset…"><SkeletonLines n={2} /><Skeleton className="skeleton-frame" /></SkeletonGroup>}
             </>
           ) : (
             <>
-              <h2 id="graph-title">Topology subset</h2>
+              <h2 id="graph-title">Website map</h2>
               <p>
-                Displaying {view.displayed_nodes.toLocaleString()} of{" "}
-                {view.total_nodes.toLocaleString()} nodes and{" "}
+                Showing {view.displayed_nodes.toLocaleString()} of{" "}
+                {view.total_nodes.toLocaleString()} sites and{" "}
                 {view.displayed_edges.toLocaleString()} of{" "}
-                {view.total_edges.toLocaleString()} links. Click any node or edge to inspect.
+                {view.total_edges.toLocaleString()} links. Click a site or link for details.
               </p>
               <SybilGraph
                 view={view}
                 selectedNodeId={selectedNodeId}
                 selectedEdge={selectedEdge}
-                witnessCutEdges={witness?.cut_edges}
-                witnessNodes={witness?.bottleneck_nodes}
                 onSelectNode={(id) => {
                   setSelectedNodeId(id);
                   setSelectedEdge(null);
@@ -736,7 +658,7 @@ export function SybilReadiness() {
           )}
         </section>
         <section aria-labelledby="evidence-title">
-          <h2 id="evidence-title">Evidence inspector</h2>
+          <h2 id="evidence-title">Details</h2>
           {selectedNode ? (
             <NodeInspector
               node={selectedNode}
@@ -768,26 +690,26 @@ export function SybilReadiness() {
             <>
               <p>
                 {assessment?.status === "complete"
-                  ? `Converged in ${assessment.iterations} iterations (${assessment.elapsed_ms?.toFixed(0)} ms).`
-                  : assessment?.reason ?? "Create a revision to calculate evidence."}
+                  ? `Scores ready (${assessment.elapsed_ms?.toFixed(0)} ms).`
+                  : assessment?.reason ?? "Build an attack to see the scores."}
               </p>
-              <p>Click a node or edge in the graph to see its details.</p>
+              <p>Click a site or link on the map to see its details.</p>
               <details className={styles.formula}>
-                <summary>Inspect the score formula</summary>
+                <summary>How the score works</summary>
                 <p>
                   <code>R = 100S (0.40 + 0.20D + 0.20L + 0.20E)</code>
                 </p>
                 <dl>
-                  <dt>S · Structural support</dt>
-                  <dd>Trust mass normalized with the frozen dataset scale.</dd>
-                  <dt>D · Anchor breadth</dt>
-                  <dd>How widely support is distributed across curated anchors.</dd>
-                  <dt>L · Anchor withdrawal</dt>
-                  <dd>Support retained without the strongest starting source.</dd>
-                  <dt>E · Tested connections</dt>
-                  <dd>Support left after cutting every link from the 12 outside websites that send the most flow, all at once.</dd>
+                  <dt>S · Trust</dt>
+                  <dd>How much trust reaches the sites that recommend this shop, starting from 8 well-known sites (Wikipedia, MIT and others).</dd>
+                  <dt>D · Spread</dt>
+                  <dd>Whether that trust comes from many of the 8 sites or only one or two.</dd>
+                  <dt>L · Without top trusted site</dt>
+                  <dd>How much trust is left if the most helpful of the 8 sites is removed.</dd>
+                  <dt>E · After cutting top links</dt>
+                  <dd>How much trust is left after cutting the 12 outside sites that send the most trust.</dd>
                 </dl>
-                <p>Formula sybil-v2 · restart 0.15.</p>
+                <p>Score version sybil-v2.</p>
               </details>
             </>
           )}
@@ -815,8 +737,8 @@ export function SybilReadiness() {
           </button>
           <p id="comparison-reason">
             {assessment?.status === "complete" && assessment.converged
-              ? "Runs both agents against this frozen graph revision."
-              : "The comparison needs a complete, converged assessment first."}
+              ? "Runs both agents on this exact attack."
+              : "Wait for the scores to finish first."}
           </p>
         </div>
       </section>
@@ -829,311 +751,19 @@ export function SybilReadiness() {
         </section>
       )}
       <p className={styles.disclosure}>
-        A heuristic measure of structural support and tested sensitivity. Not a probability that this
+        A rough score based on how trust flows through website links. It is not the chance that a
         shop is safe.
       </p>
-      <section className={styles.stage4Section} aria-labelledby="stage4-title">
-        <div className={styles.stage4Header}>
-          <div>
-            <h2 id="stage4-title">Advanced Sybil Analysis (Stage 4)</h2>
-            <p>
-              Bounded Max-Flow bottleneck witness, automated adversarial red-team search, and empirical benchmark matrix.
-            </p>
-          </div>
-          {stage4Busy && <span className={styles.stage4Meta}>Processing {stage4Busy}…</span>}
-        </div>
-
-        <div className={styles.stage4Grid}>
-          {/* Card 1: Bottleneck Witness */}
-          <div className={styles.stage4Card}>
-            <div>
-              <h3>
-                Min-Cut Bottleneck Witness
-                {witness && (
-                  <span className={styles.cutEdgeBadge}>
-                    Shop {witness.shop}
-                  </span>
-                )}
-              </h3>
-              <p className={styles.stage4Meta}>
-                Fewest websites that separate the anchors from the shop&apos;s recommenders (max-flow / min-cut, ≤ 2,500-site subgraph).
-              </p>
-            </div>
-
-            {witness ? (
-              <>
-                <dl className={styles.facts}>
-                  <div>
-                    <dt>Max flow / Cut size</dt>
-                    <dd>
-                      <strong>{witness.max_flow.toFixed(1)}</strong> (cut: {witness.cut_size})
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Explanation subgraph</dt>
-                    <dd>
-                      {witness.subgraph_nodes} sites · {witness.subgraph_edges} links
-                      {witness.complete ? " (every path included: exact for the whole graph)" : " (bounded: exact for this subgraph only)"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Bottleneck sites</dt>
-                    <dd>{witness.bottleneck_nodes.length ? witness.bottleneck_nodes.slice(0, 8).join(", ") : "none"}{witness.bottleneck_nodes.length > 8 && ` +${witness.bottleneck_nodes.length - 8} more`}</dd>
-                  </div>
-                  <div>
-                    <dt>Links into them</dt>
-                    <dd>{witness.cut_edges.length} links</dd>
-                  </div>
-                </dl>
-                <p className={styles.stage4Meta}>{witness.disclosure}</p>
-                {(witness.bottleneck_nodes.length > 0 || witness.cut_edges.length > 0) && (
-                  <span className={styles.cutEdgeBadge}>Amber rings and dashed links on the graph</span>
-                )}
-              </>
-            ) : (
-              <p className={styles.stage4Meta}>
-                Find the websites every unit of anchor support must pass through to reach the shop&apos;s recommenders.
-              </p>
-            )}
-
-            <div className={styles.actions}>
-              <button
-                className="secondary-button"
-                disabled={!revision || busy || stage4Busy !== null}
-                onClick={() => void runWitness("B")}
-              >
-                {stage4Busy === "witness-B" ? "Analyzing B…" : "Analyze Shop B (Attack)"}
-              </button>
-              <button
-                className="secondary-button"
-                disabled={!revision || busy || stage4Busy !== null}
-                onClick={() => void runWitness("A")}
-              >
-                {stage4Busy === "witness-A" ? "Analyzing A…" : "Analyze Shop A (Organic)"}
-              </button>
-              {witness && (
-                <button
-                  className="secondary-button"
-                  disabled={stage4Busy !== null}
-                  onClick={() => setWitness(null)}
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Card 2: Adversarial Attack Search */}
-          <div className={styles.stage4Card}>
-            <div>
-              <h3>
-                Adversarial Red-Team Search
-                {searchResult && (
-                  <span className={searchResult.best_passed_policy ? styles.failBadge : styles.passBadge}>
-                    {searchResult.best_passed_policy ? "Best attack found passes the graph policy" : "No attack found passes the graph policy"}
-                  </span>
-                )}
-              </h3>
-              <p className={styles.stage4Meta}>
-                Bounded heuristic search (≤ 500 proposals / 60 s, fixed seed, no LLM, 25-credit Challenge budget).
-              </p>
-            </div>
-
-            {searchResult ? (
-              <>
-                <dl className={styles.facts}>
-                  <div>
-                    <dt>Proposals evaluated</dt>
-                    <dd>{searchResult.proposals_evaluated} in {searchResult.elapsed_s.toFixed(2)} s</dd>
-                  </div>
-                  <div>
-                    <dt>Best attack pattern</dt>
-                    <dd><code>{searchResult.best_proposal.pattern}</code> ({searchResult.best_proposal.count} sites)</dd>
-                  </div>
-                  <div>
-                    <dt>Credits used</dt>
-                    <dd>{searchResult.best_proposal.credits} / 25 credits</dd>
-                  </div>
-                  <div>
-                    <dt>Best Shop B score</dt>
-                    <dd>
-                      <strong>{searchResult.best_score.toFixed(1)}</strong> (S {searchResult.best_proposal.support.toFixed(2)} · L {searchResult.best_proposal.withdrawal.toFixed(2)} · E {searchResult.best_proposal.connection.toFixed(2)})
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Stopped</dt>
-                    <dd>{searchResult.stopped_reason.replace("_", " ")}</dd>
-                  </div>
-                </dl>
-                <p className={styles.stage4Meta}>{searchResult.disclosure}</p>
-                {searchResult.history.length > 0 && (
-                  <div>
-                    <span className={styles.stage4Meta}>Each new best found:</span>
-                    <div className={styles.trajectoryList}>
-                      {searchResult.history.map((h) => (
-                        <div key={h.iteration}>
-                          #{h.iteration}: {h.pattern} ({h.count} sites, {h.credits} cr) → score {h.score.toFixed(2)}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <p className={styles.stage4Meta}>
-                Tries dense, cluster, hub, chain and disconnected attacks with bought bridges and site or anchor takeovers, and keeps the strongest one it finds. Not a proven worst case.
-              </p>
-            )}
-
-            <div className={styles.actions}>
-              <button
-                className="primary-button"
-                disabled={!ready || busy || stage4Busy !== null}
-                onClick={() => void runSearch()}
-              >
-                {stage4Busy === "search" ? "Searching (up to 60 s)…" : "Search for a stronger attack"}
-              </button>
-              {searchResult && (
-                <button
-                  className="secondary-button"
-                  disabled={busy || stage4Busy !== null}
-                  onClick={() => void loadSearchedAttack()}
-                >
-                  Load into Playground
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Card 3: Structural Benchmark Matrix */}
-          <div className={styles.stage4Card}>
-            <div>
-              <h3>
-                Structural Benchmark Matrix
-              </h3>
-              <p className={styles.stage4Meta}>
-                6 attack families × 3 sizes × 2 credit levels × 5 seeds = 180 attacks on Shop B, plus 30 real-site controls.
-              </p>
-            </div>
-
-            {benchmarkSummary ? (
-              <>
-                <dl className={styles.facts}>
-                  <div>
-                    <dt>Scenarios tested</dt>
-                    <dd>
-                      {benchmarkSummary.total_scenarios} ({benchmarkSummary.attacks_tested} attacks, {benchmarkSummary.controls_tested} controls
-                      {benchmarkSummary.unavailable > 0 && `, ${benchmarkSummary.unavailable} unavailable`})
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Runtime</dt>
-                    <dd>{benchmarkSummary.elapsed_s.toFixed(1)} s</dd>
-                  </div>
-                </dl>
-
-                <table className={styles.stage4Table} aria-label="Benchmark comparison">
-                  <thead>
-                    <tr>
-                      <th>Attacked Shop B…</th>
-                      <th>Under attack</th>
-                      <th>No attack</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {([
-                      ["outranks A on recommendation count", benchmarkSummary.count_beats_a_rate, benchmarkSummary.reference.count_beats_a],
-                      ["outranks A on ordinary PageRank", benchmarkSummary.pagerank_beats_a_rate, benchmarkSummary.reference.pagerank_beats_a],
-                      ["outranks A on seeded support", benchmarkSummary.support_beats_a_rate, benchmarkSummary.reference.support_beats_a],
-                      ["outranks A on the full score", benchmarkSummary.score_beats_a_rate, benchmarkSummary.reference.score_beats_a],
-                      ["passes the graph policy (no ASK)", benchmarkSummary.policy_pass_rate, benchmarkSummary.reference.passed_policy],
-                    ] as const).map(([label, rate, reference]) => (
-                      <tr key={label}>
-                        <td>{label}</td>
-                        <td>{(rate * 100).toFixed(1)}%</td>
-                        <td>{reference ? "yes" : "no"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <p className={styles.stage4Meta}>
-                  Policy pass rate with weight ablations:{" "}
-                  {Object.entries(benchmarkSummary.ablation_policy_pass_rates)
-                    .map(([name, rate]) => `${name.replaceAll("_", " ")} ${(rate * 100).toFixed(1)}%`)
-                    .join(" · ")}
-                  . Real-site controls passing the policy: {(benchmarkSummary.control_policy_pass_rate * 100).toFixed(1)}%.
-                </p>
-                <p className={styles.stage4Meta}>{benchmarkSummary.disclosure}</p>
-
-                <details className={styles.formula}>
-                  <summary>Inspect scenarios ({benchmarkSummary.rows.length + benchmarkSummary.controls.length} rows)</summary>
-                  <div style={{ maxHeight: "160px", overflowY: "auto", marginTop: "8px" }}>
-                    <table className={styles.stage4Table}>
-                      <thead>
-                        <tr>
-                          <th>Family</th>
-                          <th>Size</th>
-                          <th>Cr</th>
-                          <th>Count</th>
-                          <th>PR</th>
-                          <th>Support</th>
-                          <th>R</th>
-                          <th>Policy</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {[...benchmarkSummary.rows, ...benchmarkSummary.controls].map((r, i) => (
-                          <tr key={i}>
-                            <td>{r.family}</td>
-                            <td>{r.size}</td>
-                            <td>{r.credits_used}</td>
-                            <td>{r.count_beats_a ? "beats A" : "–"}</td>
-                            <td>{r.pagerank_beats_a ? "beats A" : "–"}</td>
-                            <td>{r.support_beats_a ? "beats A" : "–"}</td>
-                            <td>{r.converged ? r.total_robustness.toFixed(1) : "unavailable"}</td>
-                            <td>{r.passed_policy ? "pass" : "ASK"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </details>
-              </>
-            ) : (
-              <p className={styles.stage4Meta}>
-                Compares recommendation counts, ordinary PageRank, seeded support and the full score against the graph policy on the same generated attacks.
-              </p>
-            )}
-
-            <div className={styles.actions}>
-              <button
-                className="secondary-button"
-                disabled={busy || stage4Busy !== null}
-                onClick={() => void runBenchmark(true)}
-              >
-                {stage4Busy === "benchmark-sample" ? "Running sample…" : "Run Fast Sample (42 scenarios)"}
-              </button>
-              <button
-                className="secondary-button"
-                disabled={busy || stage4Busy !== null}
-                onClick={() => void runBenchmark(false)}
-              >
-                {stage4Busy === "benchmark-full" ? "Running full matrix (several minutes the first time)…" : "Run Full Matrix (210 scenarios)"}
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
       {revision && (
         <details className={styles.advanced}>
-          <summary>Advanced: edit the scenario as JSON</summary>
+          <summary>Edit the attack by hand (JSON)</summary>
         <section className={styles.editor} aria-labelledby="editor-title">
           <div className={styles.editorHead}>
             <div>
-              <h2 id="editor-title">Revision editor</h2>
+              <h2 id="editor-title">JSON editor</h2>
               <p>
-                Advanced mode accepts the complete permitted edit set. The server recalculates
-                budgets and rejects forbidden edits.
+                Change any part of the attack. The server checks the credit budget and rejects
+                edits that are not allowed.
               </p>
             </div>
             <div className={styles.actions}>
@@ -1161,7 +791,7 @@ export function SybilReadiness() {
             </div>
           </div>
           <label className={styles.jsonLabel}>
-            Active edit set (JSON)
+            Attack edits (JSON)
             <textarea
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
@@ -1171,10 +801,10 @@ export function SybilReadiness() {
           </label>
           <div className={styles.actions}>
             <button className="secondary-button" disabled={busy} onClick={() => void previewDraft()}>
-              Preview score delta
+              Preview score change
             </button>
             <button className="primary-button" disabled={busy} onClick={() => void applyDraft()}>
-              Create immutable revision
+              Apply
             </button>
             <button className="secondary-button" onClick={exportScenario}>
               Export JSON
@@ -1193,7 +823,7 @@ export function SybilReadiness() {
           {counterfactual && (
             <div className={styles.delta} aria-live="polite">
               <p>
-                <strong>Counterfactual:</strong> {counterfactual.status} in{" "}
+                <strong>Preview:</strong> {counterfactual.status} in{" "}
                 {counterfactual.elapsed_ms.toFixed(0)} ms
               </p>
               <ScoreDeltas result={counterfactual} />

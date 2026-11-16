@@ -53,27 +53,9 @@
 .delta { border-left: 3px solid var(--accent); padding-left: var(--s2); }
 .delta p + p { margin-top: var(--s1); }
 .disclosure { color: var(--muted); font-size: .875rem; max-width: 75ch; }
-.stage4Section { display: flex; flex-direction: column; gap: var(--s3); margin-top: var(--s3); border-top: 1px solid var(--line); padding-top: var(--s3); }
-.stage4Header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: var(--s2); }
-.stage4Header h2 { font-size: 1.125rem; font-weight: 600; }
-.stage4Header p { color: var(--muted); font-size: 0.875rem; }
-.stage4Grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--s3); }
-.stage4Card { padding: var(--s4); background: var(--raise); border-radius: 12px; display: flex; flex-direction: column; gap: var(--s3); }
-.stage4Card h3 { font-size: 0.9375rem; font-weight: 600; margin: 0; display: flex; justify-content: space-between; align-items: center; }
-.stage4Meta { color: var(--muted); font-size: 0.8125rem; }
-.stage4Card .actions { margin-top: auto; padding-top: var(--s2); }
-.stage4Table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; font-variant-numeric: tabular-nums; }
-.stage4Table th, .stage4Table td { padding: var(--s1) var(--s2); border-bottom: 1px solid var(--line); text-align: left; }
-.stage4Table th { color: var(--muted); font-weight: 500; font-family: var(--mono); }
-.cutEdgeBadge { display: inline-flex; align-items: center; gap: var(--s1); padding: 2px 6px; border-radius: 4px; background: color-mix(in srgb, #f59e0b 15%, transparent); border: 1px solid #f59e0b; color: #f59e0b; font-family: var(--mono); font-size: 0.75rem; }
-.passBadge { color: #10b981; font-weight: 600; }
-.failBadge { color: #ef4444; font-weight: 600; }
-.trajectoryList { display: flex; flex-direction: column; gap: 4px; font-size: 0.8125rem; font-family: var(--mono); max-height: 120px; overflow-y: auto; padding: var(--s1); background: var(--bg); border-radius: 6px; }
-.cutEdgesList { display: flex; flex-wrap: wrap; gap: var(--s1); max-height: 100px; overflow-y: auto; padding: var(--s1); background: var(--bg); border-radius: 6px; font-family: var(--mono); font-size: 0.75rem; }
 @media (max-width: 1100px) {
   .workspace { grid-template-columns: 1fr; }
   .workspace > section, .comparison { padding: var(--s3); }
   .empty { min-height: 260px; }
-  .stage4Grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) { .comparison { grid-template-columns: 1fr; } .editorHead { flex-direction: column; } }
