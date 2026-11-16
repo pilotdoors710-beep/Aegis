@@ -21,6 +21,8 @@ jobs:
       - uses: astral-sh/setup-uv@v5
       - run: uv sync
       - run: uv run playwright install --with-deps chromium
+      # Ubuntu 24.04 runners block the user namespaces Chromium's sandbox needs.
+      - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - run: uv run pytest -q
   web:
     runs-on: ubuntu-latest
