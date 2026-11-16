@@ -377,7 +377,9 @@ async def healthz_arena() -> HealthArena:
 
 @app.get("/presets")
 async def list_presets() -> list[Preset]:
-    return PRESETS
+    # The two-shop Sybil preset only makes sense with a graph revision, so it launches from
+    # /sybil and stays out of the console grid. POST /runs still accepts it.
+    return [p for p in PRESETS if p.variant != "two-shop"]
 
 
 # --- Trap Lab (R2 disposable trials on a judge-written checkbox) -----------------------------

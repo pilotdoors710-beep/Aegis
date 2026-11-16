@@ -576,16 +576,13 @@ export function SybilReadiness() {
     <div className={styles.page}>
       <h1 className="sr-only">Sybil Playground</h1>
       <section className={styles.strip} aria-label="Dataset status" aria-live="polite">
-        <span>{dataset?.release ?? "Checking pinned release"}</span>
-        <span>{error ? "Error" : dataset?.status ?? "Checking"}</span>
         <span>
-          Imported: {dataset?.imported_nodes.toLocaleString() ?? "—"} nodes /{" "}
-          {dataset?.imported_edges.toLocaleString() ?? "—"} edges
+          Common Crawl web graph ({dataset?.release ?? "loading"}):{" "}
+          {dataset?.imported_nodes.toLocaleString() ?? "—"} sites,{" "}
+          {dataset?.imported_edges.toLocaleString() ?? "—"} links
         </span>
-        <span>Mode: Challenge</span>
-        <span>Revision: {revision?.id.slice(0, 12) ?? "none"}</span>
-        <span>Scores: {assessment?.status ?? "none"}</span>
-        <span>Real website-link background · shop recommendations and attack edits are simulated</span>
+        {!error && dataset && dataset.status !== "available" && <span>Dataset {dataset.status}</span>}
+        <span>Real website links · shop recommendations and attack edits are simulated</span>
       </section>
       {error && (
         <div className={styles.alert} role="alert">
