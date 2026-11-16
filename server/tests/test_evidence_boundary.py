@@ -1,4 +1,4 @@
-"""The defense uses browser-observable evidence only (brief §3; DEV_PLAN §4 C4)."""
+"""The defense uses browser-observable evidence only (brief §3)."""
 
 from pathlib import Path
 

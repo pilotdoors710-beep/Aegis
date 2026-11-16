@@ -1,4 +1,4 @@
-"""Demo/eval presets (DEV_PLAN.md §4 C5). The web never hardcodes a task string."""
+"""Demo/eval presets. The web never hardcodes a task string."""
 
 from aegis.schemas import Preset
 

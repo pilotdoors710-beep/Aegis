@@ -22,6 +22,13 @@ Template:
 
 ## Log
 
+### 2026-11-17 · Dev A · Claude Code · Brief clean-up, Sybil always on
+- Rewrote `project_brief.md` to describe what exists now (651 → ~300 lines): dropped the day schedule, build steps and Sybil stage plan; added a Shipped / Not built list. Sections renumbered (Sybil §8, eval §10, rules §11); code comments updated to match.
+- Deleted stale docs: `DEV_PLAN.md`, `DEFERRED_EXTENSIONS.md`, `web/LANDING_IMPLEMENTATION_PLAN.md`, the Stage 4 plan, and `web/.env.example`.
+- Sybil is always on: web flag removed, server `sybil_enabled` defaults to true (set `SYBIL_ENABLED=false` to turn it off). Menu order: Console, Sybil, Scan, Trap Lab, Runs, Stats.
+- Removed the unused Aegis shield artwork code (`aegis-artwork.tsx`, its renderer, asset script, `ARTWORK.md`); the PNGs were already gone.
+- Next: restart the :8000 backend. Root `README.md` still missing.
+
 ### 2026-11-16 · Dev A · Claude Code · Stage 4 audit and fixes
 - Audited Dev B's Stage 4 (bbff991, 29fb89c) against brief §14, with real-graph measurements on the PC.
 - Witness: each anchor was capped twice, so the cut was often empty (clean Shop A: flow 8, cut 0), and "cut links" could never appear. Now cut = flow always, the subgraph keeps the sites on the shortest anchor→recommender paths (it found the bridge funnel the old 3-hop pick missed), and a `complete` flag says when the cut is exact for the whole graph. The graph rings bottleneck sites.

@@ -1,4 +1,4 @@
-"""Contract PR #1 (DEV_PLAN.md A-D1-02): schemas, sample run, REST stubs, SSE framing."""
+"""Contract PR #1: schemas, sample run, REST stubs, SSE framing."""
 
 import json
 

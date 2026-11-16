@@ -5,7 +5,7 @@ const RELOAD_SCRIPT = `(function(){try{var n=performance.getEntriesByType&&perfo
 
 export default function ConsoleLayout({ children }: { children: React.ReactNode }) {
   return (
-    <AppShell sybilEnabled={process.env.SYBIL_ENABLED === "true"}>
+    <AppShell>
       <script dangerouslySetInnerHTML={{ __html: RELOAD_SCRIPT }} />
       <ReloadRedirect />
       {children}

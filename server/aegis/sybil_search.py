@@ -1,4 +1,4 @@
-"""Stage 4: Automated Adversarial Attack Search (brief §14).
+"""Stage 4: Automated Adversarial Attack Search (brief §8).
 
 Capped at 500 proposals / 60 seconds, fixed seed, no LLM, same Challenge budget, no
 optimality claim. Evaluates a seeded shuffle of attack configurations within 25 credits and

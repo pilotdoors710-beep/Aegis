@@ -1,7 +1,7 @@
 """Event bus: live SSE fan-out, Postgres/Storage persistence (E3), and the labelled sample run.
 
-The sample run is built from the schema models in code, so it cannot drift from the contract
-(DEV_PLAN.md §4 C3). It is always served as run_id "sample" with is_sample=True.
+The sample run is built from the schema models in code, so it cannot drift from the contract.
+It is always served as run_id "sample" with is_sample=True.
 """
 
 import asyncio

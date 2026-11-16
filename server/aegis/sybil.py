@@ -1,4 +1,4 @@
-"""Pure structural support and sensitivity calculations (brief Â§14).
+"""Pure structural support and sensitivity calculations (brief §8).
 
 Indices have no semantics. Evaluator labels and domain names never enter this module.
 The final matrix row is the absorbing outside-sample sink.

@@ -1,4 +1,4 @@
-"""FastAPI entrypoint (DEV_PLAN.md §4 C2/C3).
+"""FastAPI entrypoint.
 
 run_id "sample" always serves a labelled, contract-valid sample run.
 """

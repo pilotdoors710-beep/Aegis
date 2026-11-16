@@ -1,4 +1,4 @@
-"""Environment-driven settings. Secrets come from env vars only (brief §9 rule 6)."""
+"""Environment-driven settings. Secrets come from env vars only (brief §11 rule 6)."""
 
 from pathlib import Path
 from typing import Literal
@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     # R2 disposable consent trials (gated research experiment, brief §3).
     r2_enabled: bool = False
     # Sybil stays off until the public real-data + paired-run release gate passes.
-    sybil_enabled: bool = False
+    sybil_enabled: bool = True
     sybil_data_dir: Path = Path("/app/data/sybil")
 
     @property

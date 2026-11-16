@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-command deployment check (DEV_PLAN A-D1-03). Exits non-zero on the first failure.
+# One-command deployment check. Exits non-zero on the first failure.
 #   SERVER=https://<backend> WEB=https://<vercel-app> deploy/smoke.sh
 # Needs only curl and python3.
 set -uo pipefail

@@ -9,13 +9,12 @@ import TargetCursor from "@/components/reactbits/TargetCursor";
 import { arrivedFromEntrance } from "@/lib/landing/phases";
 import "@/app/app-theme.css";
 
-const pages = [["/console", "Console"], ["/lab", "Trap Lab"], ["/scan", "Scan"], ["/runs", "Runs"], ["/stats", "Stats"]] as const;
+const pages = [["/console", "Console"], ["/sybil", "Sybil"], ["/scan", "Scan"], ["/lab", "Trap Lab"], ["/runs", "Runs"], ["/stats", "Stats"]] as const;
 const also = [{ label: "Health", link: "/health" }, { label: "Arena", link: "/arena/index.html?traps=none", external: true }];
 
-function Menu({ pathname, sybilEnabled = false }: { pathname: string; sybilEnabled?: boolean }) {
-  const navigation = sybilEnabled ? [...pages, ["/sybil", "Sybil"] as const] : pages;
+function Menu({ pathname }: { pathname: string }) {
   const here = (href: string) => pathname === href || pathname.startsWith(href + "/");
-  const section = [...navigation, ["/health", "Health"] as const].find(([href]) => here(href))?.[1];
+  const section = [...pages, ["/health", "Health"] as const].find(([href]) => here(href))?.[1];
   return <StaggeredMenu
     isFixed
     position="right"
@@ -26,14 +25,14 @@ function Menu({ pathname, sybilEnabled = false }: { pathname: string; sybilEnabl
     openMenuButtonColor="#f2eee6"
     socialsTitle="Also"
     socialItems={also}
-    items={navigation.map(([link, label]) => ({ label, link, ariaLabel: label, current: here(link) }))}
+    items={pages.map(([link, label]) => ({ label, link, ariaLabel: label, current: here(link) }))}
     // eslint-disable-next-line @next/next/no-img-element
     logo={<Link href="/console" className="console-brand" aria-label="Aegis console"><img src="/landing/logo-white-trimmed.png" alt="" width={23} height={24} /><b>AEGIS</b>{section && <span>{section}</span>}</Link>}
   />;
 }
 
-function CurrentMenu({ sybilEnabled }: { sybilEnabled: boolean }) {
-  return <Menu pathname={usePathname()} sybilEnabled={sybilEnabled} />;
+function CurrentMenu() {
+  return <Menu pathname={usePathname()} />;
 }
 
 // Pearl dots at ~10% over navy; gold near the cursor. Off on run pages so it never competes with live evidence.
@@ -52,11 +51,11 @@ function Cursor() {
   return <TargetCursor targetSelector={CURSOR_TARGETS} spinDuration={2} hideDefaultCursor parallaxOn />;
 }
 
-export function AppShell({ children, sybilEnabled = false }: { children: ReactNode; sybilEnabled?: boolean }) {
+export function AppShell({ children }: { children: ReactNode }) {
   const [arriving] = useState(arrivedFromEntrance);
   return <div className="app-theme console-shell" data-arriving={arriving || undefined}>
     <a className="skip-content" href="#app-content">Skip to content</a>
-    <Suspense fallback={<Menu pathname="" sybilEnabled={sybilEnabled} />}><CurrentMenu sybilEnabled={sybilEnabled} /></Suspense>
+    <Suspense fallback={<Menu pathname="" />}><CurrentMenu /></Suspense>
     <Suspense fallback={null}><Dots /></Suspense>
     <main id="app-content" className="console-content" tabIndex={-1}>{children}</main>
     <Suspense fallback={null}><Cursor /></Suspense>

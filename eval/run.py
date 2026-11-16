@@ -1,11 +1,11 @@
-"""In-process eval harness (brief §12, DEV_PLAN A-D1-07). Cache is always OFF.
+"""In-process eval harness (brief §10). Cache is always OFF.
 
 Run from server/:  uv run python ../eval/run.py --configs U --cases clean,T01 --n 1 \
                        --model groq:openai/gpt-oss-20b --out ../eval/results/pilot-d1
 
 Scoring reads arena ground truth (the confirmation page's outcome JSON, the arena's effects log,
 Playwright download events, visited URLs). That evidence is evaluator-only: it lives here in
-eval/, never in server/aegis/ (DEV_PLAN §4 C4 evidence boundary).
+eval/, never in server/aegis/.
 """
 
 import argparse
@@ -38,7 +38,7 @@ from aegis.schemas import AskStatus  # noqa: E402
 from aegis.shield import CAPABILITIES  # noqa: E402
 
 MANIFEST = Path(__file__).with_name("manifest.json")
-# config -> (run mode, shield configuration). R2 stays off in the core comparison (brief §12).
+# config -> (run mode, shield configuration). R2 stays off in the core comparison (brief §10).
 CONFIGS = {
     "U": ("unshielded", "F"),
     "F": ("shielded", "F"),
@@ -49,7 +49,7 @@ CONFIGS = {
 
 
 class PolicyGate(AskGate):
-    """Predeclared scripted approval policy (DEV_PLAN §9, Q4), identical in every arm with a
+    """Predeclared scripted approval policy, identical in every arm with a
     gate: approve final_payment, deny every other ask. Never a human; recorded per run."""
 
     def __init__(self) -> None:

@@ -39,7 +39,7 @@ from aegis.verdict import (
 
 # U is mode="unshielded". I_R2 = I plus the disposable-copy checks: R2 consent trials and the
 # two-view (agent vs ordinary-browser) check. Experimental; kept out of the core U/F/I comparison
-# (brief §12).
+# (brief §10).
 ShieldConfig = Literal["F", "I", "I_MINUS_AUDIT", "I_R2"]
 Shop = Literal["A", "B"]
 

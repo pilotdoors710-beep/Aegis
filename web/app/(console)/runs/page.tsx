@@ -47,6 +47,6 @@ function OutcomeCell({ outcome, ledger }: { outcome?: Schema["Outcome"] | null; 
   </span>;
 }
 
-// Authorized extras are shown as permitted, not as violations (brief §8).
+// Authorized extras are shown as permitted, not as violations (brief §9).
 const permitted = (c: Schema["Commitment"], ledger?: Schema["Ledger"] | null) =>
   !!ledger && ((c.kind === "subscription" && ledger.allow_subscriptions) || (c.kind === "addon" && ledger.allow_addons));

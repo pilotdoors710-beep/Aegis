@@ -1,4 +1,4 @@
-"""Pydantic v2 contracts (brief §5, DEV_PLAN.md §4 C1). The ONLY contract definition (rule 8).
+"""Pydantic v2 contracts (brief §5). The ONLY contract definition (rule 8).
 
 web/lib/api-types.ts is generated from the OpenAPI these models produce; regenerate it in the same
 commit as any change here.
@@ -79,7 +79,7 @@ class SybilBudget(BaseModel):
     website_limit: int = 1000
     internal_link_limit: int = 100000
     credit_limit: int = 25
-    # Challenge prices (brief §14); the web reads these instead of hard-coding them.
+    # Challenge prices (brief §8); the web reads these instead of hard-coding them.
     cooperating_link_cost: int = 2
     compromise_cost: int = 5
     anchor_compromise_cost: int = 15
@@ -257,7 +257,7 @@ class SybilGraphEvidence(BaseModel):
     revision_id: str = Field(pattern=r"^[a-f0-9]{64}$")
     assessment_id: str = Field(pattern=r"^[a-f0-9]{64}$")
     formula_version: Literal["sybil-v1", "sybil-v2"] = "sybil-v2"  # v1 kept so stored replays load
-    # The graph policy (brief §14). L: buying bridges inflates E (and so R) but cannot fake
+    # The graph policy (brief §8). L: buying bridges inflates E (and so R) but cannot fake
     # many anchors. policy_passed on each shop is computed from these by passes().
     minimum_total: float = 60
     minimum_support: float = 0.5
@@ -476,7 +476,7 @@ class Ledger(BaseModel):
     allow_subscriptions: bool = False
     allowed_domains: list[str] = []
     data_allowed: list[str] = []
-    # DEV_PLAN Q14: null = the task states no shipping preference.
+    # null = the task states no shipping preference.
     shipping_method: Literal["standard", "express"] | None = None
 
 

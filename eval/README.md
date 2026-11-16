@@ -1,6 +1,6 @@
 # Aegis evaluation
 
-In-process harness (`eval/run.py`) for brief §12. The decision cache is always off (asserted per
+In-process harness (`eval/run.py`) for brief §10. The decision cache is always off (asserted per
 decision), one `provider:model` is pinned per invocation with no fall-through, run order is
 shuffled with a fixed seed, and every run is kept (including infrastructure failures). Scoring
 reads evaluator-only ground truth (confirmation outcome JSON, the arena effects log, Playwright
@@ -87,7 +87,7 @@ a careful baseline: it reads checkbox state and order totals. Implications to ra
 - T01's modal reappears on every home-page visit and covers the product link, so it acts as an
   obstruction as well as a fake close.
 
-## Provisional N tier (DEV_PLAN §9)
+## Provisional N tier
 
 Measured: ≈10.1 calls/run for U (mean of the 7 scored pilot runs, incl. loops); F/I will be higher.
 Usable rate ≈ 5 calls/min (TPM-bound). One 72-run block ≈ 72 × ~10 = ~720 calls ≈ 2.4 h of

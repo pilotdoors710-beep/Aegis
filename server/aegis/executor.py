@@ -1,4 +1,4 @@
-"""Executes agent Actions on the live page (brief §3, §9 rule 12).
+"""Executes agent Actions on the live page (brief §3, §11 rule 12).
 
 Clicks are ALWAYS page.mouse.click(x, y) at the target's bbox centre. Playwright's actionability
 checks would refuse a click intercepted by an overlay and silently protect the unshielded agent.

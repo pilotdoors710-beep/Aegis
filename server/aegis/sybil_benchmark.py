@@ -1,4 +1,4 @@
-"""Stage 4: Structural Benchmark Matrix (brief §14).
+"""Stage 4: Structural Benchmark Matrix (brief §8).
 
 6 attack families x 3 sizes x 2 credit levels x 5 seeds = 180 attacks on Shop B, plus 30
 controls = 210 scenarios. Each attack is judged by recommendation counts, ordinary PageRank,

@@ -41,7 +41,7 @@ tests/test_sybil_dataset.py tests/test_sybil_scenario.py tests/test_sybil_api.py
 ../eval/test_sybil_import.py ../eval/test_sybil_extract.py`. NumPy and SciPy are runtime
 dependencies for float64 sparse propagation and sensitivity calculations.
 
-Set `NEXT_PUBLIC_API_URL` using `.env.example`, then run `pnpm dev`. The browser connects directly to FastAPI; its CORS configuration must allow the web origin.
+Set `NEXT_PUBLIC_API_URL` (defaults to `http://localhost:8000`), then run `pnpm dev`. The browser connects directly to FastAPI; its CORS configuration must allow the web origin.
 
 - `/`: entrance on every direct visit or refresh. Scrolling (or the "Scroll to enter" link, or Enter on it) enters `/console`.
 - `/console`: server-provided demo presets, live launch requests, and a separately labelled sample stream. Use this direct URL for stage demos.
@@ -74,7 +74,7 @@ Day 3 console and arena:
 
 Checks: `pnpm typecheck`, `pnpm lint`, `pnpm build`, and `node --test lib/events.test.mjs lib/run-evidence.test.mjs lib/verify-day1.test.mjs`. Generated `lib/api-types.ts` must come from the server OpenAPI; never edit it manually.
 
-Landing entrance (13 Nov — Hero Redesign). Superseded on 14 Nov by the React Bits entrance described at the end of this file; kept for the unused artwork, slider and tunnel files that are still in the tree:
+Landing entrance (13 Nov — Hero Redesign). Superseded on 14 Nov by the React Bits entrance described at the end of this file; kept for the unused slider and tunnel files that are still in the tree:
 
 - Centered, cinematic hero composed entirely in-viewport (100svh, non-scrolling) over the animated ThreeUI FlowField background:
   1. `AEGIS` title: single `h1` in Roboto Slab (#FCF8D8), rising through a clipped mask and sharpening from blur (0–800ms).
@@ -83,8 +83,8 @@ Landing entrance (13 Nov — Hero Redesign). Superseded on 14 Nov by the React B
   4. Slider control: visible "SLIDE TO ENTER" monospace label (#ADACA7) and centered pill slider (#1c1d1a track, #7C7D75 border, #DD700B thumb, 2,050–2,550ms), disabled until revealed.
 - Progressive FlowField dimming: background opacity and contrast soften across beats (~85% -> 55% -> 32%) using a neutral #7C7D75 veil overlay (`mix-blend-mode: multiply`) without altering shader speed.
 - Slider interaction: drag right with pointer capture or keyboard (Right Arrow / End); completing 90% travel commits entrance, fading hero copy and slider into the existing 3D square-frame tunnel flight, completing at 1,800ms with navigation to `/console`.
-- The landing page appears on direct visits and whenever refreshed. Reduced motion shows the complete composition immediately without entrance delay. With JavaScript disabled, renders all hero copy plus an "Open console" link. Emergency recovery link appears if navigation stalls. Reusable artwork assets remain preserved.
-- Artwork, generation prompt, actual source resolution and font license: [public/landing/ARTWORK.md](public/landing/ARTWORK.md). The master is 1,449,102 bytes, the poster 33,035 bytes. Landing CSS and Roboto Slab stay scoped to this route; the Tailwind loader excludes plain CSS modules so Next.js retains their class exports.
+- The landing page appears on direct visits and whenever refreshed. Reduced motion shows the complete composition immediately without entrance delay. With JavaScript disabled, renders all hero copy plus an "Open console" link. Emergency recovery link appears if navigation stalls.
+- Landing CSS and Roboto Slab stay scoped to this route; the Tailwind loader excludes plain CSS modules so Next.js retains their class exports.
 - Production Chrome 157 checks passed at 360×640, 390×844, 768×1024, 1280×720 and 1920×1080, plus 200% zoom. Sixteen browser scenarios cover navigation, early/repeated input, keyboard/touch, selection, resizing, hidden-tab pause/resume, reduced-motion changes, no JavaScript, failed images/WebGL/storage, context loss, focus and stalled-route recovery. Console launch/approval/sample/replay checks use mocked responses from the server's schema-built fixtures; they do not prove a deployed live run.
 - The final recorded exit on this laptop's Intel UHD / ANGLE D3D11 graphics had 204 sampled frame intervals: median 7ms, maximum 48.7ms, one above 33ms. The Chrome trace also contains initial-load/layout work above 33ms; this is a desktop measurement with recording overhead, not a universal 60fps guarantee. Real phone, Safari and Firefox checks remain outstanding.
 

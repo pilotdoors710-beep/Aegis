@@ -1,6 +1,6 @@
 """The base agent: what it may see (build_agent_view) and how it decides (decide, A-D1-06).
 
-build_agent_view is the ONLY place the agent view is built (brief §9 rule 13). Detector-only
+build_agent_view is the ONLY place the agent view is built (brief §11 rule 13). Detector-only
 fields (download, opacity, contrast_ratio, occluded_by, visible, bbox, onclick) never reach it.
 """
 

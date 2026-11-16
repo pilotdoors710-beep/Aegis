@@ -1,4 +1,4 @@
-"""Stage 4: Bounded Max-Flow / Min-Cut Bottleneck Witness (brief §14).
+"""Stage 4: Bounded Max-Flow / Min-Cut Bottleneck Witness (brief §8).
 
 Computes an exact minimum website cut on a declared explanation subgraph (at most 2,500
 nodes), with unit website capacities and one unit per anchor. Exact for that subgraph, and
