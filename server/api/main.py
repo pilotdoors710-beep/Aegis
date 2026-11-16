@@ -284,6 +284,27 @@ async def create_sybil_counterfactual(
     return await _sybil.counterfactual(str(settings.sybil_data_dir.resolve()), baseline, proposed)
 
 
+# Stage 4 analyses: pure CPU work, so each runs in a thread (never on the event loop, which
+# serves live run streams) and only one runs at a time. The benchmark is deterministic per
+# dataset version, so it is computed once and cached.
+_analysis_slot = asyncio.Lock()
+_benchmarks: dict[tuple[str, bool], asyncio.Task[SybilBenchmarkSummary]] = {}
+
+
+def _analysis_busy() -> HTTPException:
+    return HTTPException(
+        429, "Another graph analysis is running; retry when it finishes", {"Retry-After": "10"}
+    )
+
+
+@asynccontextmanager
+async def _one_analysis():
+    if _analysis_slot.locked():
+        raise _analysis_busy()
+    async with _analysis_slot:
+        yield
+
+
 @app.post(
     "/sybil/scenarios/{revision_id}/bottleneck",
     response_model=SybilBottleneckWitness,
@@ -292,7 +313,8 @@ async def get_sybil_bottleneck(revision_id: str, shop: Literal["A", "B"] = Query
     dataset = _sybil_dataset()
     with _sybil_errors():
         scenario = await _sybil.revision(dataset, revision_id)
-    return compute_bottleneck_witness(dataset.base, scenario, shop)
+    async with _one_analysis():
+        return await asyncio.to_thread(compute_bottleneck_witness, scenario, shop)
 
 
 @app.post(
@@ -306,13 +328,12 @@ async def run_sybil_attack_search(
     dataset = _sybil_dataset()
     if dataset.base.dataset_id != dataset_id:
         raise HTTPException(404, "Sybil dataset not found")
-    req = body or SybilAttackSearchRequest()
-    result = search_adversarial_attack(dataset.base, req)
-    try:
-        scenario = _sybil.create(dataset, result.best_scenario)
-        await _bus.store.save_sybil_scenario(scenario.revision)
-    except Exception as error:
-        log.warning("saving best searched scenario failed: %s", error)
+    async with _one_analysis():
+        result = await asyncio.to_thread(
+            search_adversarial_attack, dataset.base, body or SybilAttackSearchRequest()
+        )
+    with _sybil_errors():  # "Load into Playground" fetches the best Revision by id
+        await _sybil.save(dataset, result.best_scenario)
     return result
 
 
@@ -322,7 +343,24 @@ async def run_sybil_attack_search(
 )
 async def get_sybil_benchmark(sample: bool = Query(False)):
     dataset = _sybil_dataset()
-    return run_structural_benchmark(dataset.base, sample_only=sample)
+    key = (dataset.base.content_hash, sample)
+    task = _benchmarks.get(key)
+    if task is None:
+        if _analysis_slot.locked():
+            raise _analysis_busy()
+
+        async def compute() -> SybilBenchmarkSummary:
+            async with _analysis_slot:
+                return await asyncio.to_thread(run_structural_benchmark, dataset.base, sample)
+
+        # A task, so the full matrix (minutes) keeps running if the client gives up; a retry
+        # waits on the same task and later calls read the cached result.
+        task = _benchmarks[key] = asyncio.create_task(compute())
+    try:
+        return await asyncio.shield(task)
+    except Exception:
+        _benchmarks.pop(key, None)
+        raise
 
 
 @app.get("/healthz")

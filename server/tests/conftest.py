@@ -54,3 +54,30 @@ async def page() -> AsyncIterator[Page]:
             yield await ctx.new_page()
         finally:
             await browser.close()
+
+
+@pytest.fixture(scope="session")
+def sybil_toy():
+    """24 real sites: anchors 0 and 1 fan out into a chain; 5 and 9 recommend Shop A, 14
+    recommends Shop B. Large enough for bridges, a takeover and real-site controls."""
+    from aegis.sybil import Graph
+    from aegis.sybil_scenario import BaseGraph
+
+    edges = sorted(
+        {(0, i) for i in range(2, 7)}
+        | {(1, i) for i in range(4, 10)}
+        | {(i, i + 1) for i in range(2, 23)}
+        | {(i, i - 3) for i in range(5, 24, 2)}
+    )
+    degree = [0] * 24
+    for u, _ in edges:
+        degree[u] += 1
+    return BaseGraph(
+        "toy",
+        "a" * 64,
+        tuple(str(i) for i in range(24)),
+        Graph(24, tuple(edges), tuple(degree)),
+        ("0", "1"),
+        0.01,
+        (("5", "A"), ("9", "A"), ("14", "B")),
+    )

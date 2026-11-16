@@ -1415,17 +1415,27 @@ export interface components {
              * Stopped Reason
              * @enum {string}
              */
-            stopped_reason: "iteration_limit" | "time_limit" | "budget_exhausted";
+            stopped_reason: "iteration_limit" | "time_limit" | "space_exhausted";
             /** Best Score */
             best_score: number;
+            /** Best Passed Policy */
+            best_passed_policy: boolean;
             best_proposal: components["schemas"]["SybilAttackSearchProposal"];
             best_scenario: components["schemas"]["SybilScenarioCreate"];
             /** Best Revision Id */
             best_revision_id: string;
             /** History */
             history: components["schemas"]["SybilAttackSearchProposal"][];
+            /**
+             * Disclosure
+             * @default Bounded heuristic search (at most 500 proposals / 60 s, fixed seed, no LLM, 25-credit Challenge budget). The strongest attack found, not a proven worst case.
+             */
+            disclosure: string;
         };
-        /** SybilBenchmarkRow */
+        /**
+         * SybilBenchmarkRow
+         * @description One scenario. Shop B is the attacked (or control) shop; Shop A is the real baseline.
+         */
         SybilBenchmarkRow: {
             /** Family */
             family: string;
@@ -1433,52 +1443,116 @@ export interface components {
             size: number;
             /** Credits */
             credits: number;
+            /** Credits Used */
+            credits_used: number;
             /** Seed */
             seed: number;
-            /** Raw Count */
-            raw_count: number;
-            /** Raw Rank */
-            raw_rank: number;
-            /** Support */
+            /** Converged */
+            converged: boolean;
+            /**
+             * Recommendation Count
+             * @default 0
+             */
+            recommendation_count: number;
+            /**
+             * Ordinary Pagerank
+             * @default 0
+             */
+            ordinary_pagerank: number;
+            /**
+             * Trust Weighted Support
+             * @default 0
+             */
+            trust_weighted_support: number;
+            /**
+             * Support
+             * @default 0
+             */
             support: number;
-            /** Withdrawal */
+            /**
+             * Breadth
+             * @default 0
+             */
+            breadth: number;
+            /**
+             * Withdrawal
+             * @default 0
+             */
             withdrawal: number;
-            /** Connection */
+            /**
+             * Connection
+             * @default 0
+             */
             connection: number;
-            /** Total Robustness */
+            /**
+             * Total Robustness
+             * @default 0
+             */
             total_robustness: number;
-            /** Passed Policy */
+            /**
+             * Count Beats A
+             * @default false
+             */
+            count_beats_a: boolean;
+            /**
+             * Pagerank Beats A
+             * @default false
+             */
+            pagerank_beats_a: boolean;
+            /**
+             * Support Beats A
+             * @default false
+             */
+            support_beats_a: boolean;
+            /**
+             * Score Beats A
+             * @default false
+             */
+            score_beats_a: boolean;
+            /**
+             * Passed Policy
+             * @default false
+             */
             passed_policy: boolean;
         };
-        /** SybilBenchmarkSummary */
+        /**
+         * SybilBenchmarkSummary
+         * @description Rates are over converged scenarios; `*_beats_a` means Shop B outranks Shop A.
+         */
         SybilBenchmarkSummary: {
-            /**
-             * Total Scenarios
-             * @default 210
-             */
+            /** Total Scenarios */
             total_scenarios: number;
-            /**
-             * Attacks Tested
-             * @default 180
-             */
+            /** Attacks Tested */
             attacks_tested: number;
-            /**
-             * Controls Tested
-             * @default 30
-             */
+            /** Controls Tested */
             controls_tested: number;
-            /** Naive Pass Rate */
-            naive_pass_rate: number;
-            /** Pagerank Pass Rate */
-            pagerank_pass_rate: number;
-            /** Aegis Pass Rate */
-            aegis_pass_rate: number;
-            /** Clean Pass Rate */
-            clean_pass_rate: number;
+            /** Unavailable */
+            unavailable: number;
+            /** Count Beats A Rate */
+            count_beats_a_rate: number;
+            /** Pagerank Beats A Rate */
+            pagerank_beats_a_rate: number;
+            /** Support Beats A Rate */
+            support_beats_a_rate: number;
+            /** Score Beats A Rate */
+            score_beats_a_rate: number;
+            /** Policy Pass Rate */
+            policy_pass_rate: number;
+            /** Ablation Policy Pass Rates */
+            ablation_policy_pass_rates: {
+                [key: string]: number;
+            };
+            /** Control Policy Pass Rate */
+            control_policy_pass_rate: number;
             /** Rows */
             rows: components["schemas"]["SybilBenchmarkRow"][];
+            /** Controls */
+            controls: components["schemas"]["SybilBenchmarkRow"][];
+            reference: components["schemas"]["SybilBenchmarkRow"];
             /** Elapsed S */
             elapsed_s: number;
+            /** Disclosure */
+            disclosure: string;
         };
         /** SybilBottleneckWitness */
         SybilBottleneckWitness: {
@@ -1493,6 +1567,8 @@ export interface components {
             subgraph_nodes: number;
             /** Subgraph Edges */
             subgraph_edges: number;
+            /** Complete */
+            complete: boolean;
             /** Max Flow */
             max_flow: number;
             /** Cut Size */
@@ -1505,7 +1581,7 @@ export interface components {
             elapsed_ms: number;
             /**
              * Disclosure
-             * @default Exact min-cut bottleneck computed on a bounded 2,500-node explanation subgraph with unit capacities.
+             * @default Minimum website cut between the anchors and the shop's recommenders, with unit website capacities and one unit per anchor, on an explanation subgraph of at most 2,500 websites on the shortest anchor-to-recommender paths. Exact for the whole graph only when the subgraph is complete.
              */
             disclosure: string;
         };
@@ -1568,7 +1644,10 @@ export interface components {
             /** Reason */
             reason?: string | null;
         };
-        /** SybilCutEdge */
+        /**
+         * SybilCutEdge
+         * @description A link entering a bottleneck website from the anchor side (drawn on the graph).
+         */
         SybilCutEdge: {
             /** Source */
             source: string;

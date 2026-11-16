@@ -108,6 +108,14 @@ def assessment_identity(revision_id: str) -> str:
     return hashlib.sha256(f"{FORMULA_VERSION}:{revision_id}".encode()).hexdigest()
 
 
+_DEFAULT_POLICY = SybilGraphEvidence(revision_id="0" * 64, assessment_id="0" * 64, shops={})
+
+
+def passes_policy(total: float, support: float, withdrawal: float) -> bool:
+    """The current graph policy, for analyses that have no frozen Run evidence."""
+    return _DEFAULT_POLICY.passes(total, support, withdrawal)
+
+
 def graph_evidence(assessment: SybilAssessmentRecord) -> SybilGraphEvidence:
     if assessment.status != "complete" or assessment.scores is None:
         raise ValueError("A complete converged assessment is required for graph evidence")

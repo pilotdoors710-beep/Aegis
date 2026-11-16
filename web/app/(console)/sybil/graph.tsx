@@ -83,6 +83,7 @@ export function SybilGraph({
   selectedNodeId,
   selectedEdge,
   witnessCutEdges,
+  witnessNodes,
   onSelectNode,
   onSelectEdge,
   onClearSelection,
@@ -91,6 +92,7 @@ export function SybilGraph({
   selectedNodeId: string | null;
   selectedEdge: SelectedEdge | null;
   witnessCutEdges?: Array<{ source: string; target: string }>;
+  witnessNodes?: readonly string[];
   onSelectNode: (id: string) => void;
   onSelectEdge: (edge: SelectedEdge) => void;
   onClearSelection: () => void;
@@ -110,6 +112,7 @@ export function SybilGraph({
     selectedNodeId,
     selectedEdge,
     witnessCutEdges: witnessCutEdges ?? [],
+    witnessNodes: new Set(witnessNodes ?? []),
     hover: null as Node | null,
     dirty: true,
     reduced: false,
@@ -126,8 +129,14 @@ export function SybilGraph({
   }, [onSelectNode, onSelectEdge, onClearSelection]);
 
   useEffect(() => {
-    Object.assign(state.current, { selectedNodeId, selectedEdge, witnessCutEdges: witnessCutEdges ?? [], dirty: true });
-  }, [selectedNodeId, selectedEdge, witnessCutEdges]);
+    Object.assign(state.current, {
+      selectedNodeId,
+      selectedEdge,
+      witnessCutEdges: witnessCutEdges ?? [],
+      witnessNodes: new Set(witnessNodes ?? []),
+      dirty: true,
+    });
+  }, [selectedNodeId, selectedEdge, witnessCutEdges, witnessNodes]);
 
   // Physics: rebuilt whenever the server returns a new graph view.
   useEffect(() => {
@@ -292,6 +301,13 @@ export function SybilGraph({
           ctx.globalAlpha = n.kind === "simulated" ? 1 : 0.55;
           ctx.fill();
           ctx.globalAlpha = 1;
+        }
+        if (s.witnessNodes.has(n.id)) {
+          ctx.beginPath();
+          ctx.arc(n.x!, n.y!, r + 3, 0, Math.PI * 2);
+          ctx.strokeStyle = "#f59e0b"; // amber: a bottleneck site in the min-cut witness
+          ctx.lineWidth = 2.5 * lineScale;
+          ctx.stroke();
         }
         if (n.id === s.selectedNodeId || n === s.hover) {
           ctx.beginPath();
@@ -530,7 +546,7 @@ export function SybilGraph({
         </button>
       </div>
       <p className={styles.graphLegend}>
-        ◇ trusted anchor · ● real website · <span>●</span> attack cluster · <span style={{ color: COLORS.bridge }}>---</span> bridge link · <span style={{ color: "#f59e0b" }}>---</span> min-cut bottleneck · <span style={{ color: COLORS.shopA }}>Shop A</span> · <span style={{ color: COLORS.shopB }}>Shop B</span> · scroll to zoom, drag to pan
+        ◇ trusted anchor · ● real website · <span>●</span> attack cluster · <span style={{ color: COLORS.bridge }}>---</span> bridge link · <span style={{ color: "#f59e0b" }}>○ ---</span> bottleneck site and the links into it · <span style={{ color: COLORS.shopA }}>Shop A</span> · <span style={{ color: COLORS.shopB }}>Shop B</span> · scroll to zoom, drag to pan
       </p>
     </div>
   );

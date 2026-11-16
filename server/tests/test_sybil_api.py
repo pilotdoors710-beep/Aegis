@@ -2,15 +2,20 @@ from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import httpx
+import pytest
+from fastapi import HTTPException
 
+import api.main as main_module
 from aegis.config import settings
 from aegis.schemas import (
+    RunCreate,
     SybilAssessmentRecord,
     SybilCounterfactualResult,
     SybilLink,
     SybilRecommendation,
     SybilScenarioCreate,
     SybilScoreDelta,
+    SybilShopScore,
 )
 from aegis.sybil import Graph
 from aegis.sybil_runtime import (
@@ -20,7 +25,7 @@ from aegis.sybil_runtime import (
     graph_evidence,
 )
 from aegis.sybil_scenario import BaseGraph
-from api.main import app
+from api.main import app, create_run
 
 
 async def test_sybil_is_disabled_by_default(monkeypatch):
@@ -299,6 +304,54 @@ def test_bridge_inflated_score_still_fails_anchor_floor() -> None:
     assert graph_evidence(assessment).shops["B"].policy_passed is False
 
 
+def test_graph_evidence_carries_the_policy_it_was_judged_by() -> None:
+    revision_id = "f" * 64
+    shop = {
+        "recommendation_count": 12,
+        "trust_weighted_support": 0.01,
+        "structural_support": 0.9,
+        "effective_anchors": 6,
+        "anchor_breadth": 0.7,
+        "anchor_withdrawal_resilience": 0.8,
+        "tested_connection_resilience": 0.2,
+        "total_robustness": 79.0,
+    }
+    assessment = SybilAssessmentRecord.model_validate(
+        {
+            "id": assessment_identity(revision_id),
+            "revision_id": revision_id,
+            "status": "complete",
+            "scores": {"A": shop},
+        }
+    )
+    evidence = graph_evidence(assessment)
+    assert evidence.minimum_withdrawal == 0.5
+    assert "L>=0.5" in evidence.policy_text()
+    assert evidence.shops["A"].policy_passed is True
+
+
+def test_assessments_stored_with_tested_edges_still_load() -> None:
+    legacy = {
+        "recommendation_count": 1,
+        "trust_weighted_support": 0.0,
+        "structural_support": 0.0,
+        "effective_anchors": 0.0,
+        "anchor_breadth": 0.0,
+        "anchor_withdrawal_resilience": 0.0,
+        "tested_connection_resilience": 0.0,
+        "total_robustness": 0.0,
+        "tested_edges": [{"source": "a.org", "target": "b.org"}],
+    }
+    assert SybilShopScore.model_validate(legacy).cut_sources == ()
+
+
+async def test_presets_and_sybil_revisions_must_match() -> None:
+    with pytest.raises(HTTPException, match="needs a Sybil revision"):
+        await create_run(RunCreate(preset_id="sybil-two-shop"))
+    with pytest.raises(HTTPException, match="does not take a Sybil revision"):
+        await create_run(RunCreate(preset_id="clean", sybil_revision_id="a" * 64))
+
+
 def test_view_keeps_every_real_site_an_edit_names() -> None:
     nodes = tuple(
         SimpleNamespace(
@@ -328,33 +381,11 @@ def test_view_keeps_every_real_site_an_edit_names() -> None:
     assert "5" in shown  # the taken-over site is not crowded out by ten fake ones
 
 
-async def test_stage4_api_endpoints(monkeypatch):
+async def test_stage4_api_endpoints(monkeypatch, sybil_toy):
+    monkeypatch.setattr("aegis.sybil_benchmark.SIZES", (10, 12, 15))
+    monkeypatch.setattr("api.main._benchmarks", {})
     runtime = SybilRuntime()
-    nodes = tuple(
-        SimpleNamespace(
-            id=str(i),
-            domain=f"d{i}.org",
-            original_outdegree=1,
-            retained_outdegree=1,
-            depth=1,
-            x=i,
-            y=i,
-        )
-        for i in range(4)
-    )
-    dataset = SimpleNamespace(
-        manifest=SimpleNamespace(id="test_stg4"),
-        nodes=nodes,
-        base=BaseGraph(
-            "test_stg4",
-            "a" * 64,
-            tuple(v.id for v in nodes),
-            Graph(4, ((0, 2), (1, 2)), (1, 1, 0, 0)),
-            ("0", "1"),
-            0.1,
-            (("2", "A"),),
-        ),
-    )
+    dataset = SimpleNamespace(manifest=SimpleNamespace(id="toy"), nodes=(), base=sybil_toy)
     monkeypatch.setattr(settings, "sybil_enabled", True)
     monkeypatch.setattr("api.main._load_sybil_dataset", lambda _: dataset)
     monkeypatch.setattr("api.main._sybil", runtime)
@@ -362,11 +393,10 @@ async def test_stage4_api_endpoints(monkeypatch):
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://test"
     ) as client:
-        # 1. Create scenario
         created = await client.post(
             "/sybil/scenarios",
             json={
-                "dataset_id": "test_stg4",
+                "dataset_id": "toy",
                 "injected_nodes": ["sim:1"],
                 "recommendations": [{"website": "sim:1", "shop": "B"}],
             },
@@ -374,24 +404,29 @@ async def test_stage4_api_endpoints(monkeypatch):
         assert created.status_code == 201
         rev_id = created.json()["id"]
 
-        # 2. Test Bottleneck Witness endpoint
         bn = await client.post(f"/sybil/scenarios/{rev_id}/bottleneck?shop=A")
         assert bn.status_code == 200
         assert bn.json()["shop"] == "A"
-        assert bn.json()["max_flow"] >= 0.0
+        assert bn.json()["max_flow"] == bn.json()["cut_size"] > 0
 
-        # 3. Test Attack Search endpoint
         srch = await client.post(
-            "/sybil/datasets/test_stg4/search",
+            "/sybil/datasets/toy/search",
             json={"target": "B", "seed": 1, "max_proposals": 5, "max_seconds": 10.0},
         )
         assert srch.status_code == 200
-        assert srch.json()["proposals_evaluated"] >= 1
-        assert srch.json()["best_proposal"] is not None
+        assert srch.json()["proposals_evaluated"] == 5
+        # "Load into Playground" reads the best Revision back by id.
+        best = await client.get(f"/sybil/scenarios/{srch.json()['best_revision_id']}")
+        assert best.status_code == 200
 
-        # 4. Test Structural Benchmark endpoint (sample mode)
         bm = await client.get("/sybil/benchmark?sample=true")
         assert bm.status_code == 200
         assert bm.json()["attacks_tested"] == 36
         assert bm.json()["total_scenarios"] == 42
+        again = await client.get("/sybil/benchmark?sample=true")
+        assert again.json() == bm.json()  # cached per dataset version
+
+        async with main_module._analysis_slot:  # a second analysis waits its turn
+            busy = await client.post(f"/sybil/scenarios/{rev_id}/bottleneck?shop=A")
+        assert busy.status_code == 429
     runtime.shutdown()

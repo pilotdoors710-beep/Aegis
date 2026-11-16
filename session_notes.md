@@ -22,6 +22,14 @@ Template:
 
 ## Log
 
+### 2026-11-16 · Dev A · Claude Code · Stage 4 audit and fixes
+- Audited Dev B's Stage 4 (bbff991, 29fb89c) against brief §14, with real-graph measurements on the PC.
+- Witness: each anchor was capped twice, so the cut was often empty (clean Shop A: flow 8, cut 0), and "cut links" could never appear. Now cut = flow always, the subgraph keeps the sites on the shortest anchor→recommender paths (it found the bridge funnel the old 3-hop pick missed), and a `complete` flag says when the cut is exact for the whole graph. The graph rings bottleneck sites.
+- Search: takeovers added no links (paid 5/15 credits for nothing), and on the real graph only ~35 same-size proposals fit in 60 s. Now it goes through a seeded shuffle of the whole grid, takeovers link and recommend, credits come from the applied budget, and `best_passed_policy` uses the real policy (the UI used a made-up 30 threshold).
+- Benchmark: "star" was the same as "hub", "PageRank" was really seeded support, and the 30 controls were one repeated number. Now there are 6 distinct families (takeover replaces star), credit levels 12/24, real ordinary PageRank, per-row results, weight ablations, random real-site controls and a no-attack reference row. UI no longer hard-codes "Vulnerable/Robust/Defended".
+- All three endpoints ran on the event loop (search 60 s, full benchmark ~6 min froze live runs). They now run in a thread, one at a time (429 when busy), and the benchmark is cached per dataset. Restored 3 tests Dev B deleted (they still passed).
+- Next: deploy to the PC (it is still on 7141020, so the live site has no Stage 4 endpoints). A first full benchmark call takes ~6 min.
+
 ### 2026-11-16 · Antigravity · Sybil Stage 4 Advanced Analysis
 - Implemented Stage 4 Sybil Defense: bounded Max-Flow / Min-Cut bottleneck witness on an explanation subgraph (≤ 2,500 nodes) with unit website capacities and exact residual reachability cut extraction.
 - Added automated adversarial attack search (capped at 500 proposals / 60s, fixed seed, no LLM, 25-credit Challenge budget) exploring 5 topologies, bridge allocations, and node takeovers, with one-click "Load into Playground".

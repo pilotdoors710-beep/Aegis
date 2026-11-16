@@ -549,10 +549,6 @@ export function SybilReadiness() {
     setBusy(true);
     setError(null);
     try {
-      const best = searchResult.best_proposal;
-      setPattern(best.pattern as typeof pattern);
-      setCount(best.count);
-      setTarget("B");
       const saved = await api.sybilScenario(searchResult.best_revision_id);
       await showRevision(saved);
     } catch (cause) {
@@ -722,6 +718,7 @@ export function SybilReadiness() {
                 selectedNodeId={selectedNodeId}
                 selectedEdge={selectedEdge}
                 witnessCutEdges={witness?.cut_edges}
+                witnessNodes={witness?.bottleneck_nodes}
                 onSelectNode={(id) => {
                   setSelectedNodeId(id);
                   setSelectedEdge(null);
@@ -859,7 +856,7 @@ export function SybilReadiness() {
                 )}
               </h3>
               <p className={styles.stage4Meta}>
-                Bounded max-flow / min-cut on the explanation subgraph (≤ 2,500 nodes).
+                Fewest websites that separate the anchors from the shop&apos;s recommenders (max-flow / min-cut, ≤ 2,500-site subgraph).
               </p>
             </div>
 
@@ -874,35 +871,28 @@ export function SybilReadiness() {
                   </div>
                   <div>
                     <dt>Explanation subgraph</dt>
-                    <dd>{witness.subgraph_nodes} nodes · {witness.subgraph_edges} edges</dd>
+                    <dd>
+                      {witness.subgraph_nodes} sites · {witness.subgraph_edges} links
+                      {witness.complete ? " (every path included: exact for the whole graph)" : " (bounded: exact for this subgraph only)"}
+                    </dd>
                   </div>
                   <div>
-                    <dt>Bottleneck nodes</dt>
-                    <dd>{witness.bottleneck_nodes.length} nodes</dd>
+                    <dt>Bottleneck sites</dt>
+                    <dd>{witness.bottleneck_nodes.length ? witness.bottleneck_nodes.slice(0, 8).join(", ") : "none"}{witness.bottleneck_nodes.length > 8 && ` +${witness.bottleneck_nodes.length - 8} more`}</dd>
                   </div>
                   <div>
-                    <dt>Saturated cut links</dt>
-                    <dd>{witness.cut_edges.length} edges</dd>
+                    <dt>Links into them</dt>
+                    <dd>{witness.cut_edges.length} links</dd>
                   </div>
                 </dl>
                 <p className={styles.stage4Meta}>{witness.disclosure}</p>
-                {witness.cut_edges.length > 0 && (
-                  <div>
-                    <span className={styles.cutEdgeBadge}>Amber dashed lines on canvas</span>
-                    <div className={styles.cutEdgesList} style={{ marginTop: "6px" }}>
-                      {witness.cut_edges.slice(0, 8).map((e, idx) => (
-                        <span key={idx}>
-                          {e.source.replace("obs:", "").replace("sim:", "s:")} → {e.target.replace("obs:", "").replace("sim:", "s:")}
-                        </span>
-                      ))}
-                      {witness.cut_edges.length > 8 && <span>+{witness.cut_edges.length - 8} more</span>}
-                    </div>
-                  </div>
+                {(witness.bottleneck_nodes.length > 0 || witness.cut_edges.length > 0) && (
+                  <span className={styles.cutEdgeBadge}>Amber rings and dashed links on the graph</span>
                 )}
               </>
             ) : (
               <p className={styles.stage4Meta}>
-                Identify saturated bottleneck edges and nodes separating the curated anchor core from the target shop.
+                Find the websites every unit of anchor support must pass through to reach the shop&apos;s recommenders.
               </p>
             )}
 
@@ -939,13 +929,13 @@ export function SybilReadiness() {
               <h3>
                 Adversarial Red-Team Search
                 {searchResult && (
-                  <span className={searchResult.best_score > 30 ? styles.failBadge : styles.passBadge}>
-                    {searchResult.best_score > 30 ? "Attack Succeeded" : "Aegis Defended"}
+                  <span className={searchResult.best_passed_policy ? styles.failBadge : styles.passBadge}>
+                    {searchResult.best_passed_policy ? "Best attack found passes the graph policy" : "No attack found passes the graph policy"}
                   </span>
                 )}
               </h3>
               <p className={styles.stage4Meta}>
-                Capped parameter optimizer (≤ 500 proposals / 60s, 25-credit Challenge budget).
+                Bounded heuristic search (≤ 500 proposals / 60 s, fixed seed, no LLM, 25-credit Challenge budget).
               </p>
             </div>
 
@@ -967,13 +957,18 @@ export function SybilReadiness() {
                   <div>
                     <dt>Best Shop B score</dt>
                     <dd>
-                      Shop B: <strong>{searchResult.best_score.toFixed(2)}</strong> (support: {(searchResult.best_proposal.support * 100).toFixed(1)})
+                      <strong>{searchResult.best_score.toFixed(1)}</strong> (S {searchResult.best_proposal.support.toFixed(2)} · L {searchResult.best_proposal.withdrawal.toFixed(2)} · E {searchResult.best_proposal.connection.toFixed(2)})
                     </dd>
                   </div>
+                  <div>
+                    <dt>Stopped</dt>
+                    <dd>{searchResult.stopped_reason.replace("_", " ")}</dd>
+                  </div>
                 </dl>
+                <p className={styles.stage4Meta}>{searchResult.disclosure}</p>
                 {searchResult.history.length > 0 && (
                   <div>
-                    <span className={styles.stage4Meta}>Optimization trajectory (score improvements):</span>
+                    <span className={styles.stage4Meta}>Each new best found:</span>
                     <div className={styles.trajectoryList}>
                       {searchResult.history.map((h) => (
                         <div key={h.iteration}>
@@ -986,7 +981,7 @@ export function SybilReadiness() {
               </>
             ) : (
               <p className={styles.stage4Meta}>
-                Explore combinations of disconnected, dense, cluster, hub, and chain topologies with bridges and takeovers to discover the worst-case attack.
+                Tries dense, cluster, hub, chain and disconnected attacks with bought bridges and site or anchor takeovers, and keeps the strongest one it finds. Not a proven worst case.
               </p>
             )}
 
@@ -996,7 +991,7 @@ export function SybilReadiness() {
                 disabled={!ready || busy || stage4Busy !== null}
                 onClick={() => void runSearch()}
               >
-                {stage4Busy === "search" ? "Searching (up to 60s)…" : "Search Worst-Case Attack"}
+                {stage4Busy === "search" ? "Searching (up to 60 s)…" : "Search for a stronger attack"}
               </button>
               {searchResult && (
                 <button
@@ -1015,14 +1010,9 @@ export function SybilReadiness() {
             <div>
               <h3>
                 Structural Benchmark Matrix
-                {benchmarkSummary && (
-                  <span className={styles.passBadge}>
-                    {(100 - benchmarkSummary.aegis_pass_rate * 100).toFixed(0)}% Defended
-                  </span>
-                )}
               </h3>
               <p className={styles.stage4Meta}>
-                Empirical matrix: 6 families × 3 sizes × 2 credit levels × 5 seeds = 210 scenarios.
+                6 attack families × 3 sizes × 2 credit levels × 5 seeds = 180 attacks on Shop B, plus 30 real-site controls.
               </p>
             </div>
 
@@ -1032,44 +1022,51 @@ export function SybilReadiness() {
                   <div>
                     <dt>Scenarios tested</dt>
                     <dd>
-                      {benchmarkSummary.total_scenarios} ({benchmarkSummary.attacks_tested} attacks, {benchmarkSummary.controls_tested} controls)
+                      {benchmarkSummary.total_scenarios} ({benchmarkSummary.attacks_tested} attacks, {benchmarkSummary.controls_tested} controls
+                      {benchmarkSummary.unavailable > 0 && `, ${benchmarkSummary.unavailable} unavailable`})
                     </dd>
                   </div>
                   <div>
                     <dt>Runtime</dt>
-                    <dd>{benchmarkSummary.elapsed_s.toFixed(2)} s</dd>
+                    <dd>{benchmarkSummary.elapsed_s.toFixed(1)} s</dd>
                   </div>
                 </dl>
 
-                <table className={styles.stage4Table} aria-label="Benchmark Comparison Table">
+                <table className={styles.stage4Table} aria-label="Benchmark comparison">
                   <thead>
                     <tr>
-                      <th>Defense Model</th>
-                      <th>Attack Pass Rate</th>
-                      <th>Status</th>
+                      <th>Attacked Shop B…</th>
+                      <th>Under attack</th>
+                      <th>No attack</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td>Naive Review Count</td>
-                      <td>{(benchmarkSummary.naive_pass_rate * 100).toFixed(1)}%</td>
-                      <td><span className={styles.failBadge}>Vulnerable</span></td>
-                    </tr>
-                    <tr>
-                      <td>Unweighted PageRank</td>
-                      <td>{(benchmarkSummary.pagerank_pass_rate * 100).toFixed(1)}%</td>
-                      <td><span className={styles.failBadge}>Vulnerable</span></td>
-                    </tr>
-                    <tr>
-                      <td><strong>Aegis sybil-v2</strong></td>
-                      <td><strong>{(benchmarkSummary.aegis_pass_rate * 100).toFixed(1)}%</strong></td>
-                      <td><span className={styles.passBadge}>Robust</span></td>
-                    </tr>
+                    {([
+                      ["outranks A on recommendation count", benchmarkSummary.count_beats_a_rate, benchmarkSummary.reference.count_beats_a],
+                      ["outranks A on ordinary PageRank", benchmarkSummary.pagerank_beats_a_rate, benchmarkSummary.reference.pagerank_beats_a],
+                      ["outranks A on seeded support", benchmarkSummary.support_beats_a_rate, benchmarkSummary.reference.support_beats_a],
+                      ["outranks A on the full score", benchmarkSummary.score_beats_a_rate, benchmarkSummary.reference.score_beats_a],
+                      ["passes the graph policy (no ASK)", benchmarkSummary.policy_pass_rate, benchmarkSummary.reference.passed_policy],
+                    ] as const).map(([label, rate, reference]) => (
+                      <tr key={label}>
+                        <td>{label}</td>
+                        <td>{(rate * 100).toFixed(1)}%</td>
+                        <td>{reference ? "yes" : "no"}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
+                <p className={styles.stage4Meta}>
+                  Policy pass rate with weight ablations:{" "}
+                  {Object.entries(benchmarkSummary.ablation_policy_pass_rates)
+                    .map(([name, rate]) => `${name.replaceAll("_", " ")} ${(rate * 100).toFixed(1)}%`)
+                    .join(" · ")}
+                  . Real-site controls passing the policy: {(benchmarkSummary.control_policy_pass_rate * 100).toFixed(1)}%.
+                </p>
+                <p className={styles.stage4Meta}>{benchmarkSummary.disclosure}</p>
 
                 <details className={styles.formula}>
-                  <summary>Inspect scenario samples ({benchmarkSummary.rows.length} rows)</summary>
+                  <summary>Inspect scenarios ({benchmarkSummary.rows.length + benchmarkSummary.controls.length} rows)</summary>
                   <div style={{ maxHeight: "160px", overflowY: "auto", marginTop: "8px" }}>
                     <table className={styles.stage4Table}>
                       <thead>
@@ -1077,22 +1074,24 @@ export function SybilReadiness() {
                           <th>Family</th>
                           <th>Size</th>
                           <th>Cr</th>
-                          <th>Naive</th>
+                          <th>Count</th>
                           <th>PR</th>
-                          <th>Aegis</th>
+                          <th>Support</th>
+                          <th>R</th>
+                          <th>Policy</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {benchmarkSummary.rows.map((r, i) => (
+                        {[...benchmarkSummary.rows, ...benchmarkSummary.controls].map((r, i) => (
                           <tr key={i}>
                             <td>{r.family}</td>
                             <td>{r.size}</td>
-                            <td>{r.credits}</td>
-                            <td>{r.raw_rank === 1 ? "Pass" : "Def"}</td>
-                            <td>{r.raw_rank === 1 ? "Pass" : "Def"}</td>
-                            <td className={r.passed_policy ? styles.failBadge : styles.passBadge}>
-                              {r.passed_policy ? "Pass" : "Def"}
-                            </td>
+                            <td>{r.credits_used}</td>
+                            <td>{r.count_beats_a ? "beats A" : "–"}</td>
+                            <td>{r.pagerank_beats_a ? "beats A" : "–"}</td>
+                            <td>{r.support_beats_a ? "beats A" : "–"}</td>
+                            <td>{r.converged ? r.total_robustness.toFixed(1) : "unavailable"}</td>
+                            <td>{r.passed_policy ? "pass" : "ASK"}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1102,7 +1101,7 @@ export function SybilReadiness() {
               </>
             ) : (
               <p className={styles.stage4Meta}>
-                Compare Naive Review Counts and Unweighted PageRank against Aegis sybil-v2 resilience across 210 adversarial configurations.
+                Compares recommendation counts, ordinary PageRank, seeded support and the full score against the graph policy on the same generated attacks.
               </p>
             )}
 
@@ -1119,7 +1118,7 @@ export function SybilReadiness() {
                 disabled={busy || stage4Busy !== null}
                 onClick={() => void runBenchmark(false)}
               >
-                {stage4Busy === "benchmark-full" ? "Running full matrix…" : "Run Full Matrix (210 scenarios)"}
+                {stage4Busy === "benchmark-full" ? "Running full matrix (several minutes the first time)…" : "Run Full Matrix (210 scenarios)"}
               </button>
             </div>
           </div>

@@ -286,6 +286,8 @@ class SybilGraphEvidence(BaseModel):
 
 
 class SybilCutEdge(BaseModel):
+    """A link entering a bottleneck website from the anchor side (drawn on the graph)."""
+
     model_config = ConfigDict(frozen=True, extra="forbid")
     source: str
     target: str
@@ -298,14 +300,17 @@ class SybilBottleneckWitness(BaseModel):
     shop: Literal["A", "B"]
     subgraph_nodes: int = Field(ge=0, le=2500)
     subgraph_edges: int = Field(ge=0)
+    complete: bool  # the subgraph holds every site on an anchor -> recommender path
     max_flow: float = Field(ge=0)
-    cut_size: int = Field(ge=0)
+    cut_size: int = Field(ge=0)  # websites in the minimum cut; always equals max_flow
     cut_edges: tuple[SybilCutEdge, ...]
     bottleneck_nodes: tuple[str, ...]
     elapsed_ms: float = Field(ge=0)
     disclosure: str = (
-        "Exact min-cut bottleneck computed on a bounded 2,500-node explanation "
-        "subgraph with unit capacities."
+        "Minimum website cut between the anchors and the shop's recommenders, with unit "
+        "website capacities and one unit per anchor, on an explanation subgraph of at most "
+        "2,500 websites on the shortest anchor-to-recommender paths. Exact for the whole "
+        "graph only when the subgraph is complete."
     )
 
 
@@ -335,40 +340,64 @@ class SybilAttackSearchResult(BaseModel):
     target_shop: Literal["A", "B"]
     proposals_evaluated: int = Field(ge=0)
     elapsed_s: float = Field(ge=0)
-    stopped_reason: Literal["iteration_limit", "time_limit", "budget_exhausted"]
+    stopped_reason: Literal["iteration_limit", "time_limit", "space_exhausted"]
     best_score: float = Field(ge=0, le=100)
+    best_passed_policy: bool  # the strongest attack found passes the graph policy
     best_proposal: SybilAttackSearchProposal
     best_scenario: SybilScenarioCreate
-    best_revision_id: str
-    history: tuple[SybilAttackSearchProposal, ...]
+    best_revision_id: str = Field(pattern=r"^[a-f0-9]{64}$")
+    history: tuple[SybilAttackSearchProposal, ...]  # each improvement on the best so far
+    disclosure: str = (
+        "Bounded heuristic search (at most 500 proposals / 60 s, fixed seed, no LLM, "
+        "25-credit Challenge budget). The strongest attack found, not a proven worst case."
+    )
 
 
 class SybilBenchmarkRow(BaseModel):
+    """One scenario. Shop B is the attacked (or control) shop; Shop A is the real baseline."""
+
     model_config = ConfigDict(frozen=True, extra="forbid", allow_inf_nan=False)
     family: str
     size: int
-    credits: int
+    credits: int  # credit level of the matrix cell
+    credits_used: int
     seed: int
-    raw_count: int
-    raw_rank: float
-    support: float
-    withdrawal: float
-    connection: float
-    total_robustness: float
-    passed_policy: bool
+    converged: bool
+    recommendation_count: int = 0
+    ordinary_pagerank: float = 0
+    trust_weighted_support: float = 0
+    support: float = 0
+    breadth: float = 0
+    withdrawal: float = 0
+    connection: float = 0
+    total_robustness: float = 0
+    count_beats_a: bool = False
+    pagerank_beats_a: bool = False
+    support_beats_a: bool = False
+    score_beats_a: bool = False
+    passed_policy: bool = False
 
 
 class SybilBenchmarkSummary(BaseModel):
+    """Rates are over converged scenarios; `*_beats_a` means Shop B outranks Shop A."""
+
     model_config = ConfigDict(frozen=True, extra="forbid", allow_inf_nan=False)
-    total_scenarios: int = 210
-    attacks_tested: int = 180
-    controls_tested: int = 30
-    naive_pass_rate: float = Field(ge=0, le=1)
-    pagerank_pass_rate: float = Field(ge=0, le=1)
-    aegis_pass_rate: float = Field(ge=0, le=1)
-    clean_pass_rate: float = Field(ge=0, le=1)
+    total_scenarios: int
+    attacks_tested: int
+    controls_tested: int
+    unavailable: int
+    count_beats_a_rate: float = Field(ge=0, le=1)
+    pagerank_beats_a_rate: float = Field(ge=0, le=1)
+    support_beats_a_rate: float = Field(ge=0, le=1)
+    score_beats_a_rate: float = Field(ge=0, le=1)
+    policy_pass_rate: float = Field(ge=0, le=1)
+    ablation_policy_pass_rates: dict[str, float]
+    control_policy_pass_rate: float = Field(ge=0, le=1)
     rows: tuple[SybilBenchmarkRow, ...]
+    controls: tuple[SybilBenchmarkRow, ...]
+    reference: SybilBenchmarkRow  # no attack: where Shop B already stands against Shop A
     elapsed_s: float = Field(ge=0)
+    disclosure: str
 
 
 TrapType = Literal[
