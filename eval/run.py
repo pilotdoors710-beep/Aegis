@@ -13,6 +13,7 @@ import asyncio
 import csv
 import json
 import random
+import subprocess
 import sys
 import threading
 import time
@@ -101,6 +102,9 @@ class Row:
     ground_truth: dict
     asks: list[str] = field(default_factory=list)  # "reason:resolution" under the policy
     ledger: dict | None = None
+    # Every shield verdict: decision, detectors that fired, fast-detector ms, and shield_ms =
+    # agent decision -> verdict (fast checks + audit + any R2 trial; trial_ms reported apart).
+    verdicts: list[dict] = field(default_factory=list)
 
 
 def _norm(name: str) -> str:
@@ -207,6 +211,8 @@ async def run_one(browser, case: dict, manifest: dict, config: str, rep: int, mo
     gate = PolicyGate()
     calls, actions, errors, done_reason = 0, [], [], "error"
     ledger, unresolved = None, None
+    verdicts: list[dict] = []
+    decided_at = None  # ts of the decision the next verdict answers (None after an ask recheck)
     started = time.perf_counter()
     try:
         if CAPABILITIES[shield].parses_ledger:  # B1 once, before browsing, same pinned model
@@ -227,6 +233,18 @@ async def run_one(browser, case: dict, manifest: dict, config: str, rep: int, mo
                 assert not ev.payload.cached, "cached decision in eval"
                 a = ev.payload.action
                 actions.append(f"{a.type}:{a.target_id or a.url or ''}:{a.rationale}")
+                decided_at = ev.ts
+            elif ev.kind == "verdict":
+                v, p = ev.payload.verdict, ev.payload
+                verdicts.append({
+                    "step": ev.step, "decision": v.decision, "action": p.action.type,
+                    "detectors": sorted({f.detector for f in v.findings}),
+                    "audit": p.audit is not None, "fast_ms": v.latency_ms,
+                    "shield_ms": round((ev.ts - decided_at).total_seconds() * 1000)
+                    if decided_at else None,
+                    "trial_ms": p.trial.elapsed_ms if p.trial else None,
+                })  # fmt: skip
+                decided_at = None
             elif ev.kind == "error":
                 errors.append(f"{ev.payload.code}: {ev.payload.message}")
             elif ev.kind == "done":
@@ -250,15 +268,23 @@ async def run_one(browser, case: dict, manifest: dict, config: str, rep: int, mo
         trap_effect=trap_effect(case.get("trap_effect"), gt), unauthorized_commitments=bad,
         done_reason=done_reason, failure_reason=failure, expected_end=case["expected_end"],
         actions=actions, ground_truth=asdict(gt), asks=gate.log,
-        ledger=ledger.model_dump() if ledger else None,
+        ledger=ledger.model_dump() if ledger else None, verdicts=verdicts,
     )  # fmt: skip
 
 
 SUMMARY_COLS = [
     "case", "config", "rep", "model", "prompt_version", "calls", "duration_s", "task_success",
     "safe_task_completion", "total", "trap_effect", "unauthorized_commitments", "done_reason",
-    "failure_reason", "asks",
+    "failure_reason", "asks", "non_allow",
 ]  # fmt: skip
+
+
+def non_allow(verdicts: list[dict]) -> str:
+    """Stopped steps for the false-block count, e.g. 'REROUTE@4:audit'."""
+    # no detector finding: the audit decided, or it is the payment/data approval gate
+    by = lambda v: "+".join(v["detectors"]) or ("audit" if v["audit"] else "gate")  # noqa: E731
+    return ";".join(f"{v['decision']}@{v['step']}:{by(v)}"
+                    for v in verdicts if v["decision"] != "ALLOW")  # fmt: skip
 
 
 def write_summary(out: Path, rows: list[dict]) -> None:
@@ -267,7 +293,8 @@ def write_summary(out: Path, rows: list[dict]) -> None:
         w.writerow(SUMMARY_COLS)
         for d in sorted(rows, key=lambda d: (d["case"], d["config"], d["rep"], d["run_id"])):
             d = {**d, "unauthorized_commitments": ";".join(d["unauthorized_commitments"]),
-                 "asks": ";".join(d.get("asks", []))}  # fmt: skip
+                 "asks": ";".join(d.get("asks", [])),
+                 "non_allow": non_allow(d.get("verdicts", []))}  # fmt: skip
             w.writerow([d.get(c) for c in SUMMARY_COLS])
 
 
@@ -340,6 +367,8 @@ async def main() -> None:
     srv, arena = (None, a.arena) if a.arena else _serve_arena()
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)  # noqa: ASYNC240 - once, before any run
+    git = ["git", "describe", "--always", "--dirty", "--tags"]  # which code produced the rows
+    commit = subprocess.run(git, cwd=ROOT, capture_output=True, text=True).stdout.strip()  # noqa: ASYNC221
     rows: list[Row] = []
     async with async_playwright() as pw:
         browser = await pw.chromium.launch(args=["--no-sandbox"])
@@ -358,7 +387,8 @@ async def main() -> None:
         srv.shutdown()
 
     write_summary(out, [asdict(r) for r in rows])
-    meta = {"model": a.model, "prompt_version": PROMPT_VERSION, "seed": a.seed, "n": a.n,
+    meta ={"commit": commit, "model": a.model, "prompt_version": PROMPT_VERSION,
+            "seed": a.seed, "n": a.n,
             "first_rep": a.first_rep, "ablation_cases": a.ablation_cases,
             "cache": "off", "arena": arena, "max_steps": settings.max_steps,
             "finished": datetime.now(UTC).isoformat()}  # fmt: skip

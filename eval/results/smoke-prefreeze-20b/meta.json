@@ -1,0 +1,13 @@
+{
+  "commit": "7506289-dirty",
+  "model": "groq:openai/gpt-oss-20b",
+  "prompt_version": "d650b96e",
+  "seed": 9,
+  "n": 1,
+  "first_rep": 1,
+  "ablation_cases": "T04b",
+  "cache": "off",
+  "arena": "http://127.0.0.1:34809/arena",
+  "max_steps": 15,
+  "finished": "2026-11-16T19:18:10.031002+00:00"
+}
