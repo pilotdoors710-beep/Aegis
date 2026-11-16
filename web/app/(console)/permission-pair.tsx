@@ -72,7 +72,7 @@ export function PermissionPair({ summary, finished }: { summary: Schema["RunSumm
   return <section className="permission-pair-section" aria-labelledby="permission-pair-title">
     <div className="section-heading">
       <h2 id="permission-pair-title">Change permission, then start a new run</h2>
-      <span>A fresh ledger is written for the new run. The completed run is never edited.</span>
+      <span>Aegis writes a fresh ledger for the new run and never edits the finished one.</span>
     </div>
     {pairPreset && <div className="permission-pair-actions">
       <button className="primary-button" disabled={launching} aria-label={`Start a fresh run: ${pairPreset.title}`} onClick={launchPair}>

@@ -6,7 +6,7 @@ export function EvidenceCards({ events }: { events: RunEvent[] }) {
   const cards = useMemo(() => auditEvidence(events).filter(({ check }) => check.status !== "ok"), [events]);
   if (!cards.length) return null;
   const label = (status: string) => status === "permitted" ? "Permitted by your request" : status === "uncertain" ? "Needs a human decision" : "Outside your request";
-  return <section className="evidence-section" aria-label="Permission and checkout evidence"><div className="section-heading"><h2>From permission to verified result</h2><span>Each row is one constraint from the ledger</span></div>{cards.map(({ key, event, check, correction, correctionExecuted, recheck, recheckStep }) => <article key={key} className={`evidence-card check-${check.status}`}>
+  return <section className="evidence-section" aria-label="Permission and checkout evidence"><div className="section-heading"><h2>How each permission was checked</h2><span>One card per ledger constraint</span></div>{cards.map(({ key, event, check, correction, correctionExecuted, recheck, recheckStep }) => <article key={key} className={`evidence-card check-${check.status}`}>
     <div className="evidence-head"><h3>{check.constraint.replaceAll("_", " ")}</h3><strong className={`chip chip-check-${check.status}`}>{label(check.status)}</strong><span>Step {event.step}</span></div>
     <ol className="evidence-chain">
       <li><h4>Your permission</h4><p>{check.ledger_value}</p></li>
@@ -14,7 +14,7 @@ export function EvidenceCards({ events }: { events: RunEvent[] }) {
       <li><h4>Decision</h4><p><strong className={`chip chip-${event.payload.verdict.decision.toLowerCase()}`}>{event.payload.verdict.decision}</strong></p></li>
       {check.status !== "permitted" && <>
         <li><h4>Agent correction</h4><p>{correction ? `${correctionExecuted ? "Executed" : "Proposed"}: ${correction.payload.action.rationale}` : "No correction recorded yet"}</p></li>
-        <li><h4>Recheck</h4><p>{recheck ? `Step ${recheckStep}: ${recheck.status} — ${recheck.evidence}` : recheckStep != null ? `Step ${recheckStep}: this constraint was not included in the linked audit` : "No linked recheck recorded yet"}</p></li>
+        <li><h4>Recheck</h4><p>{recheck ? `Step ${recheckStep}: ${recheck.status} · ${recheck.evidence}` : recheckStep != null ? `Step ${recheckStep}: this constraint was not included in the linked audit` : "No linked recheck recorded yet"}</p></li>
       </>}
     </ol>
   </article>)}</section>;

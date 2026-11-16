@@ -47,7 +47,7 @@ function OwnKeyPanel({ provider, model, apiKey, onChange }: { provider: Provider
       <label>API key<input type="password" value={apiKey} maxLength={300} autoComplete="off" spellCheck={false} onChange={(e) => onChange({ apiKey: e.target.value })} /></label>
       <button type="button" className="secondary-button" disabled={!apiKey.trim() && !model} onClick={() => onChange({ model: "", apiKey: "" })}>Clear</button>
     </div>
-    <p className="note">Sent to the Aegis server for this run only and never stored. It powers both agents and the ledger, so both sides use the same model. Runs with your key are labelled and excluded from the published evaluation. Forgotten when you leave or reload.</p>
+    <p className="note">Sent to the Aegis server for this run only and never stored. It powers both agents and the ledger, so both sides use the same model. Runs with your key are labelled and excluded from the published evaluation. The page forgets the key when you leave or reload.</p>
   </div>;
 }
 
@@ -171,7 +171,7 @@ export default function ConsolePage() {
     <section className="console-hero">
       <div className="hero-copy">
         <span className="label">Runtime shield for browser agents</span>
-        <h1 id="console-heading" tabIndex={-1}>Same agent. One runs with Aegis.</h1>
+        <h1 id="console-heading" tabIndex={-1}>The same agent, with and without Aegis</h1>
         <p className="lede">Both agents get the same task and the same trapped shop. Aegis checks every action before it runs and compares the checkout with what you asked for.</p>
         {featured && <div className="hero-run">
           <p><span className="preset-code">{tags(featured).join(" ")}</span>{featured.description}</p>
@@ -195,7 +195,7 @@ export default function ConsolePage() {
 
     {presets.length > 0 && <div className="bento">
       {headline.length > 0 && <section className="tile tile-wide">
-        <span className="label">Key traps</span>
+        <span className="label">Main traps</span>
         <h2>What the unprotected agent falls for</h2>
         <p className="tile-lede">Each runs the same purchase twice, once unprotected and once with Aegis.</p>
         <div className="pair">{headline.map((preset) => <div key={preset.id}>
@@ -210,7 +210,7 @@ export default function ConsolePage() {
         <RunStats runs={runs} />
         {experimental.length > 0 && <section className="tile">
           <span className="label">Experimental</span>
-          <h2>Both answers, tried in copies</h2>
+          <h2>Both checkbox states, tried in copies</h2>
           <ul className="options">{experimental.map(option)}</ul>
         </section>}
       </div>

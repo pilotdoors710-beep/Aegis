@@ -7,8 +7,8 @@ export const approvalLabels: Record<Schema["AskPayload"]["status"], string> = {
   pending: "Awaiting your decision",
   approved: "Approved by a person",
   denied: "Denied",
-  timed_out: "Timed out — not approved",
-  auto_approved_demo: "Simulated demo approval — not human consent",
+  timed_out: "Timed out · not approved",
+  auto_approved_demo: "Simulated demo approval · not human consent",
 };
 
 export function latestAsks(events: RunEvent[]): AskEvent[] {

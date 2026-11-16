@@ -178,7 +178,7 @@ function EdgeInspector({
         </div>
         <div>
           <dt>Sensitivity testing</dt>
-          <dd>Evaluated in leave-one-out steady-state flow if in top 5 candidates</dd>
+          <dd>Cut with the other top 12 outside sources if it is one of them</dd>
         </div>
       </dl>
     </div>
@@ -772,7 +772,7 @@ export function SybilReadiness() {
                   ? `Converged in ${assessment.iterations} iterations (${assessment.elapsed_ms?.toFixed(0)} ms).`
                   : assessment?.reason ?? "Create a revision to calculate evidence."}
               </p>
-              <p>Select any node or edge in the graph or table to view specific topology details.</p>
+              <p>Click a node or edge in the graph to see its details.</p>
               <details className={styles.formula}>
                 <summary>Inspect the score formula</summary>
                 <p>
@@ -786,7 +786,7 @@ export function SybilReadiness() {
                   <dt>L · Anchor withdrawal</dt>
                   <dd>Support retained without the strongest starting source.</dd>
                   <dt>E · Tested connections</dt>
-                  <dd>Support retained after each of up to five influential links is removed.</dd>
+                  <dd>Support left after cutting every link from the 12 outside websites that send the most flow, all at once.</dd>
                 </dl>
                 <p>Formula sybil-v2 · restart 0.15.</p>
               </details>
@@ -816,8 +816,8 @@ export function SybilReadiness() {
           </button>
           <p id="comparison-reason">
             {assessment?.status === "complete" && assessment.converged
-              ? "Launch paired browser comparison with this frozen graph revision."
-              : "Complete, converged assessment required to run agent comparison."}
+              ? "Runs both agents against this frozen graph revision."
+              : "The comparison needs a complete, converged assessment first."}
           </p>
         </div>
       </section>

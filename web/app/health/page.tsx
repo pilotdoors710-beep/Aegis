@@ -25,7 +25,7 @@ export default function Home() {
   }, []);
 
   return (
-    <AppShell><header className="page-head"><span className="label">Infrastructure</span>
+    <AppShell><header className="page-head"><span className="label">Health</span>
       <h1>Infrastructure check</h1>
       <p className="lede">Server: {API_URL}</p></header>
       {error && <p role="alert" className="error-message">Server unreachable: {error}</p>}

@@ -70,7 +70,7 @@ Day 3 console and arena:
 - Outcome cards group proposed, approved, and executed commitments, show stop reasons and totals, and mark commitments unique to one side. Incomplete runs are never described as safe completion.
 - Gift wrap is available on checkout in all configurations via the existing `gift-wrap` hook. It starts unchecked, costs ₹49 once, persists across pages, appears in the receipt and `arena-outcome.addons`, and never creates a recurring term. Clean lamp plus gift wrap totals ₹1,348. Its label matches Dev A's R1 fixture, “Gift wrap · ₹49”.
 - Finished permission-pair runs offer a fresh counterpart run using `Preset.pair_of`; they never mutate the completed ledger. When a completed counterpart exists in the latest stored runs, the page compares both ledgers and shielded outcomes and links to the counterpart with a visible replay label.
-- Auto-approved presets use the exact label “Simulated demo approval — not human consent”. Cached decisions, samples and replays retain their separate labels.
+- Auto-approved presets use the exact label “Simulated demo approval · not human consent”. Cached decisions, samples and replays retain their separate labels.
 
 Checks: `pnpm typecheck`, `pnpm lint`, `pnpm build`, and `node --test lib/events.test.mjs lib/run-evidence.test.mjs lib/verify-day1.test.mjs`. Generated `lib/api-types.ts` must come from the server OpenAPI; never edit it manually.
 
@@ -119,7 +119,7 @@ Human-only release checks (these require the deployed services, provider quota o
 3. At 1280×720, run `main-demo` three times with a stopwatch. Each paired run must finish under 90 seconds, keep equal pane sizes, avoid page-level horizontal scrolling and make the outcome difference readable within five seconds.
 4. On `/stats`, check the current label (`PILOT — not a result` or `FINAL`), model, N, counts/denominators and three chosen values against the published summary CSV.
 5. Open the public web URL over phone mobile data. Run `pnpm verify:day1 --web https://YOUR-WEB-HOST --server https://YOUR-SERVER-HOST`, then complete one preset from the phone/hotspot path.
-6. Capture screenshots of `SAMPLE DATA`, `REPLAY`, `Replayed decision`, and `Simulated demo approval — not human consent`. File any missing or misleading label as P0.
+6. Capture screenshots of `SAMPLE DATA`, `REPLAY`, `Replayed decision`, and `Simulated demo approval · not human consent`. File any missing or misleading label as P0.
 7. Run the complete two-minute script with Dev A, record segment times, then make the labelled backup recording after the final deployment.
 
 
