@@ -1,0 +1,3 @@
+# Sybil v2: cut the top 12 outside sources together, and require L >= 0.5
+
+`sybil-v1` measured connection resilience (E) by removing five single links one at a time. On 16 Nov, bought Bridges pushed an attacked Shop's E to 1.0 and its R past the policy, and Aegis bought from it. `sybil-v2` removes all links from the 12 highest-flow outside websites at once; 12 is the 25-credit budget divided by the 2-credit Bridge cost. The Graph policy also requires anchor withdrawal resilience L >= 0.5. Both numbers were set after that attack, and E is not a worst-case guarantee. v1 records still load for Replay.
