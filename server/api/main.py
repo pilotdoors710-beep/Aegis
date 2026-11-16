@@ -14,6 +14,7 @@ from contextlib import asynccontextmanager, contextmanager
 from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 from urllib.parse import urlencode, urlsplit
 
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -59,6 +60,10 @@ from aegis.schemas import (
     ScanReport,
     ScanRequest,
     SybilAssessmentRecord,
+    SybilAttackSearchRequest,
+    SybilAttackSearchResult,
+    SybilBenchmarkSummary,
+    SybilBottleneckWitness,
     SybilCounterfactualResult,
     SybilDatasetStatus,
     SybilGenerate,
@@ -70,15 +75,20 @@ from aegis.schemas import (
 )
 from aegis.security import ScanGuard, arena_origin, validate_scan_url, validate_url
 from aegis.snapshot import screenshot_b64, take_snapshot
+from aegis.sybil_benchmark import run_structural_benchmark
 from aegis.sybil_dataset import load_dataset
+from aegis.sybil_maxflow import compute_bottleneck_witness
 from aegis.sybil_runtime import (
     AssessmentNotReady,
     PersistenceFailed,
     RevisionNotFound,
     RevisionStale,
     SybilRuntime,
+    assessment_identity,
+    graph_evidence,
 )
 from aegis.sybil_scenario import generate
+from aegis.sybil_search import search_adversarial_attack
 from aegis.trials import run_trials
 
 log = logging.getLogger("aegis.api")
@@ -274,6 +284,46 @@ async def create_sybil_counterfactual(
         baseline = await _sybil.revision(dataset, revision_id)
         proposed = _sybil.create(dataset, body)
     return await _sybil.counterfactual(str(settings.sybil_data_dir.resolve()), baseline, proposed)
+
+
+@app.post(
+    "/sybil/scenarios/{revision_id}/bottleneck",
+    response_model=SybilBottleneckWitness,
+)
+async def get_sybil_bottleneck(revision_id: str, shop: Literal["A", "B"] = Query("B")):
+    dataset = _sybil_dataset()
+    scenario = await _sybil_scenario(revision_id, dataset)
+    return compute_bottleneck_witness(dataset.base, scenario, shop)
+
+
+@app.post(
+    "/sybil/datasets/{dataset_id}/search",
+    response_model=SybilAttackSearchResult,
+)
+async def run_sybil_attack_search(
+    dataset_id: str,
+    body: SybilAttackSearchRequest | None = None,
+):
+    dataset = _sybil_dataset()
+    if dataset.base.dataset_id != dataset_id:
+        raise HTTPException(404, "Sybil dataset not found")
+    req = body or SybilAttackSearchRequest()
+    result = search_adversarial_attack(dataset.base, req)
+    try:
+        scenario = _sybil.create(dataset, result.best_scenario)
+        await _bus.store.save_sybil_scenario(scenario.revision)
+    except Exception as error:
+        log.warning("saving best searched scenario failed: %s", error)
+    return result
+
+
+@app.get(
+    "/sybil/benchmark",
+    response_model=SybilBenchmarkSummary,
+)
+async def get_sybil_benchmark(sample: bool = Query(False)):
+    dataset = _sybil_dataset()
+    return run_structural_benchmark(dataset.base, sample_only=sample)
 
 
 @app.get("/healthz")

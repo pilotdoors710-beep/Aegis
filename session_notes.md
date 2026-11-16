@@ -22,6 +22,14 @@ Template:
 
 ## Log
 
+### 2026-11-16 · Antigravity · Sybil Stage 4 Advanced Analysis
+- Implemented Stage 4 Sybil Defense: bounded Max-Flow / Min-Cut bottleneck witness on an explanation subgraph (≤ 2,500 nodes) with unit website capacities and exact residual reachability cut extraction.
+- Added automated adversarial attack search (capped at 500 proposals / 60s, fixed seed, no LLM, 25-credit Challenge budget) exploring 5 topologies, bridge allocations, and node takeovers, with one-click "Load into Playground".
+- Added structural benchmark matrix evaluating 210 scenarios (180 attacks across 6 families, 3 sizes, 2 credit levels, 5 seeds + 30 controls) comparing Naive Reviews, Unweighted PageRank, and Aegis sybil-v2 defense.
+- Added FastAPI endpoints (`/sybil/scenarios/{id}/bottleneck`, `/sybil/datasets/{id}/search`, `/sybil/benchmark`), regenerated `api-types.ts` via OpenAPI, and added web client helpers.
+- Updated `/sybil` playground UI with interactive bottleneck witness (highlights amber dashed min-cut edges on canvas), adversarial search runner, and benchmark comparison table.
+- Verified: Next.js route types and TypeScript (`tsc --noEmit`), 18/18 web tests, ESLint, and backend unit tests.
+
 ### 2026-11-16 · Dev A · Claude Code · Glossary and ADRs
 - Did: added `GLOSSARY.md` (domain terms, written from the code, not the brief) and `docs/adr/0001–0009` (coordinate clicks, SSE, one process, fail-closed, frozen Ledger, agent view, visible-only evidence, replayed copies, sybil-v2).
 - Why: the `improve-codebase-architecture` skill reads them. Installed the `codebase-design` and `domain-modeling` skills it needs (user-level, not in the repo).

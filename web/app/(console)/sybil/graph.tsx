@@ -82,6 +82,7 @@ export function SybilGraph({
   view,
   selectedNodeId,
   selectedEdge,
+  witnessCutEdges,
   onSelectNode,
   onSelectEdge,
   onClearSelection,
@@ -89,6 +90,7 @@ export function SybilGraph({
   view: GraphView;
   selectedNodeId: string | null;
   selectedEdge: SelectedEdge | null;
+  witnessCutEdges?: Array<{ source: string; target: string }>;
   onSelectNode: (id: string) => void;
   onSelectEdge: (edge: SelectedEdge) => void;
   onClearSelection: () => void;
@@ -107,6 +109,7 @@ export function SybilGraph({
     goal: { k: 1, x: 0, y: 0 } as View,
     selectedNodeId,
     selectedEdge,
+    witnessCutEdges: witnessCutEdges ?? [],
     hover: null as Node | null,
     dirty: true,
     reduced: false,
@@ -123,8 +126,8 @@ export function SybilGraph({
   }, [onSelectNode, onSelectEdge, onClearSelection]);
 
   useEffect(() => {
-    Object.assign(state.current, { selectedNodeId, selectedEdge, dirty: true });
-  }, [selectedNodeId, selectedEdge]);
+    Object.assign(state.current, { selectedNodeId, selectedEdge, witnessCutEdges: witnessCutEdges ?? [], dirty: true });
+  }, [selectedNodeId, selectedEdge, witnessCutEdges]);
 
   // Physics: rebuilt whenever the server returns a new graph view.
   useEffect(() => {
@@ -235,6 +238,26 @@ export function SybilGraph({
           ctx.lineWidth = 3 * lineScale;
           ctx.stroke();
         }
+      }
+      if (s.witnessCutEdges && s.witnessCutEdges.length > 0) {
+        ctx.beginPath();
+        for (const cut of s.witnessCutEdges) {
+          const l = s.links.find(
+            (link) =>
+              (link.source.id === cut.source && link.target.id === cut.target) ||
+              (link.source.id === cut.target && link.target.id === cut.source)
+          );
+          if (l) {
+            ctx.moveTo(l.source.x!, l.source.y!);
+            ctx.lineTo(l.target.x!, l.target.y!);
+          }
+        }
+        ctx.setLineDash([4, 3]);
+        ctx.strokeStyle = "#f59e0b"; // amber min-cut highlight
+        ctx.globalAlpha = 1.0;
+        ctx.lineWidth = 3.5 * lineScale;
+        ctx.stroke();
+        ctx.setLineDash([]);
       }
       for (const n of s.nodes) {
         const r = RADIUS[n.kind];
@@ -507,7 +530,7 @@ export function SybilGraph({
         </button>
       </div>
       <p className={styles.graphLegend}>
-        ◇ trusted anchor · ● real website · <span>●</span> attack cluster · <span style={{ color: COLORS.bridge }}>---</span> bridge link · <span style={{ color: COLORS.shopA }}>Shop A</span> · <span style={{ color: COLORS.shopB }}>Shop B</span> · scroll to zoom, drag to pan
+        ◇ trusted anchor · ● real website · <span>●</span> attack cluster · <span style={{ color: COLORS.bridge }}>---</span> bridge link · <span style={{ color: "#f59e0b" }}>---</span> min-cut bottleneck · <span style={{ color: COLORS.shopA }}>Shop A</span> · <span style={{ color: COLORS.shopB }}>Shop B</span> · scroll to zoom, drag to pan
       </p>
     </div>
   );

@@ -282,6 +282,94 @@ class SybilGraphEvidence(BaseModel):
         )
 
 
+# --- Stage 4: Advanced Analysis Schemas -----------------------------------------------------
+
+
+class SybilCutEdge(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    source: str
+    target: str
+    capacity: float = 1.0
+
+
+class SybilBottleneckWitness(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid", allow_inf_nan=False)
+    revision_id: str = Field(pattern=r"^[a-f0-9]{64}$")
+    shop: Literal["A", "B"]
+    subgraph_nodes: int = Field(ge=0, le=2500)
+    subgraph_edges: int = Field(ge=0)
+    max_flow: float = Field(ge=0)
+    cut_size: int = Field(ge=0)
+    cut_edges: tuple[SybilCutEdge, ...]
+    bottleneck_nodes: tuple[str, ...]
+    elapsed_ms: float = Field(ge=0)
+    disclosure: str = (
+        "Exact min-cut bottleneck computed on a bounded 2,500-node explanation subgraph with unit capacities."
+    )
+
+
+class SybilAttackSearchProposal(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid", allow_inf_nan=False)
+    iteration: int = Field(ge=0)
+    pattern: str
+    count: int = Field(ge=0)
+    credits: int = Field(ge=0, le=25)
+    score: float = Field(ge=0, le=100)
+    support: float = Field(ge=0, le=1)
+    withdrawal: float = Field(ge=0, le=1)
+    connection: float = Field(ge=0, le=1)
+
+
+class SybilAttackSearchRequest(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid", allow_inf_nan=False)
+    target: Literal["A", "B"] = "B"
+    seed: int = Field(default=42, ge=0, le=2**32 - 1)
+    max_proposals: int = Field(default=500, ge=1, le=500)
+    max_seconds: float = Field(default=60.0, gt=0, le=60.0)
+
+
+class SybilAttackSearchResult(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid", allow_inf_nan=False)
+    dataset_id: str
+    target_shop: Literal["A", "B"]
+    proposals_evaluated: int = Field(ge=0)
+    elapsed_s: float = Field(ge=0)
+    stopped_reason: Literal["iteration_limit", "time_limit", "budget_exhausted"]
+    best_score: float = Field(ge=0, le=100)
+    best_proposal: SybilAttackSearchProposal
+    best_scenario: SybilScenarioCreate
+    best_revision_id: str
+    history: tuple[SybilAttackSearchProposal, ...]
+
+
+class SybilBenchmarkRow(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid", allow_inf_nan=False)
+    family: str
+    size: int
+    credits: int
+    seed: int
+    raw_count: int
+    raw_rank: float
+    support: float
+    withdrawal: float
+    connection: float
+    total_robustness: float
+    passed_policy: bool
+
+
+class SybilBenchmarkSummary(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid", allow_inf_nan=False)
+    total_scenarios: int = 210
+    attacks_tested: int = 180
+    controls_tested: int = 30
+    naive_pass_rate: float = Field(ge=0, le=1)
+    pagerank_pass_rate: float = Field(ge=0, le=1)
+    aegis_pass_rate: float = Field(ge=0, le=1)
+    clean_pass_rate: float = Field(ge=0, le=1)
+    rows: tuple[SybilBenchmarkRow, ...]
+    elapsed_s: float = Field(ge=0)
+
+
 TrapType = Literal[
     "hidden_info",
     "preselection",

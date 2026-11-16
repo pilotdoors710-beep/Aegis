@@ -140,6 +140,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sybil/scenarios/{revision_id}/bottleneck": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Get Sybil Bottleneck */
+        post: operations["get_sybil_bottleneck_sybil_scenarios__revision_id__bottleneck_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sybil/datasets/{dataset_id}/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run Sybil Attack Search */
+        post: operations["run_sybil_attack_search_sybil_datasets__dataset_id__search_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sybil/benchmark": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Sybil Benchmark */
+        get: operations["get_sybil_benchmark_sybil_benchmark_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -1304,6 +1355,160 @@ export interface components {
             /** Reason */
             reason?: string | null;
         };
+        /** SybilAttackSearchProposal */
+        SybilAttackSearchProposal: {
+            /** Iteration */
+            iteration: number;
+            /** Pattern */
+            pattern: string;
+            /** Count */
+            count: number;
+            /** Credits */
+            credits: number;
+            /** Score */
+            score: number;
+            /** Support */
+            support: number;
+            /** Withdrawal */
+            withdrawal: number;
+            /** Connection */
+            connection: number;
+        };
+        /** SybilAttackSearchRequest */
+        SybilAttackSearchRequest: {
+            /**
+             * Target
+             * @default B
+             * @enum {string}
+             */
+            target: "A" | "B";
+            /**
+             * Seed
+             * @default 42
+             */
+            seed: number;
+            /**
+             * Max Proposals
+             * @default 500
+             */
+            max_proposals: number;
+            /**
+             * Max Seconds
+             * @default 60
+             */
+            max_seconds: number;
+        };
+        /** SybilAttackSearchResult */
+        SybilAttackSearchResult: {
+            /** Dataset Id */
+            dataset_id: string;
+            /**
+             * Target Shop
+             * @enum {string}
+             */
+            target_shop: "A" | "B";
+            /** Proposals Evaluated */
+            proposals_evaluated: number;
+            /** Elapsed S */
+            elapsed_s: number;
+            /**
+             * Stopped Reason
+             * @enum {string}
+             */
+            stopped_reason: "iteration_limit" | "time_limit" | "budget_exhausted";
+            /** Best Score */
+            best_score: number;
+            best_proposal: components["schemas"]["SybilAttackSearchProposal"];
+            best_scenario: components["schemas"]["SybilScenarioCreate"];
+            /** Best Revision Id */
+            best_revision_id: string;
+            /** History */
+            history: components["schemas"]["SybilAttackSearchProposal"][];
+        };
+        /** SybilBenchmarkRow */
+        SybilBenchmarkRow: {
+            /** Family */
+            family: string;
+            /** Size */
+            size: number;
+            /** Credits */
+            credits: number;
+            /** Seed */
+            seed: number;
+            /** Raw Count */
+            raw_count: number;
+            /** Raw Rank */
+            raw_rank: number;
+            /** Support */
+            support: number;
+            /** Withdrawal */
+            withdrawal: number;
+            /** Connection */
+            connection: number;
+            /** Total Robustness */
+            total_robustness: number;
+            /** Passed Policy */
+            passed_policy: boolean;
+        };
+        /** SybilBenchmarkSummary */
+        SybilBenchmarkSummary: {
+            /**
+             * Total Scenarios
+             * @default 210
+             */
+            total_scenarios: number;
+            /**
+             * Attacks Tested
+             * @default 180
+             */
+            attacks_tested: number;
+            /**
+             * Controls Tested
+             * @default 30
+             */
+            controls_tested: number;
+            /** Naive Pass Rate */
+            naive_pass_rate: number;
+            /** Pagerank Pass Rate */
+            pagerank_pass_rate: number;
+            /** Aegis Pass Rate */
+            aegis_pass_rate: number;
+            /** Clean Pass Rate */
+            clean_pass_rate: number;
+            /** Rows */
+            rows: components["schemas"]["SybilBenchmarkRow"][];
+            /** Elapsed S */
+            elapsed_s: number;
+        };
+        /** SybilBottleneckWitness */
+        SybilBottleneckWitness: {
+            /** Revision Id */
+            revision_id: string;
+            /**
+             * Shop
+             * @enum {string}
+             */
+            shop: "A" | "B";
+            /** Subgraph Nodes */
+            subgraph_nodes: number;
+            /** Subgraph Edges */
+            subgraph_edges: number;
+            /** Max Flow */
+            max_flow: number;
+            /** Cut Size */
+            cut_size: number;
+            /** Cut Edges */
+            cut_edges: components["schemas"]["SybilCutEdge"][];
+            /** Bottleneck Nodes */
+            bottleneck_nodes: string[];
+            /** Elapsed Ms */
+            elapsed_ms: number;
+            /**
+             * Disclosure
+             * @default Exact min-cut bottleneck computed on a bounded 2,500-node explanation subgraph with unit capacities.
+             */
+            disclosure: string;
+        };
         /** SybilBudget */
         SybilBudget: {
             /** Injected Websites */
@@ -1362,6 +1567,18 @@ export interface components {
             } | null;
             /** Reason */
             reason?: string | null;
+        };
+        /** SybilCutEdge */
+        SybilCutEdge: {
+            /** Source */
+            source: string;
+            /** Target */
+            target: string;
+            /**
+             * Capacity
+             * @default 1
+             */
+            capacity: number;
         };
         /**
          * SybilDatasetStatus
@@ -2141,6 +2358,105 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SybilCounterfactualResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_sybil_bottleneck_sybil_scenarios__revision_id__bottleneck_post: {
+        parameters: {
+            query?: {
+                shop?: "A" | "B";
+            };
+            header?: never;
+            path: {
+                revision_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SybilBottleneckWitness"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_sybil_attack_search_sybil_datasets__dataset_id__search_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SybilAttackSearchRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SybilAttackSearchResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_sybil_benchmark_sybil_benchmark_get: {
+        parameters: {
+            query?: {
+                sample?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SybilBenchmarkSummary"];
                 };
             };
             /** @description Validation Error */

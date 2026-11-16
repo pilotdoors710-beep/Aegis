@@ -16,6 +16,9 @@ type GraphView = Schema["SybilGraphView"];
 type GraphNode = Schema["SybilGraphNode"];
 type Assessment = Schema["SybilAssessmentRecord"];
 type Counterfactual = Schema["SybilCounterfactualResult"];
+type BottleneckWitness = Schema["SybilBottleneckWitness"];
+type AttackSearchResult = Schema["SybilAttackSearchResult"];
+type BenchmarkSummary = Schema["SybilBenchmarkSummary"];
 
 function download(name: string, content: string, type: string) {
   const url = URL.createObjectURL(new Blob([content], { type }));
@@ -268,6 +271,10 @@ export function SybilReadiness() {
   const endRun = useCallback(() => setRun((current) => current && { ...current, ended: true }), []);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<SelectedEdge | null>(null);
+  const [witness, setWitness] = useState<BottleneckWitness | null>(null);
+  const [searchResult, setSearchResult] = useState<AttackSearchResult | null>(null);
+  const [benchmarkSummary, setBenchmarkSummary] = useState<BenchmarkSummary | null>(null);
+  const [stage4Busy, setStage4Busy] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -349,6 +356,7 @@ export function SybilReadiness() {
     setRun(null);
     setSelectedNodeId(null);
     setSelectedEdge(null);
+    setWitness(null);
     try {
       const [nextView, job] = await Promise.all([
         api.sybilView(next.id),
@@ -503,6 +511,70 @@ export function SybilReadiness() {
     }
   }
 
+  async function runWitness(targetShop: "A" | "B") {
+    if (!revision) return;
+    setStage4Busy(`witness-${targetShop}`);
+    setError(null);
+    try {
+      const res = await api.sybilBottleneck(revision.id, targetShop);
+      setWitness(res);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Bottleneck witness calculation failed.");
+    } finally {
+      setStage4Busy(null);
+    }
+  }
+
+  async function runSearch() {
+    if (!dataset?.dataset_id) return;
+    setStage4Busy("search");
+    setError(null);
+    try {
+      const res = await api.sybilAttackSearch(dataset.dataset_id, {
+        target: "B",
+        max_proposals: 500,
+        max_seconds: 60,
+        seed: 1,
+      });
+      setSearchResult(res);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Adversarial search failed.");
+    } finally {
+      setStage4Busy(null);
+    }
+  }
+
+  async function loadSearchedAttack() {
+    if (!searchResult?.best_revision_id) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const best = searchResult.best_proposal;
+      setPattern(best.pattern as typeof pattern);
+      setCount(best.count);
+      setTarget("B");
+      const saved = await api.sybilScenario(searchResult.best_revision_id);
+      await showRevision(saved);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Failed to load searched scenario.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function runBenchmark(sample: boolean) {
+    setStage4Busy(sample ? "benchmark-sample" : "benchmark-full");
+    setError(null);
+    try {
+      const res = await api.sybilBenchmark(sample);
+      setBenchmarkSummary(res);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Structural benchmark failed.");
+    } finally {
+      setStage4Busy(null);
+    }
+  }
+
   return (
     <div className={styles.page}>
       <h1 className="sr-only">Sybil Playground</h1>
@@ -649,6 +721,7 @@ export function SybilReadiness() {
                 view={view}
                 selectedNodeId={selectedNodeId}
                 selectedEdge={selectedEdge}
+                witnessCutEdges={witness?.cut_edges}
                 onSelectNode={(id) => {
                   setSelectedNodeId(id);
                   setSelectedEdge(null);
@@ -762,6 +835,296 @@ export function SybilReadiness() {
         A heuristic measure of structural support and tested sensitivity. Not a probability that this
         shop is safe.
       </p>
+      <section className={styles.stage4Section} aria-labelledby="stage4-title">
+        <div className={styles.stage4Header}>
+          <div>
+            <h2 id="stage4-title">Advanced Sybil Analysis (Stage 4)</h2>
+            <p>
+              Bounded Max-Flow bottleneck witness, automated adversarial red-team search, and empirical benchmark matrix.
+            </p>
+          </div>
+          {stage4Busy && <span className={styles.stage4Meta}>Processing {stage4Busy}…</span>}
+        </div>
+
+        <div className={styles.stage4Grid}>
+          {/* Card 1: Bottleneck Witness */}
+          <div className={styles.stage4Card}>
+            <div>
+              <h3>
+                Min-Cut Bottleneck Witness
+                {witness && (
+                  <span className={styles.cutEdgeBadge}>
+                    Shop {witness.shop}
+                  </span>
+                )}
+              </h3>
+              <p className={styles.stage4Meta}>
+                Bounded max-flow / min-cut on the explanation subgraph (≤ 2,500 nodes).
+              </p>
+            </div>
+
+            {witness ? (
+              <>
+                <dl className={styles.facts}>
+                  <div>
+                    <dt>Max flow / Cut size</dt>
+                    <dd>
+                      <strong>{witness.max_flow.toFixed(1)}</strong> (cut: {witness.cut_size})
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Explanation subgraph</dt>
+                    <dd>{witness.subgraph_nodes} nodes · {witness.subgraph_edges} edges</dd>
+                  </div>
+                  <div>
+                    <dt>Bottleneck nodes</dt>
+                    <dd>{witness.bottleneck_nodes.length} nodes</dd>
+                  </div>
+                  <div>
+                    <dt>Saturated cut links</dt>
+                    <dd>{witness.cut_edges.length} edges</dd>
+                  </div>
+                </dl>
+                <p className={styles.stage4Meta}>{witness.disclosure}</p>
+                {witness.cut_edges.length > 0 && (
+                  <div>
+                    <span className={styles.cutEdgeBadge}>Amber dashed lines on canvas</span>
+                    <div className={styles.cutEdgesList} style={{ marginTop: "6px" }}>
+                      {witness.cut_edges.slice(0, 8).map((e, idx) => (
+                        <span key={idx}>
+                          {e.source.replace("obs:", "").replace("sim:", "s:")} → {e.target.replace("obs:", "").replace("sim:", "s:")}
+                        </span>
+                      ))}
+                      {witness.cut_edges.length > 8 && <span>+{witness.cut_edges.length - 8} more</span>}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className={styles.stage4Meta}>
+                Identify saturated bottleneck edges and nodes separating the curated anchor core from the target shop.
+              </p>
+            )}
+
+            <div className={styles.actions}>
+              <button
+                className="secondary-button"
+                disabled={!revision || busy || stage4Busy !== null}
+                onClick={() => void runWitness("B")}
+              >
+                {stage4Busy === "witness-B" ? "Analyzing B…" : "Analyze Shop B (Attack)"}
+              </button>
+              <button
+                className="secondary-button"
+                disabled={!revision || busy || stage4Busy !== null}
+                onClick={() => void runWitness("A")}
+              >
+                {stage4Busy === "witness-A" ? "Analyzing A…" : "Analyze Shop A (Organic)"}
+              </button>
+              {witness && (
+                <button
+                  className="secondary-button"
+                  disabled={stage4Busy !== null}
+                  onClick={() => setWitness(null)}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Card 2: Adversarial Attack Search */}
+          <div className={styles.stage4Card}>
+            <div>
+              <h3>
+                Adversarial Red-Team Search
+                {searchResult && (
+                  <span className={searchResult.best_score > 30 ? styles.failBadge : styles.passBadge}>
+                    {searchResult.best_score > 30 ? "Attack Succeeded" : "Aegis Defended"}
+                  </span>
+                )}
+              </h3>
+              <p className={styles.stage4Meta}>
+                Capped parameter optimizer (≤ 500 proposals / 60s, 25-credit Challenge budget).
+              </p>
+            </div>
+
+            {searchResult ? (
+              <>
+                <dl className={styles.facts}>
+                  <div>
+                    <dt>Proposals evaluated</dt>
+                    <dd>{searchResult.proposals_evaluated} in {searchResult.elapsed_s.toFixed(2)} s</dd>
+                  </div>
+                  <div>
+                    <dt>Best attack pattern</dt>
+                    <dd><code>{searchResult.best_proposal.pattern}</code> ({searchResult.best_proposal.count} sites)</dd>
+                  </div>
+                  <div>
+                    <dt>Credits used</dt>
+                    <dd>{searchResult.best_proposal.credits} / 25 credits</dd>
+                  </div>
+                  <div>
+                    <dt>Best Shop B score</dt>
+                    <dd>
+                      Shop B: <strong>{searchResult.best_score.toFixed(2)}</strong> (support: {(searchResult.best_proposal.support * 100).toFixed(1)})
+                    </dd>
+                  </div>
+                </dl>
+                {searchResult.history.length > 0 && (
+                  <div>
+                    <span className={styles.stage4Meta}>Optimization trajectory (score improvements):</span>
+                    <div className={styles.trajectoryList}>
+                      {searchResult.history.map((h) => (
+                        <div key={h.iteration}>
+                          #{h.iteration}: {h.pattern} ({h.count} sites, {h.credits} cr) → score {h.score.toFixed(2)}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className={styles.stage4Meta}>
+                Explore combinations of disconnected, dense, cluster, hub, and chain topologies with bridges and takeovers to discover the worst-case attack.
+              </p>
+            )}
+
+            <div className={styles.actions}>
+              <button
+                className="primary-button"
+                disabled={!ready || busy || stage4Busy !== null}
+                onClick={() => void runSearch()}
+              >
+                {stage4Busy === "search" ? "Searching (up to 60s)…" : "Search Worst-Case Attack"}
+              </button>
+              {searchResult && (
+                <button
+                  className="secondary-button"
+                  disabled={busy || stage4Busy !== null}
+                  onClick={() => void loadSearchedAttack()}
+                >
+                  Load into Playground
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Card 3: Structural Benchmark Matrix */}
+          <div className={styles.stage4Card}>
+            <div>
+              <h3>
+                Structural Benchmark Matrix
+                {benchmarkSummary && (
+                  <span className={styles.passBadge}>
+                    {(100 - benchmarkSummary.aegis_pass_rate * 100).toFixed(0)}% Defended
+                  </span>
+                )}
+              </h3>
+              <p className={styles.stage4Meta}>
+                Empirical matrix: 6 families × 3 sizes × 2 credit levels × 5 seeds = 210 scenarios.
+              </p>
+            </div>
+
+            {benchmarkSummary ? (
+              <>
+                <dl className={styles.facts}>
+                  <div>
+                    <dt>Scenarios tested</dt>
+                    <dd>
+                      {benchmarkSummary.total_scenarios} ({benchmarkSummary.attacks_tested} attacks, {benchmarkSummary.controls_tested} controls)
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Runtime</dt>
+                    <dd>{benchmarkSummary.elapsed_s.toFixed(2)} s</dd>
+                  </div>
+                </dl>
+
+                <table className={styles.stage4Table} aria-label="Benchmark Comparison Table">
+                  <thead>
+                    <tr>
+                      <th>Defense Model</th>
+                      <th>Attack Pass Rate</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Naive Review Count</td>
+                      <td>{(benchmarkSummary.naive_pass_rate * 100).toFixed(1)}%</td>
+                      <td><span className={styles.failBadge}>Vulnerable</span></td>
+                    </tr>
+                    <tr>
+                      <td>Unweighted PageRank</td>
+                      <td>{(benchmarkSummary.pagerank_pass_rate * 100).toFixed(1)}%</td>
+                      <td><span className={styles.failBadge}>Vulnerable</span></td>
+                    </tr>
+                    <tr>
+                      <td><strong>Aegis sybil-v2</strong></td>
+                      <td><strong>{(benchmarkSummary.aegis_pass_rate * 100).toFixed(1)}%</strong></td>
+                      <td><span className={styles.passBadge}>Robust</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <details className={styles.formula}>
+                  <summary>Inspect scenario samples ({benchmarkSummary.rows.length} rows)</summary>
+                  <div style={{ maxHeight: "160px", overflowY: "auto", marginTop: "8px" }}>
+                    <table className={styles.stage4Table}>
+                      <thead>
+                        <tr>
+                          <th>Family</th>
+                          <th>Size</th>
+                          <th>Cr</th>
+                          <th>Naive</th>
+                          <th>PR</th>
+                          <th>Aegis</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {benchmarkSummary.rows.map((r, i) => (
+                          <tr key={i}>
+                            <td>{r.family}</td>
+                            <td>{r.size}</td>
+                            <td>{r.credits}</td>
+                            <td>{r.raw_rank === 1 ? "Pass" : "Def"}</td>
+                            <td>{r.raw_rank === 1 ? "Pass" : "Def"}</td>
+                            <td className={r.passed_policy ? styles.failBadge : styles.passBadge}>
+                              {r.passed_policy ? "Pass" : "Def"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+              </>
+            ) : (
+              <p className={styles.stage4Meta}>
+                Compare Naive Review Counts and Unweighted PageRank against Aegis sybil-v2 resilience across 210 adversarial configurations.
+              </p>
+            )}
+
+            <div className={styles.actions}>
+              <button
+                className="secondary-button"
+                disabled={busy || stage4Busy !== null}
+                onClick={() => void runBenchmark(true)}
+              >
+                {stage4Busy === "benchmark-sample" ? "Running sample…" : "Run Fast Sample (42 scenarios)"}
+              </button>
+              <button
+                className="secondary-button"
+                disabled={busy || stage4Busy !== null}
+                onClick={() => void runBenchmark(false)}
+              >
+                {stage4Busy === "benchmark-full" ? "Running full matrix…" : "Run Full Matrix (210 scenarios)"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
       {revision && (
         <details className={styles.advanced}>
           <summary>Advanced: edit the scenario as JSON</summary>

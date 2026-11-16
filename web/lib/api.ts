@@ -42,6 +42,17 @@ export const api = {
     `/sybil/scenarios/${encodeURIComponent(id)}/counterfactuals`,
     { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
   ),
+  sybilBottleneck: (id: string, shop: "A" | "B" = "B", signal?: AbortSignal) => request<Schema["SybilBottleneckWitness"]>(
+    `/sybil/scenarios/${encodeURIComponent(id)}/bottleneck?shop=${shop}`,
+    { method: "POST", signal },
+  ),
+  sybilAttackSearch: (datasetId: string, body?: Schema["SybilAttackSearchRequest"]) => request<Schema["SybilAttackSearchResult"]>(
+    `/sybil/datasets/${encodeURIComponent(datasetId)}/search`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body ?? {}) },
+  ),
+  sybilBenchmark: (sample = false, signal?: AbortSignal) => request<Schema["SybilBenchmarkSummary"]>(
+    `/sybil/benchmark?sample=${sample}`, { signal },
+  ),
   presets: (signal?: AbortSignal) => request<Schema["Preset"][]>("/presets", { signal }),
   run: (id: string, signal?: AbortSignal) => request<Schema["RunSummary"]>(`/runs/${encodeURIComponent(id)}`, { signal }),
   runs: (signal?: AbortSignal) => request<Schema["RunSummary"][]>("/runs?limit=20", { signal }),
