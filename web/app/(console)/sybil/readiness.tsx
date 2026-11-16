@@ -661,18 +661,23 @@ export function SybilReadiness() {
             </label>
             <label>
               Real-web bridge links ({bridges * 2} / 25 credits)
-              <input
-                type="range"
-                min="0"
-                max="12"
-                step="1"
+              <WakeSlider
+                min={0}
+                max={12}
+                step={1}
                 value={bridges}
-                onChange={(event) => setBridges(Number(event.target.value))}
+                onChange={setBridges}
                 disabled={!ready || busy}
+                bars={24}
+                height={32}
+                restHeight={8}
+                gap={3}
+                fillColor="#c2a15a"
+                trackColor="#1f262d"
+                ariaLabel="Real-web bridge links"
+                formatValue={(value: number) => `${value} ${value === 1 ? "bridge" : "bridges"}`}
+                showValue
               />
-              <span>
-                {bridges} {bridges === 1 ? "bridge" : "bridges"} ({bridges * 2} credits)
-              </span>
             </label>
             <button className="primary-button" disabled={!ready || busy}>
               {busy ? "Creating…" : "Create revision"}
