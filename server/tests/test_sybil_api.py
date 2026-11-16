@@ -2,19 +2,15 @@ from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import httpx
-import pytest
-from fastapi import HTTPException
 
 from aegis.config import settings
 from aegis.schemas import (
-    RunCreate,
     SybilAssessmentRecord,
     SybilCounterfactualResult,
     SybilLink,
     SybilRecommendation,
     SybilScenarioCreate,
     SybilScoreDelta,
-    SybilShopScore,
 )
 from aegis.sybil import Graph
 from aegis.sybil_runtime import (
@@ -24,7 +20,7 @@ from aegis.sybil_runtime import (
     graph_evidence,
 )
 from aegis.sybil_scenario import BaseGraph
-from api.main import app, create_run
+from api.main import app
 
 
 async def test_sybil_is_disabled_by_default(monkeypatch):
@@ -336,7 +332,13 @@ async def test_stage4_api_endpoints(monkeypatch):
     runtime = SybilRuntime()
     nodes = tuple(
         SimpleNamespace(
-            id=str(i), domain=f"d{i}.org", original_outdegree=1, retained_outdegree=1, depth=1, x=i, y=i
+            id=str(i),
+            domain=f"d{i}.org",
+            original_outdegree=1,
+            retained_outdegree=1,
+            depth=1,
+            x=i,
+            y=i,
         )
         for i in range(4)
     )

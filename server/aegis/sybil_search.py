@@ -45,7 +45,11 @@ def search_adversarial_attack(
     ]
     bridge_candidates.sort(key=lambda nid: (-base.graph.original_outdegree[base.index[nid]], nid))
     if len(bridge_candidates) < 12:
-        extra = [base.ids[i] for i in range(len(base.ids)) if base.ids[i] not in anchors and base.ids[i] not in bridge_candidates]
+        extra = [
+            base.ids[i]
+            for i in range(len(base.ids))
+            if base.ids[i] not in anchors and base.ids[i] not in bridge_candidates
+        ]
         bridge_candidates.extend(extra)
 
     patterns = ("dense", "clusters", "hub", "chain", "disconnected")
@@ -54,7 +58,9 @@ def search_adversarial_attack(
     bridge_options = (0, 1, 2, 4, 6, 8, 10, 12)
 
     # Initialize baseline attack configuration
-    gen_config_base = SybilGenerate(count=100, seed=seed, pattern="dense", density=0.1, target=target, bridges=0)
+    gen_config_base = SybilGenerate(
+        count=100, seed=seed, pattern="dense", density=0.1, target=target, bridges=0
+    )
     best_scenario = generate(base.dataset_id, gen_config_base, base)
     scenario_base = apply(base, best_scenario)
     assess_base = assess_scenario(base, scenario_base)
@@ -88,7 +94,9 @@ def search_adversarial_attack(
             pat = patterns[i % len(patterns)]
             b_cnt = bridge_options[(i // len(patterns)) % len(bridge_options)]
             c_cnt = counts[(i // (len(patterns) * len(bridge_options))) % len(counts)]
-            gen_config = SybilGenerate(count=c_cnt, seed=seed + i, pattern=pat, density=0.2, target=target, bridges=b_cnt)
+            gen_config = SybilGenerate(
+                count=c_cnt, seed=seed + i, pattern=pat, density=0.2, target=target, bridges=b_cnt
+            )
             proposal_edits = generate(base.dataset_id, gen_config, base)
             pattern_label = pat
             credit_cost = b_cnt * 2
@@ -98,7 +106,9 @@ def search_adversarial_attack(
             c_cnt = counts[i % len(counts)]
             pat = patterns[i % len(patterns)]
             compromised_node = bridge_candidates[0]
-            gen_config = SybilGenerate(count=c_cnt, seed=seed + i, pattern=pat, density=0.25, target=target, bridges=b_cnt)
+            gen_config = SybilGenerate(
+                count=c_cnt, seed=seed + i, pattern=pat, density=0.25, target=target, bridges=b_cnt
+            )
             raw = generate(base.dataset_id, gen_config, base)
             proposal_edits = SybilScenarioCreate(
                 dataset_id=base.dataset_id,
@@ -111,12 +121,14 @@ def search_adversarial_attack(
             pattern_label = f"{pat}+takeover(1)"
             credit_cost = 5 + b_cnt * 2
         elif i < 100 and base.anchors:
-            # Anchor takeover variation: 1 anchor takeover (15 credits) + up to 5 bridges (10 credits)
+            # Anchor takeover: 1 anchor takeover (15 credits) + up to 5 bridges (10 credits)
             b_cnt = min(5, (25 - 15) // 2)
             c_cnt = counts[i % len(counts)]
             pat = patterns[i % len(patterns)]
             anchor_node = base.anchors[0]
-            gen_config = SybilGenerate(count=c_cnt, seed=seed + i, pattern=pat, density=0.2, target=target, bridges=b_cnt)
+            gen_config = SybilGenerate(
+                count=c_cnt, seed=seed + i, pattern=pat, density=0.2, target=target, bridges=b_cnt
+            )
             raw = generate(base.dataset_id, gen_config, base)
             proposal_edits = SybilScenarioCreate(
                 dataset_id=base.dataset_id,
@@ -134,7 +146,9 @@ def search_adversarial_attack(
             b_cnt = rng.choice(bridge_options)
             c_cnt = rng.choice(counts)
             dens = rng.choice(densities)
-            gen_config = SybilGenerate(count=c_cnt, seed=seed + i, pattern=pat, density=dens, target=target, bridges=b_cnt)
+            gen_config = SybilGenerate(
+                count=c_cnt, seed=seed + i, pattern=pat, density=dens, target=target, bridges=b_cnt
+            )
             proposal_edits = generate(base.dataset_id, gen_config, base)
             pattern_label = pat
             credit_cost = b_cnt * 2

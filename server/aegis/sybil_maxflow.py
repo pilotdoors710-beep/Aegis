@@ -71,7 +71,11 @@ def extract_explanation_subgraph(
 
     if len(selected) > max_nodes:
         # Prioritize supporters, then anchors, then intersection
-        priority = list(supporters) + [a for a in anchor_set if a not in supporters] + list(intersect - anchor_set - supporters)
+        priority = (
+            list(supporters)
+            + [a for a in anchor_set if a not in supporters]
+            + list(intersect - anchor_set - supporters)
+        )
         selected = set(priority[:max_nodes])
     elif len(selected) < max_nodes:
         # Fill with backward-reachable then forward-reachable nodes
@@ -86,7 +90,9 @@ def extract_explanation_subgraph(
 
     subgraph_nodes = tuple(sorted(selected))
     node_set = set(subgraph_nodes)
-    subgraph_edges = tuple((u, v) for u, v in scenario.graph.edges if u in node_set and v in node_set)
+    subgraph_edges = tuple(
+        (u, v) for u, v in scenario.graph.edges if u in node_set and v in node_set
+    )
     return subgraph_nodes, subgraph_edges
 
 

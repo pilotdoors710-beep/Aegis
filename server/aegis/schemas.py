@@ -304,7 +304,8 @@ class SybilBottleneckWitness(BaseModel):
     bottleneck_nodes: tuple[str, ...]
     elapsed_ms: float = Field(ge=0)
     disclosure: str = (
-        "Exact min-cut bottleneck computed on a bounded 2,500-node explanation subgraph with unit capacities."
+        "Exact min-cut bottleneck computed on a bounded 2,500-node explanation "
+        "subgraph with unit capacities."
     )
 
 

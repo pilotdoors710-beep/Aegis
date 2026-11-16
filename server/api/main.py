@@ -84,8 +84,6 @@ from aegis.sybil_runtime import (
     RevisionNotFound,
     RevisionStale,
     SybilRuntime,
-    assessment_identity,
-    graph_evidence,
 )
 from aegis.sybil_scenario import generate
 from aegis.sybil_search import search_adversarial_attack
@@ -292,7 +290,8 @@ async def create_sybil_counterfactual(
 )
 async def get_sybil_bottleneck(revision_id: str, shop: Literal["A", "B"] = Query("B")):
     dataset = _sybil_dataset()
-    scenario = await _sybil_scenario(revision_id, dataset)
+    with _sybil_errors():
+        scenario = await _sybil.revision(dataset, revision_id)
     return compute_bottleneck_witness(dataset.base, scenario, shop)
 
 

@@ -6,10 +6,8 @@ Compares naive count, unweighted PageRank, and Aegis sybil-v2 policy (R >= 60, S
 """
 
 from time import perf_counter
-from typing import Literal
 
 from aegis.schemas import SybilBenchmarkRow, SybilBenchmarkSummary, SybilGenerate
-from aegis.sybil import Config, Graph, assess
 from aegis.sybil_scenario import BaseGraph, apply, assess_scenario, generate
 
 FAMILIES = ("dense", "clusters", "hub", "chain", "star", "disconnected")
@@ -24,7 +22,8 @@ def run_structural_benchmark(
 ) -> SybilBenchmarkSummary:
     """Run the 210-scenario structural benchmark matrix.
 
-    If sample_only is True (e.g. for fast unit tests), runs 1 seed (42 scenarios: 36 attacks + 6 controls).
+    If sample_only is True (e.g. for fast unit tests), runs 1 seed
+    (42 scenarios: 36 attacks + 6 controls).
     """
     started = perf_counter()
     rows: list[SybilBenchmarkRow] = []
@@ -101,7 +100,9 @@ def run_structural_benchmark(
     control_count = 6 if sample_only else 30
     for c_idx in range(control_count):
         # Clean scenario with no injected attack
-        gen_config = SybilGenerate(count=10, seed=c_idx, pattern="disconnected", target="B", bridges=0)
+        gen_config = SybilGenerate(
+            count=10, seed=c_idx, pattern="disconnected", target="B", bridges=0
+        )
         scenario = apply(base, generate(base.dataset_id, gen_config, base))
         assessment = assess_scenario(base, scenario)
         score_a = assessment.scores["A"]
