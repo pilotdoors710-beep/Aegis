@@ -22,6 +22,18 @@ Template:
 
 ## Log
 
+### 2026-11-16 · Dev A · Claude Code · Glossary and ADRs
+- Did: added `GLOSSARY.md` (domain terms, written from the code, not the brief) and `docs/adr/0001–0009` (coordinate clicks, SSE, one process, fail-closed, frozen Ledger, agent view, visible-only evidence, replayed copies, sybil-v2).
+- Why: the `improve-codebase-architecture` skill reads them. Installed the `codebase-design` and `domain-modeling` skills it needs (user-level, not in the repo).
+- Then ran the architecture review and applied 4 of its 6 fixes (no behavior change, OpenAPI identical):
+  - The check order for one shielded step is now one module, `aegis/shield.py` (StepShield). `loop.py` and `wrap.py` both call it, so browser-use stops copying it by hand.
+  - `aegis/pages.py` holds the viewport, clock, disposable-copy setup and Outcome reader; this removed the trials↔loop callback.
+  - Shield configurations are one table (`CAPABILITIES`), and `eval/run.py` uses it.
+  - Sybil lookups and persistence moved from `main.py` into `SybilRuntime`.
+- Fixed a bug: a shop that passed the graph policy but wasn't approved yet skipped the guard→Ask path. New `tests/test_shield.py` tests the step decision without the run loop. 249 tests pass, browser-use tests pass in their own env, and ruff is clean (wrapped 3 long lines in `presets.py`).
+- Contract change (Dev B OK'd it): `DecisionPayload.correcting` / `ExecutedPayload.correcting` name the audit step a correction answers. The evidence cards use them instead of guessing, so an unrelated retry is no longer shown as the correction. Older replays still use the old guess. `api-types.ts` regenerated.
+- Not done: one queue for runs, lab and scan. It would only add waiting (a run would wait behind scans), with no speed gain.
+
 ### 2026-11-16 · Dev A · Claude Code · Sybil review clean-up
 - Did: two reviews of the Sybil work, then fixed what they found. Scenario generation runs off the event loop, and the bridge trust pass now runs at startup.
 - The graph evidence now owns the policy (adds `minimum_withdrawal`, plus `passes()`). Runs save that evidence (`RunSummary.sybil_graph_evidence`), and the outcome card and run view read it instead of rescoring.

@@ -646,6 +646,8 @@ export interface components {
              * @default 1
              */
             attempt: number;
+            /** Correcting */
+            correcting?: number | null;
         };
         /** DoneEvent */
         DoneEvent: {
@@ -834,6 +836,8 @@ export interface components {
              * @default false
              */
             defense_retry: boolean;
+            /** Correcting */
+            correcting?: number | null;
         };
         /** Finding */
         Finding: {

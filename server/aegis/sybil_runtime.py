@@ -1,4 +1,8 @@
-"""Bounded scenario catalog, graph views, and one-process numerical assessment queue."""
+"""Bounded scenario catalog, graph views, and one-process numerical assessment queue.
+
+SybilRuntime owns every Sybil lookup: Revisions and Assessments are read from memory, then the
+Store, and remembered; a Run's Graph evidence is frozen here. Callers map its errors to HTTP.
+"""
 
 import asyncio
 import hashlib
@@ -7,12 +11,13 @@ import math
 import multiprocessing
 import time
 from collections import Counter
-from collections.abc import Awaitable, Callable
 from concurrent.futures import ProcessPoolExecutor
 from functools import lru_cache
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from aegis.schemas import (
+    SybilArtifactManifest,
     SybilAssessmentRecord,
     SybilCounterfactualResult,
     SybilGraphEdge,
@@ -21,6 +26,7 @@ from aegis.schemas import (
     SybilGraphView,
     SybilRecommendation,
     SybilScenarioCreate,
+    SybilScenarioRevision,
     SybilScoreDelta,
     SybilShopEvidence,
     SybilShopScore,
@@ -29,7 +35,26 @@ from aegis.sybil import FORMULA_VERSION
 from aegis.sybil_dataset import Dataset, load_dataset
 from aegis.sybil_scenario import AppliedScenario, apply, assess_scenario
 
+if TYPE_CHECKING:  # the assessment worker process imports this module: keep it light
+    from aegis.events import Store
+
 log = logging.getLogger("aegis.sybil")
+
+
+class RevisionNotFound(LookupError):
+    pass
+
+
+class RevisionStale(Exception):
+    """The stored Revision no longer reproduces under the active dataset or baseline."""
+
+
+class AssessmentNotReady(Exception):
+    """A Run needs a complete, converged Assessment before its Graph evidence can be frozen."""
+
+
+class PersistenceFailed(Exception):
+    pass
 
 
 @lru_cache(maxsize=1)
@@ -162,14 +187,96 @@ def calculate_counterfactual(
 
 
 class SybilRuntime:
-    def __init__(self, queue_limit: int = 20):
+    def __init__(self, queue_limit: int = 20, store: "Store | None" = None):
         self.scenarios: dict[str, AppliedScenario] = {}
         self.assessments: dict[str, SybilAssessmentRecord] = {}
         self._tasks: set[asyncio.Task] = set()
         self._executor: ProcessPoolExecutor | None = None
         self._worker_slot = asyncio.Semaphore(1)
         self._queue_limit = queue_limit
-        self.on_assessment: Callable[[SybilAssessmentRecord], Awaitable[None]] | None = None
+        if store is None:
+            from aegis.events import MemoryStore
+
+            store = MemoryStore()
+        self.store: Store = store
+
+    async def save_dataset(self, manifest: SybilArtifactManifest) -> None:
+        try:
+            await self.store.save_sybil_dataset(manifest)
+        except Exception as error:
+            log.warning("persist Sybil dataset failed: %s", error)
+
+    async def save(self, dataset: Dataset, edits: SybilScenarioCreate) -> SybilScenarioRevision:
+        """Apply `edits` (ValueError if invalid) and persist the immutable Revision."""
+        revision = self.create(dataset, edits).revision
+        try:
+            await self.store.save_sybil_dataset(dataset.manifest)
+            await self.store.save_sybil_scenario(revision)
+        except Exception as error:
+            raise PersistenceFailed("Scenario persistence failed") from error
+        return revision
+
+    async def revision(self, dataset: Dataset, revision_id: str) -> AppliedScenario:
+        """A Revision from memory, else rebuilt from the Store under the active dataset."""
+        if scenario := self.get(revision_id):
+            return scenario
+        try:
+            stored = await self.store.get_sybil_scenario(revision_id)
+        except Exception as error:
+            log.warning("read Sybil scenario failed: %s", error)
+            stored = None
+        if stored is None:
+            raise RevisionNotFound("Sybil scenario revision not found")
+        try:
+            scenario = self.create(dataset, stored.edits)
+        except ValueError as error:
+            raise RevisionStale("Stored scenario does not match the active dataset") from error
+        if scenario.revision.id != revision_id:  # saved under an older dataset/baseline version
+            raise RevisionStale("This revision was scored on an older dataset version")
+        return scenario
+
+    async def find_assessment(self, assessment_id: str) -> SybilAssessmentRecord | None:
+        """An Assessment from memory, else from the Store (and remembered)."""
+        if found := self.assessment(assessment_id):
+            return found
+        try:
+            found = await self.store.get_sybil_assessment(assessment_id)
+        except Exception as error:
+            log.warning("read Sybil assessment failed: %s", error)
+            return None
+        if found is not None:
+            self.remember_assessment(found)
+        return found
+
+    async def assess(self, directory: str, scenario: AppliedScenario) -> SybilAssessmentRecord:
+        """A finished stored Assessment if one exists, else a queued one (OverflowError when
+        the queue is full)."""
+        assessment_id = assessment_identity(scenario.revision.id)
+        try:
+            stored = await self.store.get_sybil_assessment(assessment_id)
+        except Exception as error:
+            log.warning("read Sybil assessment failed: %s", error)
+            stored = None
+        if stored is not None and stored.status in ("complete", "unavailable"):
+            self.remember_assessment(stored)
+            return stored
+        record = self.submit(directory, scenario)
+        try:
+            await self.store.save_sybil_assessment(record)
+        except Exception as error:
+            raise PersistenceFailed("Assessment persistence failed") from error
+        return record
+
+    async def frozen_evidence(self, dataset: Dataset, revision_id: str) -> SybilGraphEvidence:
+        """The Graph evidence a Run judges Shops by, fixed at launch (replays read it back)."""
+        scenario = await self.revision(dataset, revision_id)
+        found = await self.find_assessment(assessment_identity(scenario.revision.id))
+        if not found or found.status != "complete" or not found.converged:
+            raise AssessmentNotReady(
+                "A complete, converged Sybil assessment is required before launching an agent "
+                "comparison"
+            )
+        return graph_evidence(found)
 
     def create(self, dataset: Dataset, edits: SybilScenarioCreate) -> AppliedScenario:
         scenario = apply(dataset.base, edits)
@@ -349,11 +456,10 @@ class SybilRuntime:
         self.assessments[assessment.id] = assessment
 
     async def _persist(self, assessment_id: str) -> None:
-        if self.on_assessment is not None:
-            try:
-                await self.on_assessment(self.assessments[assessment_id])
-            except Exception as error:
-                log.warning("persist Sybil assessment failed: %s", error)
+        try:
+            await self.store.save_sybil_assessment(self.assessments[assessment_id])
+        except Exception as error:
+            log.warning("persist Sybil assessment failed: %s", error)
 
     def shutdown(self) -> None:
         if self._executor is not None:

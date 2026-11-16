@@ -571,6 +571,8 @@ class DecisionPayload(BaseModel):
     cached: bool
     llm_latency_ms: int
     attempt: int = 1  # 2+ = retry after BLOCK/REROUTE
+    # Step of the audit REROUTE this attempt answers (its correction); None otherwise.
+    correcting: int | None = None
 
 
 class Neutralization(BaseModel):
@@ -599,6 +601,7 @@ class ExecutedPayload(BaseModel):
     url_after: str | None = None
     disposable: bool = False  # true only for R2 trial activity
     defense_retry: bool = False
+    correcting: int | None = None  # as DecisionPayload.correcting, for the action that ran
 
 
 AskReason = Literal[

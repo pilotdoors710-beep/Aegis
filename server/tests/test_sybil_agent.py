@@ -1,27 +1,25 @@
-from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
 
-from aegis.config import settings
-from aegis.events import AskGate, RunBus
-from aegis.loop import _target_shop, outcome_from_page, run_side, start_url
+from aegis.events import AskGate
+from aegis.loop import run_side, start_url
+from aegis.pages import outcome_from_page
 from aegis.schemas import (
     Action,
     AskEvent,
     Element,
-    Outcome,
     PageSnapshot,
-    Preset,
     RunCreate,
     SybilAssessmentRecord,
     SybilGraphEvidence,
     SybilShopEvidence,
 )
-from aegis.sybil_runtime import assessment_identity
-from api.main import app, create_run
+from aegis.shield import target_shop
+from aegis.sybil_runtime import SybilRuntime, assessment_identity
+from api.main import create_run
 
 
 def test_start_url_two_shop() -> None:
@@ -43,15 +41,17 @@ def test_target_shop_detection() -> None:
     )
     # Target element points to Shop A
     act_a = Action(type="click", target_id="e1", rationale="pick shop A")
-    assert _target_shop(snap, act_a) == "A"
+    assert target_shop(snap, act_a) == "A"
 
     # Target element points to Shop B
     act_b = Action(type="click", target_id="e2", rationale="pick shop B")
-    assert _target_shop(snap, act_b) == "B"
+    assert target_shop(snap, act_b) == "B"
 
     # Action URL points to Shop B
-    act_url = Action(type="navigate", url="http://arena:8000/product.html?shop=B", rationale="go to shop B")
-    assert _target_shop(snap, act_url) == "B"
+    act_url = Action(
+        type="navigate", url="http://arena:8000/product.html?shop=B", rationale="go to shop B"
+    )
+    assert target_shop(snap, act_url) == "B"
 
     # On product page with query param
     snap_in_b = PageSnapshot(
@@ -60,14 +60,18 @@ def test_target_shop_detection() -> None:
         elements=[Element(id="e3", tag="button", text="Add to cart")],
     )
     act_cart = Action(type="click", target_id="e3", rationale="add to cart")
-    assert _target_shop(snap_in_b, act_cart) == "B"
+    assert target_shop(snap_in_b, act_cart) == "B"
 
 
 @pytest.mark.asyncio
 async def test_outcome_from_page_shop() -> None:
     page = MagicMock()
-    page.inner_text = AsyncMock(return_value="Thank you\nOrder confirmed · Shop A\nOrder total: ₹1,299")
-    page.eval_on_selector_all = AsyncMock(return_value=["1 × Aurora desk lamp", "Standard shipping · ₹0"])
+    page.inner_text = AsyncMock(
+        return_value="Thank you\nOrder confirmed · Shop A\nOrder total: ₹1,299"
+    )
+    page.eval_on_selector_all = AsyncMock(
+        return_value=["1 × Aurora desk lamp", "Standard shipping · ₹0"]
+    )
 
     outcome = await outcome_from_page(page)
     assert outcome.task_completed is True
@@ -75,7 +79,9 @@ async def test_outcome_from_page_shop() -> None:
     assert outcome.shop == "A"
 
     # Shop B confirmation
-    page.inner_text = AsyncMock(return_value="Thank you\nOrder confirmed\nPurchased from Shop B\nOrder total: ₹1,299")
+    page.inner_text = AsyncMock(
+        return_value="Thank you\nOrder confirmed\nPurchased from Shop B\nOrder total: ₹1,299"
+    )
     outcome_b = await outcome_from_page(page)
     assert outcome_b.shop == "B"
     assert not any("Shop B" in c.description for c in outcome_b.commitments)  # not an add-on
@@ -158,8 +164,12 @@ async def test_untrusted_shop_policy_enforcement(monkeypatch) -> None:
     )
     monkeypatch.setattr("aegis.loop.take_snapshot", AsyncMock(return_value=snap))
     monkeypatch.setattr("aegis.loop.screenshot_b64", AsyncMock(return_value=None))
-    monkeypatch.setattr("aegis.loop.execute", AsyncMock(return_value=SimpleNamespace(ok=True, url_after=None, error=None)))
+    monkeypatch.setattr(
+        "aegis.loop.execute",
+        AsyncMock(return_value=SimpleNamespace(ok=True, url_after=None, error=None)),
+    )
     monkeypatch.setattr("aegis.loop.check_fast", AsyncMock(return_value=([], 5)))
+    monkeypatch.setattr("aegis.shield.check_fast", AsyncMock(return_value=([], 5)))
 
     # AskGate with auto_approve=False (denies any ask)
     gate = AskGate(timeout_s=0.01)
@@ -228,13 +238,11 @@ async def test_create_run_sybil_validation(monkeypatch) -> None:
         }
     )
 
-    mock_scenario = SimpleNamespace(revision=SimpleNamespace(id=revision_id))
+    runtime = SybilRuntime()
+    runtime.scenarios[revision_id] = SimpleNamespace(revision=SimpleNamespace(id=revision_id))  # type: ignore[assignment]
+    runtime.remember_assessment(complete_assessment)
     monkeypatch.setattr("api.main._sybil_dataset", lambda: SimpleNamespace())
-    monkeypatch.setattr("api.main._sybil_scenario", AsyncMock(return_value=mock_scenario))
-
-    mock_sybil = MagicMock()
-    mock_sybil.assessment = MagicMock(return_value=complete_assessment)
-    monkeypatch.setattr("api.main._sybil", mock_sybil)
+    monkeypatch.setattr("api.main._sybil", runtime)
     monkeypatch.setattr("api.main._browser", MagicMock())
     monkeypatch.setattr("api.main._run", AsyncMock())
 
@@ -243,7 +251,7 @@ async def test_create_run_sybil_validation(monkeypatch) -> None:
     assert created.run_id is not None
 
     # Test rejection when assessment is not converged
-    mock_sybil.assessment = MagicMock(return_value=complete_assessment.model_copy(update={"converged": False}))
+    runtime.remember_assessment(complete_assessment.model_copy(update={"converged": False}))
     with pytest.raises(httpx.HTTPStatusError if False else Exception) as exc_info:
         await create_run(RunCreate(preset_id="sybil-two-shop", sybil_revision_id=revision_id))
     assert "complete, converged" in str(exc_info.value)

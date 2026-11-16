@@ -9,8 +9,8 @@ import json
 import logging
 import time
 import uuid
-from collections.abc import AsyncIterator, Awaitable, Callable
-from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
+from contextlib import asynccontextmanager, contextmanager
 from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path
@@ -36,7 +36,8 @@ from aegis.events import (
 )
 from aegis.intent import parse_ledger
 from aegis.llm import AllProvidersFailed, LLMResult, LLMRouter
-from aegis.loop import FROZEN_TIME, VIEWPORT, outcome_from_page, run_pair, start_url
+from aegis.loop import run_pair, start_url
+from aegis.pages import VIEWPORT, Checkout, disposable_copy
 from aegis.presets import PRESETS
 from aegis.schemas import (
     Action,
@@ -67,10 +68,16 @@ from aegis.schemas import (
     SybilScenarioRevision,
     TrialReport,
 )
-from aegis.security import ScanGuard, arena_origin, install_guard, validate_scan_url, validate_url
+from aegis.security import ScanGuard, arena_origin, validate_scan_url, validate_url
 from aegis.snapshot import screenshot_b64, take_snapshot
 from aegis.sybil_dataset import load_dataset
-from aegis.sybil_runtime import SybilRuntime, assessment_identity, graph_evidence
+from aegis.sybil_runtime import (
+    AssessmentNotReady,
+    PersistenceFailed,
+    RevisionNotFound,
+    RevisionStale,
+    SybilRuntime,
+)
 from aegis.sybil_scenario import generate
 from aegis.trials import run_trials
 
@@ -92,7 +99,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         _router.cache = PgCache(store)
         await store.mark_interrupted()
     _bus = RunBus(store)
-    _sybil.on_assessment = store.save_sybil_assessment
+    _sybil.store = store
     if settings.sybil_enabled:
         # Load the graph and its bridge-choosing trust pass now, off the event loop, so no
         # request pays for them while a live run is streaming.
@@ -106,7 +113,6 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
-        _sybil.on_assessment = None
         _sybil.shutdown()
         await store.close()
         await _browser.close()
@@ -141,10 +147,7 @@ async def sybil_datasets() -> list[SybilDatasetStatus]:
                 source_url="https://index.commoncrawl.org/graphinfo.json",
             )
         ]
-    try:
-        await _bus.store.save_sybil_dataset(dataset.manifest)
-    except Exception as error:
-        log.warning("persist Sybil dataset failed: %s", error)
+    await _sybil.save_dataset(dataset.manifest)
     return [
         SybilDatasetStatus(
             release=dataset.manifest.release,
@@ -175,41 +178,37 @@ def _sybil_dataset():
         raise HTTPException(503, "Validated Sybil graph artifact is unavailable") from error
 
 
-async def _sybil_scenario(revision_id: str, dataset):
-    if scenario := _sybil.get(revision_id):
-        return scenario
+@contextmanager
+def _sybil_errors() -> Iterator[None]:
+    """SybilRuntime errors -> HTTP status codes."""
     try:
-        revision = await _bus.store.get_sybil_scenario(revision_id)
-    except Exception as error:
-        log.warning("read Sybil scenario failed: %s", error)
-        revision = None
-    if revision is None:
-        raise HTTPException(404, "Sybil scenario revision not found")
-    try:
-        scenario = _sybil.create(dataset, revision.edits)
+        yield
+    except RevisionNotFound as error:
+        raise HTTPException(404, str(error)) from error
+    except RevisionStale as error:
+        raise HTTPException(409, str(error)) from error
+    except AssessmentNotReady as error:
+        raise HTTPException(400, str(error)) from error
+    except PersistenceFailed as error:
+        raise HTTPException(503, str(error)) from error
+    except OverflowError as error:
+        raise HTTPException(429, str(error), headers={"Retry-After": "2"}) from error
     except ValueError as error:
-        raise HTTPException(409, "Stored scenario does not match the active dataset") from error
-    if scenario.revision.id != revision_id:  # saved under an older dataset/baseline version
-        raise HTTPException(409, "This revision was scored on an older dataset version")
-    return scenario
+        raise HTTPException(422, str(error)) from error
+
+
+def _check_edit_size(request: Request) -> None:
+    content_length = request.headers.get("content-length", "0")
+    if not content_length.isdigit() or int(content_length) > 2 * 1024 * 1024:
+        raise HTTPException(413, "Sybil edit payload exceeds 2 MiB")
 
 
 @app.post("/sybil/scenarios", response_model=SybilScenarioRevision, status_code=201)
 async def create_sybil_scenario(body: SybilScenarioCreate, request: Request):
-    content_length = request.headers.get("content-length", "0")
-    if not content_length.isdigit() or int(content_length) > 2 * 1024 * 1024:
-        raise HTTPException(413, "Sybil edit payload exceeds 2 MiB")
+    _check_edit_size(request)
     dataset = _sybil_dataset()
-    try:
-        revision = _sybil.create(dataset, body).revision
-    except ValueError as error:
-        raise HTTPException(422, str(error)) from error
-    try:
-        await _bus.store.save_sybil_dataset(dataset.manifest)
-        await _bus.store.save_sybil_scenario(revision)
-    except Exception as error:
-        raise HTTPException(503, "Scenario persistence failed") from error
-    return revision
+    with _sybil_errors():
+        return await _sybil.save(dataset, body)
 
 
 @app.post(
@@ -221,31 +220,24 @@ async def generate_sybil_scenario(dataset_id: str, body: SybilGenerate):
     dataset = _sybil_dataset()
     if dataset.base.dataset_id != dataset_id:
         raise HTTPException(404, "Sybil dataset not found")
-    try:
+    with _sybil_errors():
         # Off the event loop: dense generation is O(count²) and would stall live run streams.
         attack = await asyncio.to_thread(generate, dataset_id, body, dataset.base)
-        revision = _sybil.create(dataset, attack).revision
-    except ValueError as error:
-        raise HTTPException(422, str(error)) from error
-    try:
-        await _bus.store.save_sybil_dataset(dataset.manifest)
-        await _bus.store.save_sybil_scenario(revision)
-    except Exception as error:
-        raise HTTPException(503, "Scenario persistence failed") from error
-    return revision
+        return await _sybil.save(dataset, attack)
 
 
 @app.get("/sybil/scenarios/{revision_id}", response_model=SybilScenarioRevision)
 async def get_sybil_scenario(revision_id: str):
     dataset = _sybil_dataset()
-    scenario = await _sybil_scenario(revision_id, dataset)
-    return scenario.revision
+    with _sybil_errors():
+        return (await _sybil.revision(dataset, revision_id)).revision
 
 
 @app.get("/sybil/scenarios/{revision_id}/view", response_model=SybilGraphView)
 async def get_sybil_view(revision_id: str, limit: int = Query(1500, ge=1, le=5000)):
     dataset = _sybil_dataset()
-    scenario = await _sybil_scenario(revision_id, dataset)
+    with _sybil_errors():
+        scenario = await _sybil.revision(dataset, revision_id)
     return _sybil.view(dataset, scenario, limit)
 
 
@@ -256,40 +248,17 @@ async def get_sybil_view(revision_id: str, limit: int = Query(1500, ge=1, le=500
 )
 async def create_sybil_assessment(revision_id: str):
     dataset = _sybil_dataset()
-    scenario = await _sybil_scenario(revision_id, dataset)
-    assessment_id = assessment_identity(revision_id)
-    try:
-        stored = await _bus.store.get_sybil_assessment(assessment_id)
-    except Exception as error:
-        log.warning("read Sybil assessment failed: %s", error)
-        stored = None
-    if stored is not None and stored.status in ("complete", "unavailable"):
-        _sybil.remember_assessment(stored)
-        return stored
-    try:
-        assessment = _sybil.submit(str(settings.sybil_data_dir.resolve()), scenario)
-    except OverflowError as error:
-        raise HTTPException(429, str(error), headers={"Retry-After": "2"}) from error
-    try:
-        await _bus.store.save_sybil_assessment(assessment)
-    except Exception as error:
-        raise HTTPException(503, "Assessment persistence failed") from error
-    return assessment
+    with _sybil_errors():
+        scenario = await _sybil.revision(dataset, revision_id)
+        return await _sybil.assess(str(settings.sybil_data_dir.resolve()), scenario)
 
 
 @app.get("/sybil/assessments/{assessment_id}", response_model=SybilAssessmentRecord)
 async def get_sybil_assessment(assessment_id: str):
     _sybil_dataset()
-    assessment = _sybil.assessment(assessment_id)
-    if assessment is None:
-        try:
-            assessment = await _bus.store.get_sybil_assessment(assessment_id)
-        except Exception as error:
-            log.warning("read Sybil assessment failed: %s", error)
-        if assessment is None:
-            raise HTTPException(404, "Sybil assessment not found")
-        _sybil.remember_assessment(assessment)
-    return assessment
+    if assessment := await _sybil.find_assessment(assessment_id):
+        return assessment
+    raise HTTPException(404, "Sybil assessment not found")
 
 
 @app.post(
@@ -299,18 +268,12 @@ async def get_sybil_assessment(assessment_id: str):
 async def create_sybil_counterfactual(
     revision_id: str, body: SybilScenarioCreate, request: Request
 ):
-    content_length = request.headers.get("content-length", "0")
-    if not content_length.isdigit() or int(content_length) > 2 * 1024 * 1024:
-        raise HTTPException(413, "Sybil edit payload exceeds 2 MiB")
+    _check_edit_size(request)
     dataset = _sybil_dataset()
-    baseline = await _sybil_scenario(revision_id, dataset)
-    try:
+    with _sybil_errors():
+        baseline = await _sybil.revision(dataset, revision_id)
         proposed = _sybil.create(dataset, body)
-    except ValueError as error:
-        raise HTTPException(422, str(error)) from error
-    return await _sybil.counterfactual(
-        str(settings.sybil_data_dir.resolve()), baseline, proposed
-    )
+    return await _sybil.counterfactual(str(settings.sybil_data_dir.resolve()), baseline, proposed)
 
 
 @app.get("/healthz")
@@ -323,7 +286,7 @@ async def healthz_browser() -> dict[str, object]:
     """INF gate: prove headless Chromium runs on this host. Loads a data: page."""
     assert _browser is not None
     started = time.perf_counter()
-    ctx = await _browser.new_context(viewport={"width": 1280, "height": 720})
+    ctx = await _browser.new_context(viewport=VIEWPORT)  # type: ignore[arg-type]
     try:
         page = await ctx.new_page()
         await page.set_content("<title>Aegis OK</title><h1>Chromium is running</h1>")
@@ -367,7 +330,7 @@ async def healthz_arena() -> HealthArena:
     """The shared Chromium loads the arena home page from ARENA_BASE_URL."""
     assert _browser is not None
     url = settings.arena_base_url.rstrip("/") + "/index.html"
-    ctx = await _browser.new_context(viewport={"width": 1280, "height": 720})
+    ctx = await _browser.new_context(viewport=VIEWPORT)  # type: ignore[arg-type]
     try:
         page = await ctx.new_page()
         resp = await page.goto(url, wait_until="domcontentloaded", timeout=15_000)
@@ -427,27 +390,19 @@ async def lab_trial(body: LabRequest) -> TrialReport:
     secret effect only configures the arena; run_trials sees the URL and the rendered copies."""
     assert _browser is not None
     url = lab_url(body)
-    async with _lab_lock:
-        ctx = await _browser.new_context(viewport=VIEWPORT)  # type: ignore[arg-type]
-        try:
-            await install_guard(ctx, arena_origin())
-            page = await ctx.new_page()
-            await page.clock.set_fixed_time(FROZEN_TIME)
-            await page.goto(url, wait_until="domcontentloaded")
-            snap = await take_snapshot(page)
-            control = await page.get_attribute("#lab-control", "data-cs-id", timeout=5_000)
-            commit = await page.get_attribute('[data-testid="place-order"]', "data-cs-id")
-            if not control or not commit:
-                raise HTTPException(status_code=503, detail="the lab checkout did not render")
-            return await run_trials(
-                _browser, original_page=page, original=snap, control_id=control,
-                commit_action=Action(type="click", target_id=commit, rationale="Trap Lab"),
-                ledger=lab_ledger(body), start_url=url, allowed_origin=arena_origin(), replay=[],
-                viewport=VIEWPORT, frozen_time=FROZEN_TIME, outcome_reader=outcome_from_page,
-                timeout_s=settings.trial_timeout_s,
-            )  # fmt: skip
-        finally:
-            await ctx.close()
+    checkout = Checkout(url, arena_origin(), replay=[])
+    # The judge's checkout is itself a contained throwaway page, so it uses the same recipe.
+    async with _lab_lock, disposable_copy(_browser, url, arena_origin(), []) as page:
+        snap = await take_snapshot(page)
+        control = await page.get_attribute("#lab-control", "data-cs-id", timeout=5_000)
+        commit = await page.get_attribute('[data-testid="place-order"]', "data-cs-id")
+        if not control or not commit:
+            raise HTTPException(status_code=503, detail="the lab checkout did not render")
+        return await run_trials(
+            _browser, original_page=page, original=snap, control_id=control,
+            commit_action=Action(type="click", target_id=commit, rationale="Trap Lab"),
+            ledger=lab_ledger(body), checkout=checkout, timeout_s=settings.trial_timeout_s,
+        )  # fmt: skip
 
 
 # --- E5: scan any public URL -----------------------------------------------------------------
@@ -593,20 +548,8 @@ async def create_run(body: RunCreate) -> RunCreated:
     evidence: SybilGraphEvidence | None = None
     if body.sybil_revision_id:
         dataset = _sybil_dataset()
-        scenario = await _sybil_scenario(body.sybil_revision_id, dataset)
-        assessment_id = assessment_identity(scenario.revision.id)
-        assessment = _sybil.assessment(assessment_id)
-        if not assessment:
-            try:
-                assessment = await _bus.store.get_sybil_assessment(assessment_id)
-            except Exception as error:
-                log.warning("read Sybil assessment for run failed: %s", error)
-        if not assessment or assessment.status != "complete" or not assessment.converged:
-            raise HTTPException(
-                400,
-                "A complete, converged Sybil assessment is required before launching an agent comparison",
-            )
-        evidence = graph_evidence(assessment)
+        with _sybil_errors():
+            evidence = await _sybil.frozen_evidence(dataset, body.sybil_revision_id)
     ahead = sum(r.status in ("queued", "running") for r in _bus.summaries())
     position = max(0, ahead - settings.max_concurrent_runs + 1)
     run_id = uuid.uuid4().hex[:12]

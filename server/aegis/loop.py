@@ -1,49 +1,36 @@
 """Run orchestration: snapshot -> decide -> (shield) -> execute, per side (brief §3).
 
-run_side() is an async generator of Events for ONE side. Shielded mode today is configuration F
-(fast detectors + filtering + reroute feedback); the intent audit lands with B2. This module (not
-the defense) builds the arena start URL from a preset's trap list; nothing else in aegis/ reads it.
+run_side() is an async generator of Events for ONE side. What a Shielded side decides about each
+Action lives in shield.StepShield; this module is its Playwright adapter (LivePage), the human
+Ask, execution and the Events. It also builds the arena start URL from a preset's trap list;
+nothing else in aegis/ reads it.
 """
 
 import argparse
 import asyncio
-import re
 import sys
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from datetime import UTC, datetime
-from typing import Literal
-from urllib.parse import parse_qs, urlencode, urlsplit
+from urllib.parse import urlencode, urlsplit
 
 from playwright.async_api import Browser, Page, async_playwright
 
 from aegis.agent import Agent, LLMAgent, build_agent_view
-from aegis.audit import (
-    FEE,
-    RECURRING,
-    audit,
-    correction_hint,
-    extract_checkout_state,
-    is_irreversible,
-    money,
-)
 from aegis.config import settings
 from aegis.events import AskGate, RunBus
 from aegis.executor import execute, hit_test_veto, neutralize
 from aegis.llm import AllProvidersFailed, LLMRouter
+from aegis.pages import FROZEN_TIME, VIEWPORT, Checkout, ReplayStep, outcome_from_page
 from aegis.schemas import (
     Action,
     AskEvent,
     AskPayload,
-    AskReason,
     AskStatus,
-    AuditReport,
-    Commitment,
     DecisionEvent,
     DecisionPayload,
     DoneEvent,
     DonePayload,
-    Element,
     ErrorEvent,
     ErrorPayload,
     Event,
@@ -60,35 +47,16 @@ from aegis.schemas import (
     SybilGraphEvidence,
     TrialReport,
     TwoViewReport,
-    Verdict,
     VerdictEvent,
     VerdictPayload,
 )
 from aegis.security import install_guard, origin
+from aegis.shield import ShieldConfig, StepShield, side_ledger
 from aegis.snapshot import screenshot_b64, take_snapshot
-from aegis.trials import ReplayStep, apply_trial, diff_states, run_trials, run_two_view
-from aegis.verdict import (
-    GUARD,
-    MAX_RETRIES,
-    agent_feedback,
-    blocking_findings,
-    check_fast,
-    combine,
-    highlights,
-    plan_neutralization,
-    run_guarded,
-)
+from aegis.trials import run_trials, run_two_view
+from aegis.verdict import MAX_RETRIES, check_fast, highlights
 
-VIEWPORT = {"width": 1280, "height": 720}
-# Fixed clock so countdowns and dates render identically on every run (brief §3).
-FROZEN_TIME = datetime(2026, 11, 18, 10, 0, tzinfo=UTC)
 PageHook = Callable[[Page], Awaitable[None]]
-# U is mode="unshielded". I_R2 = I plus the disposable-copy checks: R2 consent trials and the
-# two-view (agent vs ordinary-browser) check. Experimental; kept out of the core U/F/I comparison
-# (brief §12).
-ShieldConfig = Literal["F", "I", "I_MINUS_AUDIT", "I_R2"]
-
-_TOTAL_RE = re.compile(r"Order total[^\d₹]*₹?\s*([\d,]+(?:\.\d+)?)", re.I)
 
 
 def start_url(
@@ -110,46 +78,29 @@ def start_url(
     return f"{base}/index.html?{urlencode(q, safe=',')}"
 
 
-def commitment_from_text(text: str) -> Commitment | None:
-    """One line of a visible "You agreed to" list -> an executed simulated commitment."""
-    if m := re.match(r"^\s*(\d+)\s*×\s*(.+)$", text):
-        return Commitment(kind="item", description=f"{m.group(2).strip()} × {m.group(1)}",
-                          state="executed")  # fmt: skip
-    if re.search(r"shipping", text, re.I) or re.match(r"^\s*no\b", text, re.I):
-        return None  # delivery terms and explicit "no ..." lines are not commitments
-    if re.match(r"^\s*purchased from shop\b", text, re.I):
-        return None  # which shop sold it: recorded as Outcome.shop, not an extra purchase
-    amount = money(text)
-    if p := RECURRING.search(text):
-        period = "month" if re.search(r"mo", p.group(0), re.I) else "year"
-        return Commitment(kind="subscription", description=text, amount=amount, period=period,
-                          state="executed")  # fmt: skip
-    if FEE.search(text):
-        return Commitment(kind="fee", description=text, amount=amount, state="executed")
-    if re.search(r"\bshar(e|ing)\b|partner", text, re.I):
-        return Commitment(kind="data_sharing", description=text, state="executed")
-    return Commitment(kind="addon", description=text, amount=amount, state="executed")
+class LivePage:
+    """PagePort over a Side's real Playwright page. Trials and the Two-view check only copy it."""
 
+    def __init__(self, browser: Browser, page: Page, checkout: Checkout) -> None:
+        self.browser, self.page, self.checkout = browser, page, checkout
 
-async def outcome_from_page(page: Page, downloads: list[str] | None = None) -> Outcome:
-    """Visible confirmation text only; the evaluator scores against separate ground truth."""
-    got = [Commitment(kind="download", description=f"Downloaded {name}", state="executed")
-           for name in downloads or []]  # fmt: skip
-    try:
-        body = await page.inner_text("body", timeout=2_000)
-    except Exception:
-        return Outcome(commitments=got)
-    if "order confirmed" not in body.lower():
-        return Outcome(task_completed=False, commitments=got)
-    m = _TOTAL_RE.search(body)
-    total = float(m.group(1).replace(",", "")) if m else None
-    shop_m = re.search(r"order confirmed\s*[·-]\s*shop\s+([ab])", body, re.I) or re.search(
-        r"purchased from shop\s+([ab])", body, re.I
-    )
-    shop = shop_m.group(1).upper() if shop_m else None
-    agreed = await page.eval_on_selector_all("li", "els => els.map(e => e.innerText)")
-    got += [c for t in agreed if (c := commitment_from_text(t))]
-    return Outcome(task_completed=True, total=total, commitments=got, shop=shop)
+    async def snapshot(self) -> PageSnapshot:
+        return await take_snapshot(self.page)
+
+    async def trial(
+        self, snap: PageSnapshot, control_id: str, action: Action, ledger: Ledger
+    ) -> TrialReport:
+        return await run_trials(
+            self.browser, original_page=self.page, original=snap, control_id=control_id,
+            commit_action=action, ledger=ledger, checkout=self.checkout,
+            timeout_s=settings.trial_timeout_s,
+        )  # fmt: skip
+
+    async def two_view(self, snap: PageSnapshot, action: Action) -> TwoViewReport:
+        return await run_two_view(
+            self.browser, original_page=self.page, original=snap, commit_action=action,
+            checkout=self.checkout, timeout_s=settings.trial_timeout_s,
+        )  # fmt: skip
 
 
 def _describe(action: Action, ok: bool, error: str | None) -> str:
@@ -158,39 +109,6 @@ def _describe(action: Action, ok: bool, error: str | None) -> str:
     extra += f" url={action.url}" if action.url else ""
     status = "ok" if ok else f"FAILED ({error})"
     return f"{action.type}{target}{extra} — {action.rationale} [{status}]"
-
-
-def _target_shop(snap: PageSnapshot, action: Action) -> str | None:
-    """Identify which shop (A or B) an action targets, if any."""
-    candidates: list[str | None] = []
-    if action.target_id:
-        el = _el(snap, action.target_id)
-        if el:
-            candidates.extend([el.id, el.text, el.href, el.nearby_text])
-    if action.text:
-        candidates.append(action.text)
-    if action.url:
-        candidates.append(action.url)
-
-    for c in candidates:
-        if not c:
-            continue
-        if re.search(r"\bshop[ =_-]?b\b", c, re.I):
-            return "B"
-        if re.search(r"\bshop[ =_-]?a\b", c, re.I):
-            return "A"
-
-    u = urlsplit(snap.url)
-    qs = parse_qs(u.query)
-    if "shop" in qs:
-        val = qs["shop"][0].upper()
-        if val in ("A", "B"):
-            return val
-    if re.search(r"\bshop\s+b\b", snap.title, re.I):
-        return "B"
-    if re.search(r"\bshop\s+a\b", snap.title, re.I):
-        return "A"
-    return None
 
 
 async def run_side(
@@ -217,18 +135,10 @@ async def run_side(
     without the ledger comparison (eval ablation). Aegis only ever executes actions the agent
     proposed (executed_log records them for tests)."""
     shielded = mode == "shielded"
-    approved_shops: set[str] = set()
-    audits = shielded and shield in ("I", "I_R2")
-    gated = shielded and shield in ("I", "I_MINUS_AUDIT", "I_R2")
-    trials = shielded and shield == "I_R2"
     replay: list[ReplayStep] = []  # R2: what a disposable copy must redo to reach this state
     host = urlsplit(allowed_origin or url).hostname or ""
-    # F (and a missing parse) checks against a ledger that holds only the task and the domain.
-    ledger = (
-        ledger
-        if ledger is not None and shield != "F"
-        else Ledger(goal=task, allowed_domains=[host])
-    )
+    ledger = side_ledger(shield, ledger, task, host)
+    decision = StepShield(ledger, shield, graph_evidence)
     gate = gate or AskGate(timeout_s=0)  # no gate given: every ask times out (fail closed)
     max_steps = max_steps or settings.max_steps
     ctx = await browser.new_context(viewport=VIEWPORT, accept_downloads=True)  # type: ignore[arg-type]
@@ -264,7 +174,6 @@ async def run_side(
     history: list[str] = []
     reason = "max_steps"
     step = 0
-    last_audit: tuple[int, set[str]] | None = None  # (step, violation keys) of the latest audit
     try:
         if shielded and unresolved:  # the request itself is unclear: ask before browsing
             pre = AskPayload(ask_id=_ask_id(), reason="uncertain", status="pending",
@@ -276,6 +185,7 @@ async def run_side(
                 return
 
         page = await ctx.new_page()
+        live = LivePage(browser, page, Checkout(url, allowed_origin or origin(url), replay))
         downloads: list[str] = []
         page.on("download", lambda d: downloads.append(d.suggested_filename))
         await page.clock.set_fixed_time(FROZEN_TIME)
@@ -310,6 +220,8 @@ async def run_side(
             action: Action | None = None
             attempt = 0
             neutralized: str | None = None
+            stopped_by: list[Finding] = []  # findings behind the latest stopped attempt
+            correcting: int | None = None  # set once the audit rerouted an attempt this step
             for attempt in range(1, MAX_RETRIES + 2):
                 try:
                     action, res = await agent.decide(view, task, history + feedback)
@@ -332,163 +244,62 @@ async def run_side(
                         cached=res.cached,
                         llm_latency_ms=res.latency_ms,
                         attempt=attempt,
+                        correcting=correcting,
                     ),
                 )
                 if action.type == "done" or not shielded:
                     break
 
-                findings, ms = await check_fast(snap, action, ledger)
-                fix = plan_neutralization(snap, action)
-                verdict = combine(findings, action, ms, fix)
-                report: AuditReport | None = None
-                trial: TrialReport | None = None
-                two_view: TwoViewReport | None = None
-                ask_reason: AskReason | None = None
-                target_shop = (
-                    _target_shop(snap, action)
-                    if (shielded and graph_evidence is not None)
-                    else None
-                )
-                if target_shop and target_shop not in approved_shops:
-                    evidence = graph_evidence.shops.get(target_shop)  # type: ignore[union-attr]
-                    if not (evidence and evidence.policy_passed):
-                        findings.append(
-                            Finding(
-                                detector="sybil",
-                                trap_type="untrusted_shop",
-                                severity="high",
-                                element_id=action.target_id,
-                                evidence=(
-                                    f"Shop {target_shop} failed topological trust policy "
-                                    f"({graph_evidence.policy_text()}; "  # type: ignore[union-attr]
-                                    f"got R={evidence.total_robustness:.1f}, "
-                                    f"S={evidence.structural_support:.3f}, "
-                                    f"L={evidence.anchor_withdrawal_resilience:.2f}) "
-                                    f"under frozen revision {graph_evidence.revision_id[:8]}."  # type: ignore[union-attr]
-                                    if evidence
-                                    else f"Shop {target_shop} has no verified graph evidence."
-                                ),
-                                suggestion="Do not enter untrusted shop; select a shop with verified structural trust.",
-                            )
-                        )
-                        ask_reason = "untrusted_shop"
-                        verdict = verdict.model_copy(update={"decision": "ASK", "findings": findings})
-                elif any(f.detector == GUARD for f in blocking_findings(findings, action)):
-                    ask_reason = "guard_unavailable"  # retrying cannot fix a broken check
-                    verdict = verdict.model_copy(update={"decision": "ASK"})
-                elif (
-                    verdict.decision == "ALLOW"
-                    and gated
-                    and is_irreversible(_el(snap, action.target_id), action.type)
-                ):
-                    if audits:
-                        report, guard = await _audit(snap, ledger, action, last_audit)
-                        if guard:
-                            findings.append(guard)
-                        if trials and report is not None and (ctl := _ambiguous(report)):
-                            trial = await run_trials(
-                                browser, original_page=page, original=snap, control_id=ctl,
-                                commit_action=action, ledger=ledger, start_url=url,
-                                allowed_origin=allowed_origin or origin(url), replay=replay,
-                                viewport=VIEWPORT, frozen_time=FROZEN_TIME,
-                                outcome_reader=outcome_from_page,
-                                timeout_s=settings.trial_timeout_s,
-                            )  # fmt: skip
-                            report = apply_trial(report, trial)
-                    verdict, ask_reason, last_audit = _commit_decision(
-                        verdict, report, step, last_audit, findings
-                    )
-                    # Two-view check: only once the agent's own view passed the audit, so a
-                    # checkout that is about to be approved is also what an ordinary browser gets.
-                    if trials and report is not None and verdict.decision == "ASK":
-                        two_view = await run_two_view(
-                            browser, original_page=page, original=snap, commit_action=action,
-                            start_url=url, allowed_origin=allowed_origin or origin(url),
-                            replay=replay, viewport=VIEWPORT, frozen_time=FROZEN_TIME,
-                            timeout_s=settings.trial_timeout_s,
-                        )  # fmt: skip
-                        if two_view.status == "mismatch":
-                            findings.append(Finding(
-                                detector="two_view", trap_type="hidden_info", severity="high",
-                                element_id=action.target_id,
-                                evidence="This site shows an automated browser a different "
-                                         "checkout: " + "; ".join(two_view.diffs),
-                                suggestion="Do not pay: the agent's view cannot be trusted.",
-                            ))  # fmt: skip
-                            ask_reason = "cloaked_checkout"
-                            verdict = verdict.model_copy(update={"findings": findings})
-                if (
-                    verdict.decision == "ALLOW"
-                    and fix
-                    and not await neutralize(page, fix.element_id)
-                ):
+                c = await decision.check(snap, action, step, live)
+                verdict, fix = c.verdict, c.fix
+                stopped_by = verdict.findings
+                allow = verdict.decision == "ALLOW"
+                if allow and fix and not await neutralize(page, fix.element_id):
                     fix = None  # cover vanished during the LLM call; the hit-test re-check decides
                 neutralized = fix.element_id if fix and verdict.decision == "ALLOW" else None
                 yield VerdictEvent(
                     **env(step),
                     payload=VerdictPayload(
-                        verdict=verdict, action=action, audit=report,
-                        highlights=highlights(findings, snap),
+                        verdict=verdict, action=action, audit=c.report,
+                        highlights=highlights(c.findings, snap),
                         neutralized=[fix] if fix and verdict.decision == "ALLOW" else [],
-                        trial=trial, two_view=two_view,
+                        trial=c.trial, two_view=c.two_view,
                     ),
                 )  # fmt: skip
                 if verdict.decision == "ALLOW":
                     break
-                if ask_reason:
+                if c.ask_reason:
                     pending = AskPayload(
-                        ask_id=_ask_id(), reason=ask_reason, action=action,
-                        findings=verdict.findings, audit=report, trial=trial, two_view=two_view,
-                        status="pending",
+                        ask_id=_ask_id(), reason=c.ask_reason, action=action,
+                        findings=verdict.findings, audit=c.report, trial=c.trial,
+                        two_view=c.two_view, status="pending",
                     )  # fmt: skip
                     async for ev in ask(step, pending):
                         yield ev
                     if not approved():
-                        if ask_reason == "untrusted_shop":
-                            feedback.append(
-                                f"Entry to Shop {target_shop} was denied due to insufficient structural trust. "
-                                "You must choose an alternative shop that meets trust requirements."
-                            )
+                        if (retry := decision.denied_feedback(c)) is not None:
+                            feedback.append(retry)
                             action = None
                             continue
                         reason, action = "denied", None
                         break
-                    if ask_reason == "untrusted_shop" and target_shop:
-                        approved_shops.add(target_shop)
-                    if audits and report is not None:  # the page may have changed while waiting
-                        snap = await take_snapshot(page)
-                        again, guard = await _audit(snap, ledger, action, (step, set()))
-                        if trial is not None and again is not None:  # same control, same evidence
-                            again = apply_trial(again, trial)
-                        # Consent binding: the approval covers exactly the checkout shown, so
-                        # any change (even one still within the ledger) needs a fresh look.
-                        changed = diff_states(
-                            report.observed, again.observed, "when approved", "now"
-                        ) if again else []  # fmt: skip
-                        if (guard or changed or _keys(again) - _keys(report)
-                                or _new_uncertain(again, report)):  # fmt: skip
-                            yield VerdictEvent(**env(step), payload=VerdictPayload(
-                                verdict=Verdict(decision="REROUTE", findings=findings,
-                                                reroute_hint="The checkout changed while waiting "
-                                                "for approval; check it again."
-                                                + (f" ({'; '.join(changed)})" if changed else "")),
-                                action=action, audit=again))  # fmt: skip
-                            feedback.append(_audit_feedback(action, again, changed=True))
-                            action = None
-                            continue
+                    if recheck := await decision.approved(c, step, live):
+                        yield VerdictEvent(**env(step), payload=VerdictPayload(
+                            verdict=recheck.verdict, action=action, audit=recheck.audit,
+                        ))  # fmt: skip
+                        feedback.append(recheck.feedback)
+                        action = None
+                        continue
                     break  # approved: execute the agent's own action
-                audit_reroute = report is not None and not blocking_findings(findings, action, fix)
-                feedback.append(
-                    _audit_feedback(action, report)
-                    if audit_reroute
-                    else agent_feedback(verdict, action)
-                )
+                feedback.append(decision.feedback(c))
+                if c.audit_reroute:
+                    correcting = step
                 action = None  # stopped: never executed
             if reason in ("error", "denied"):
                 break
             if action is None:  # every attempt was stopped
                 pending = AskPayload(ask_id=_ask_id(), reason="retries_exhausted",
-                                     findings=verdict.findings, status="pending")  # fmt: skip
+                                     findings=stopped_by, status="pending")  # fmt: skip
                 async for ev in ask(step, pending):
                     yield ev
                 reason = "denied" if not approved() else "aborted"
@@ -506,7 +317,7 @@ async def run_side(
                 **env(step),
                 payload=ExecutedPayload(
                     action=action, ok=result.ok, url_after=result.url_after,
-                    defense_retry=attempt > 1,
+                    defense_retry=attempt > 1, correcting=correcting,
                 ),
             )  # fmt: skip
             for ev in egress_events(step):
@@ -524,85 +335,6 @@ async def run_side(
 
 def _ask_id() -> str:
     return uuid.uuid4().hex[:8]
-
-
-def _el(snap: PageSnapshot, element_id: str | None) -> Element | None:
-    return next((e for e in snap.elements if e.id == element_id), None)
-
-
-def _ambiguous(report: AuditReport) -> str | None:
-    """R2 scope: one consent box whose wording leaves its effect uncertain."""
-    return next((c.element_id for c in report.checks
-                 if c.constraint == "data_allowed" and c.status == "uncertain" and c.element_id),
-                None)  # fmt: skip
-
-
-def _keys(report: AuditReport | None) -> set[str]:
-    if report is None:
-        return set()
-    return {f"{c.constraint}:{c.element_id or c.observed_value}" for c in report.checks
-            if c.status == "violation"}  # fmt: skip
-
-
-def _new_uncertain(new: AuditReport | None, old: AuditReport) -> bool:
-    before = {c.constraint for c in old.checks if c.status == "uncertain"}
-    return bool(new) and any(c.status == "uncertain" and c.constraint not in before
-                             for c in new.checks)  # type: ignore[union-attr]  # fmt: skip
-
-
-async def _audit(
-    snap: PageSnapshot, ledger: Ledger, action: Action, last: tuple[int, set[str]] | None
-) -> tuple[AuditReport | None, Finding | None]:
-    report, guard = await run_guarded(
-        "B2_audit", lambda: audit(extract_checkout_state(snap), ledger), action
-    )
-    if report is not None and last is not None:
-        report = report.model_copy(update={"recheck_of": last[0]})
-    return report, guard
-
-
-def _commit_decision(
-    verdict: Verdict,
-    report: AuditReport | None,
-    step: int,
-    last: tuple[int, set[str]] | None,
-    findings: list[Finding],
-) -> tuple[Verdict, AskReason | None, tuple[int, set[str]] | None]:
-    """Before an irreversible action (configuration I / I_MINUS_AUDIT): violation -> REROUTE with
-    a hint; the same violation again at the recheck -> ask retries_exhausted; uncertain -> ask
-    uncertain; all clear -> ask final_payment. No report (I_MINUS_AUDIT) -> final_payment."""
-    if report is None:
-        if any(f.detector == GUARD for f in findings):  # the audit itself failed
-            return verdict.model_copy(update={"decision": "ASK"}), "guard_unavailable", last
-        return verdict.model_copy(update={"decision": "ASK"}), "final_payment", last
-    keys = _keys(report)
-    if keys:
-        if last is not None and keys & last[1]:
-            return verdict.model_copy(update={"decision": "ASK"}), "retries_exhausted", (step, keys)
-        hint = correction_hint(report)
-        return verdict.model_copy(update={"decision": "REROUTE", "reroute_hint": hint}), None, (
-            step, keys)  # fmt: skip
-    if any(c.status == "uncertain" for c in report.checks):
-        return verdict.model_copy(update={"decision": "ASK"}), "uncertain", (step, keys)
-    return verdict.model_copy(update={"decision": "ASK"}), "final_payment", (step, keys)
-
-
-def _audit_feedback(action: Action, report: AuditReport | None, changed: bool = False) -> str:
-    bad = [c for c in (report.checks if report else []) if c.status == "violation"]
-    issues = "; ".join(f"{c.constraint}: {c.evidence}" for c in bad) or "the checkout changed"
-    hint = correction_hint(report) if report else None
-    lead = "The checkout changed while the user was approving. " if changed else ""
-    return (
-        f"<<<AEGIS SECURITY FEEDBACK: your proposed {action.type} on {action.target_id} was "
-        f"REROUTED and NOT executed. {lead}The checkout does not match what the user authorized: "
-        f"{issues}. "
-        + (
-            f"Fix it yourself: {hint} "
-            if hint
-            else "This cannot be fixed by unticking anything; do not place the order. "
-        )
-        + "END AEGIS FEEDBACK>>>"
-    )
 
 
 async def run_pair(

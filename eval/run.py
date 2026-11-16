@@ -35,6 +35,7 @@ from aegis.intent import parse_ledger  # noqa: E402
 from aegis.llm import LLMRouter, parse_chain  # noqa: E402
 from aegis.loop import run_side, start_url  # noqa: E402
 from aegis.schemas import AskStatus  # noqa: E402
+from aegis.shield import CAPABILITIES  # noqa: E402
 
 MANIFEST = Path(__file__).with_name("manifest.json")
 # config -> (run mode, shield configuration). R2 stays off in the core comparison (brief §12).
@@ -208,7 +209,7 @@ async def run_one(browser, case: dict, manifest: dict, config: str, rep: int, mo
     ledger, unresolved = None, None
     started = time.perf_counter()
     try:
-        if shield in ("I", "I_MINUS_AUDIT", "I_R2"):  # B1 once, before browsing, same pinned model
+        if CAPABILITIES[shield].parses_ledger:  # B1 once, before browsing, same pinned model
             host = urlsplit(arena).hostname or ""
             ledger, unresolved = await parse_ledger(
                 task, router, allowed_domains=[host], use_cache=False

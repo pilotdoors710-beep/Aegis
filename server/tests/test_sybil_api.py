@@ -120,7 +120,7 @@ async def test_scenario_revision_and_bounded_view(monkeypatch):
         revision = created.json()
         fetched = await client.get(f"/sybil/scenarios/{revision['id']}")
         view = await client.get(f"/sybil/scenarios/{revision['id']}/view?limit=3")
-        replacement = SybilRuntime()
+        replacement = SybilRuntime(store=runtime.store)  # a restart: only the store survives
         monkeypatch.setattr("api.main._sybil", replacement)
         restored = await client.get(f"/sybil/scenarios/{revision['id']}")
         generated = await client.post(
@@ -144,11 +144,14 @@ async def test_assessment_endpoints_reuse_revision_identity(monkeypatch):
     assessment = SybilAssessmentRecord(
         id=assessment_identity(revision_id), revision_id=revision_id, status="queued"
     )
-    runtime = SimpleNamespace(
-        get=lambda value: SimpleNamespace(revision=SimpleNamespace(id=value)),
-        submit=lambda _directory, _scenario: assessment,
-        assessment=lambda value: assessment if value == assessment.id else None,
-    )
+    runtime = SybilRuntime()
+    runtime.scenarios[revision_id] = SimpleNamespace(revision=SimpleNamespace(id=revision_id))  # type: ignore[assignment]
+
+    def submit(_directory, _scenario):  # noqa: ANN001, ANN202  (no worker process in tests)
+        runtime.remember_assessment(assessment)
+        return assessment
+
+    monkeypatch.setattr(runtime, "submit", submit)
     monkeypatch.setattr(settings, "sybil_enabled", True)
     monkeypatch.setattr("api.main._load_sybil_dataset", lambda _: SimpleNamespace())
     monkeypatch.setattr("api.main._sybil", runtime)
@@ -185,7 +188,7 @@ async def test_counterfactual_is_bound_to_baseline_revision(monkeypatch):
     baseline = SimpleNamespace(revision=SimpleNamespace(id=revision_id))
     proposed = SimpleNamespace(revision=SimpleNamespace(id=proposed_id))
     runtime = SimpleNamespace(
-        get=lambda value: baseline if value == revision_id else None,
+        revision=lambda _dataset, value: _async_value(baseline if value == revision_id else None),
         create=lambda _dataset, _body: proposed,
         counterfactual=lambda _directory, current, next_scenario: _async_result(
             result, current, next_scenario, baseline, proposed
@@ -234,6 +237,10 @@ def test_counterfactual_calculates_score_and_rank_deltas(monkeypatch):
     assert result["deltas"]["A"]["rank"] == 1
     assert result["deltas"]["B"]["total_robustness"] > 0
     assert result["deltas"]["B"]["rank"] == -1
+
+
+async def _async_value(value):  # noqa: ANN001, ANN202
+    return value
 
 
 async def _async_result(result, current, next_scenario, baseline, proposed):

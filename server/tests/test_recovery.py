@@ -48,6 +48,15 @@ async def test_t03_forbidden_reroute_untick_recheck_then_pay(arena_url: str) -> 
     assert recheck.recheck_of is not None
     assert not [c for c in recheck.checks if c.status == "violation"]
     assert any(c.status == "violation" for c in first.checks)
+    # The untick is explicitly linked to the audit it answers, decided and executed.
+    rerouted = next(e.step for e in events if e.kind == "verdict" and e.payload.audit)
+    fix = [e for e in events if e.kind in ("decision", "executed") and e.payload.correcting]
+    assert [(e.kind, e.payload.correcting) for e in fix] == [
+        ("decision", rerouted),
+        ("executed", rerouted),
+    ]
+    assert fix[0].payload.action.target_id == fix[1].payload.action.target_id
+    assert recheck.recheck_of == rerouted
     assert [a.reason for a in _kinds(events, "ask")] == ["final_payment"] * 2
     done = events[-1].payload
     assert done.reason == "completed" and done.outcome.total == 1299

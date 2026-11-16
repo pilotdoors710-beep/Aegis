@@ -124,7 +124,7 @@ async def test_t05_injection_stripped_and_logged(arena_url: str) -> None:
 
 
 def test_commitment_lines() -> None:
-    from aegis.loop import commitment_from_text as c
+    from aegis.pages import commitment_from_text as c
 
     assert c("1 × Aurora desk lamp").kind == "item"  # type: ignore[union-attr]
     plan = c("Annual protection plan · ₹299/yr, auto-renewing")

@@ -208,7 +208,7 @@ class _Builder:
         )
         self.events.append(SnapshotEvent(**self._env(step), payload=p))
 
-    def decide(self, step: int, action: Action, attempt: int = 1):
+    def decide(self, step: int, action: Action, attempt: int = 1, correcting: int | None = None):
         p = DecisionPayload(
             action=action,
             provider="sample",
@@ -216,6 +216,7 @@ class _Builder:
             cached=False,
             llm_latency_ms=900,
             attempt=attempt,
+            correcting=correcting,
         )
         self.events.append(DecisionEvent(**self._env(step), payload=p))
 
@@ -223,9 +224,16 @@ class _Builder:
         p = VerdictPayload(verdict=verdict, action=action, **kw)
         self.events.append(VerdictEvent(**self._env(step), payload=p))
 
-    def executed(self, step: int, action: Action, url_after: str, retry: bool = False):
+    def executed(
+        self,
+        step: int,
+        action: Action,
+        url_after: str,
+        retry: bool = False,
+        correcting: int | None = None,
+    ):
         p = ExecutedPayload(action=action, ok=True, url_after=f"{ARENA}/{url_after}",
-                            defense_retry=retry)  # fmt: skip
+                            defense_retry=retry, correcting=correcting)  # fmt: skip
         self.events.append(ExecutedEvent(**self._env(step), payload=p))
 
     def ask(self, step: int, payload: AskPayload):
@@ -333,9 +341,9 @@ def _shielded() -> list[Event]:
     ]), audit=AuditReport(checks=_checks(True), observed=_observed(True)),
         highlights=[Highlight(element_id="e31", bbox=(700, 380, 360, 28),
                               label="preselection", severity="high")])  # fmt: skip
-    b.decide(4, UNTICK, attempt=2)
+    b.decide(4, UNTICK, attempt=2, correcting=4)
     b.verdict(4, UNTICK, Verdict(decision="ALLOW", latency_ms=10))
-    b.executed(4, UNTICK, "checkout.html", retry=True)
+    b.executed(4, UNTICK, "checkout.html", retry=True, correcting=4)
 
     # Re-audit after correction: clean -> final payment ASK.
     b.snapshot(5, "checkout.html", "Checkout")

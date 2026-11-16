@@ -12,12 +12,12 @@ The original page is only read (before/after comparison); it is never clicked.
 
 import asyncio
 import time
-from datetime import datetime
 
-from playwright.async_api import Browser, BrowserContext, Page
+from playwright.async_api import Browser, Page
 
 from aegis.audit import extract_checkout_state, same_thing
-from aegis.executor import execute, neutralize
+from aegis.executor import execute
+from aegis.pages import Checkout, disposable_copy, outcome_from_page, replay
 from aegis.schemas import (
     Action,
     AuditCheck,
@@ -31,11 +31,7 @@ from aegis.schemas import (
     TrialReport,
     TwoViewReport,
 )
-from aegis.security import install_guard
 from aegis.snapshot import screenshot_b64, take_snapshot
-
-# One replayed step: the agent's executed action and the overlay Aegis neutralized before it.
-ReplayStep = tuple[Action, str | None]
 
 DEFAULT_TIMEOUT_S = 10.0
 
@@ -110,30 +106,17 @@ async def _branch(
     browser: Browser,
     *,
     checked: bool,
-    start_url: str,
-    allowed_origin: str,
-    replay: list[ReplayStep],
+    checkout: Checkout,
     original: PageSnapshot,
     control_id: str,
     commit_action: Action,
-    viewport: dict,
-    frozen_time: datetime,
-    outcome_reader,  # noqa: ANN001  (loop.outcome_from_page; passed in to avoid an import cycle)
     blocked: list[str],
 ) -> TrialBranch:
     branch = TrialBranch(control_checked=checked)
-    ctx: BrowserContext = await browser.new_context(
-        viewport=viewport,  # type: ignore[arg-type]
-        accept_downloads=False,
-        service_workers="block",
-    )
-    try:
-        await install_guard(ctx, allowed_origin, blocked.append)
-        ctx.on("page", _close_extra_pages(ctx))
-        page = await ctx.new_page()
-        await page.clock.set_fixed_time(frozen_time)
-        await page.goto(start_url, wait_until="domcontentloaded")
-        branch.disposable_actions, branch.error = await _replay(page, replay)
+    async with disposable_copy(
+        browser, checkout.start_url, checkout.allowed_origin, blocked
+    ) as page:
+        branch.disposable_actions, branch.error = await replay(page, checkout.replay)
         if branch.error:
             return branch
 
@@ -163,35 +146,11 @@ async def _branch(
         res = await execute(page, commit_action)
         branch.disposable_actions += 1
         await take_snapshot(page)  # wait for the confirmation page to load
-        branch.outcome = await outcome_reader(page)
+        branch.outcome = await outcome_from_page(page)
         branch.screenshot_b64 = await screenshot_b64(page, quality=50)
         if not res.ok or not branch.outcome.task_completed:
             branch.error = "the copy did not reach a visible order confirmation"
         return branch
-    finally:
-        await ctx.close()
-
-
-async def _replay(page: Page, replay: list[ReplayStep]) -> tuple[int, str | None]:
-    """Redo the agent's executed actions in a copy. Returns (actions done, error)."""
-    done = 0
-    for action, neutralized in replay:
-        await take_snapshot(page)  # stamps the same deterministic element ids
-        if neutralized:
-            await neutralize(page, neutralized)
-        res = await execute(page, action)
-        done += 1
-        if not res.ok:
-            return done, f"replay step failed: {res.error}"
-    return done, None
-
-
-def _close_extra_pages(ctx: BrowserContext):  # noqa: ANN202
-    def handler(page: Page) -> None:
-        if len(ctx.pages) > 1:  # popups and new tabs are not part of a trial
-            asyncio.ensure_future(page.close())
-
-    return handler
 
 
 async def run_trials(
@@ -202,12 +161,7 @@ async def run_trials(
     control_id: str,
     commit_action: Action,
     ledger: Ledger,
-    start_url: str,
-    allowed_origin: str,
-    replay: list[ReplayStep],
-    viewport: dict,
-    frozen_time: datetime,
-    outcome_reader,  # noqa: ANN001
+    checkout: Checkout,
     timeout_s: float = DEFAULT_TIMEOUT_S,
 ) -> TrialReport:
     """Both states of one checkbox, sequentially, in disposable copies. Never raises: any failure
@@ -230,10 +184,8 @@ async def run_trials(
         async with asyncio.timeout(timeout_s):
             for checked in (True, False):
                 report.branches.append(await _branch(
-                    browser, checked=checked, start_url=start_url, allowed_origin=allowed_origin,
-                    replay=replay, original=original, control_id=control_id,
-                    commit_action=commit_action, viewport=viewport, frozen_time=frozen_time,
-                    outcome_reader=outcome_reader, blocked=blocked,
+                    browser, checked=checked, checkout=checkout, original=original,
+                    control_id=control_id, commit_action=commit_action, blocked=blocked,
                 ))  # fmt: skip
     except TimeoutError:
         report.reason = f"timeout after {timeout_s:.0f} s"
@@ -330,16 +282,6 @@ def apply_trial(report: AuditReport, trial: TrialReport) -> AuditReport:
 
 # --- Two-view check: agent view vs an ordinary-browser view of the same checkout ---------------
 
-# Removes the automation signals a cloaking site can key on from page script. It is not proof of
-# what a person sees: the engine and the network exit are the same as the agent's.
-_HIDE_AUTOMATION = "Object.defineProperty(Navigator.prototype, 'webdriver', {get: () => false})"
-
-
-def _ordinary_user_agent(browser: Browser) -> str:
-    major = browser.version.split(".")[0]
-    return (f"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
-            f"Chrome/{major}.0.0.0 Safari/537.36")  # fmt: skip
-
 
 async def run_two_view(
     browser: Browser,
@@ -347,11 +289,7 @@ async def run_two_view(
     original_page: Page,
     original: PageSnapshot,
     commit_action: Action,
-    start_url: str,
-    allowed_origin: str,
-    replay: list[ReplayStep],
-    viewport: dict,
-    frozen_time: datetime,
+    checkout: Checkout,
     timeout_s: float = DEFAULT_TIMEOUT_S,
 ) -> TwoViewReport:
     """Reproduce the checkout in one disposable ordinary-browser context and compare what it shows
@@ -360,22 +298,14 @@ async def run_two_view(
     started = time.perf_counter()
     report = TwoViewReport(status="unavailable")
     blocked: list[str] = []
-    ctx: BrowserContext | None = None
     try:
-        async with asyncio.timeout(timeout_s):
-            ctx = await browser.new_context(
-                viewport=viewport,  # type: ignore[arg-type]
-                user_agent=_ordinary_user_agent(browser),
-                accept_downloads=False,
-                service_workers="block",
-            )
-            await ctx.add_init_script(_HIDE_AUTOMATION)
-            await install_guard(ctx, allowed_origin, blocked.append)
-            ctx.on("page", _close_extra_pages(ctx))
-            page = await ctx.new_page()
-            await page.clock.set_fixed_time(frozen_time)
-            await page.goto(start_url, wait_until="domcontentloaded")
-            report.disposable_actions, error = await _replay(page, replay)
+        async with (
+            asyncio.timeout(timeout_s),
+            disposable_copy(
+                browser, checkout.start_url, checkout.allowed_origin, blocked, ordinary=True
+            ) as page,
+        ):
+            report.disposable_actions, error = await replay(page, checkout.replay)
             if error:
                 report.reason = error
             else:
@@ -402,9 +332,6 @@ async def run_two_view(
     except Exception as e:  # experimental module: failure is never a pass
         report.status = "unavailable"
         report.reason = f"two-view check failed: {type(e).__name__}: {str(e)[:200]}"
-    finally:
-        if ctx is not None:
-            await ctx.close()
     report.blocked_requests = len(blocked)
     report.elapsed_ms = int((time.perf_counter() - started) * 1000)
     return report

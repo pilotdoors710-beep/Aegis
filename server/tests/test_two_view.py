@@ -9,7 +9,8 @@ from playwright.async_api import Page, async_playwright
 
 from aegis.audit import extract_checkout_state
 from aegis.events import AskGate
-from aegis.loop import FROZEN_TIME, VIEWPORT, run_side, start_url
+from aegis.loop import run_side, start_url
+from aegis.pages import FROZEN_TIME, Checkout
 from aegis.schemas import Action, Event, PageSnapshot
 from aegis.snapshot import take_snapshot
 from aegis.trials import run_two_view, signature
@@ -28,8 +29,7 @@ async def _check(page: Page, arena_url: str, query: str, **kw):  # noqa: ANN003,
     report = await run_two_view(
         page.context.browser, original_page=page, original=snap,  # type: ignore[arg-type]
         commit_action=Action(type="click", target_id=_id(snap, "Place order"), rationale="order"),
-        start_url=url, allowed_origin=origin, replay=[], viewport=VIEWPORT,
-        frozen_time=FROZEN_TIME, **kw,
+        checkout=Checkout(url, origin, []), **kw,
     )  # fmt: skip
     return report, snap
 

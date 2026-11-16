@@ -5,7 +5,7 @@ from urllib.parse import urlsplit
 
 from playwright.async_api import Page
 
-from aegis.loop import FROZEN_TIME, VIEWPORT, outcome_from_page
+from aegis.pages import FROZEN_TIME, Checkout
 from aegis.schemas import Action, Ledger, LedgerItem, PageSnapshot
 from aegis.snapshot import take_snapshot
 from aegis.trials import describe, run_trials
@@ -34,8 +34,7 @@ async def _trial(page: Page, arena_url: str, query: str, ledger: Ledger = NO_DAT
     origin = kw.pop("allowed_origin", f"{urlsplit(url).scheme}://{urlsplit(url).netloc}")
     report = await run_trials(
         page.context.browser, original_page=page, original=snap, control_id=control,  # type: ignore[arg-type]
-        commit_action=order, ledger=ledger, start_url=url, allowed_origin=origin, replay=[],
-        viewport=VIEWPORT, frozen_time=FROZEN_TIME, outcome_reader=outcome_from_page, **kw,
+        commit_action=order, ledger=ledger, checkout=Checkout(url, origin, []), **kw,
     )  # fmt: skip
     return report, snap, control
 
@@ -96,9 +95,8 @@ async def test_unsupported_control_is_rejected(page: Page, arena_url: str) -> No
     radio = next(e.id for e in snap.elements if e.role == "radio")
     report = await run_trials(
         page.context.browser, original_page=page, original=snap, control_id=radio,  # type: ignore[arg-type]
-        commit_action=order, ledger=NO_DATA, start_url=url,
-        allowed_origin=f"{urlsplit(url).scheme}://{urlsplit(url).netloc}", replay=[],
-        viewport=VIEWPORT, frozen_time=FROZEN_TIME, outcome_reader=outcome_from_page,
+        commit_action=order, ledger=NO_DATA,
+        checkout=Checkout(url, f"{urlsplit(url).scheme}://{urlsplit(url).netloc}", []),
     )  # fmt: skip
     assert report.status == "unavailable" and report.reason.startswith("unsupported")
     assert report.branches == []
@@ -112,9 +110,8 @@ async def test_reproduction_mismatch_is_unavailable(page: Page, arena_url: str) 
     snap = await take_snapshot(page)
     report = await run_trials(
         page.context.browser, original_page=page, original=snap, control_id=control,  # type: ignore[arg-type]
-        commit_action=order, ledger=NO_DATA, start_url=url,
-        allowed_origin=f"{urlsplit(url).scheme}://{urlsplit(url).netloc}", replay=[],
-        viewport=VIEWPORT, frozen_time=FROZEN_TIME, outcome_reader=outcome_from_page,
+        commit_action=order, ledger=NO_DATA,
+        checkout=Checkout(url, f"{urlsplit(url).scheme}://{urlsplit(url).netloc}", []),
     )  # fmt: skip
     assert report.status == "unavailable"
     assert all(not b.state_matched for b in report.branches)
@@ -142,9 +139,8 @@ async def test_replays_the_agents_path_from_the_start_url(page: Page, arena_url:
         page.context.browser, original_page=page, original=snap,  # type: ignore[arg-type]
         control_id=_id(snap, "partner offers"),
         commit_action=Action(type="click", target_id=_id(snap, "Place order"), rationale="order"),
-        ledger=NO_DATA, start_url=start,
-        allowed_origin=f"{urlsplit(start).scheme}://{urlsplit(start).netloc}", replay=replay,
-        viewport=VIEWPORT, frozen_time=FROZEN_TIME, outcome_reader=outcome_from_page,
+        ledger=NO_DATA,
+        checkout=Checkout(start, f"{urlsplit(start).scheme}://{urlsplit(start).netloc}", replay),
     )  # fmt: skip
     assert report.status == "resolved" and report.recommended_checked is False, report.reason
     assert all(b.state_matched and b.disposable_actions >= 4 for b in report.branches)

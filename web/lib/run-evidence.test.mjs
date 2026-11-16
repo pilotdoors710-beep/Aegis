@@ -47,6 +47,19 @@ test("proposed or failed corrections never become executed; unrelated actions ar
   assert.equal(helpers.auditEvidence([verdict(4, "violation"), { ...decision, payload: { attempt: 1, action } }])[0].correction, undefined);
 });
 
+test("explicit server links win: an unrelated detector retry is not mistaken for the correction", () => {
+  const detectorRetry = { kind: "decision", mode: "shielded", step: 4, payload: { attempt: 2, action: { ...action, rationale: "Click Continue again" }, correcting: null } };
+  const untick = { kind: "decision", mode: "shielded", step: 4, payload: { attempt: 3, action, correcting: 4 } };
+  const ran = { kind: "executed", mode: "shielded", step: 4, payload: { action, ok: true, correcting: 4 } };
+  const card = helpers.auditEvidence([verdict(4, "violation"), detectorRetry, untick, ran, verdict(5, "ok", 4)])[0];
+  assert.equal(card.correction.payload.action.rationale, action.rationale);
+  assert.equal(card.correctionExecuted, true);
+  assert.equal(card.recheckStep, 5);
+  const proposedOnly = helpers.auditEvidence([verdict(4, "violation"), untick, { ...ran, payload: { ...ran.payload, ok: false } }])[0];
+  assert.equal(proposedOnly.correctionExecuted, false);
+  assert.equal(helpers.auditEvidence([verdict(4, "violation"), detectorRetry])[0].correction, undefined);
+});
+
 test("permitted and uncertain checks retain the server's meaning; commitment states stay distinct", () => {
   assert.equal(helpers.auditEvidence([verdict(1, "permitted")])[0].check.status, "permitted");
   assert.equal(helpers.auditEvidence([verdict(1, "uncertain")])[0].check.status, "uncertain");
