@@ -1,0 +1,18 @@
+#!/bin/sh
+# Same style check as CI's server-lint job, on the server Python files being committed.
+# Enable once per clone:  git config core.hooksPath .githooks
+# Skip in an emergency:   git commit --no-verify
+
+files=$(git diff --cached --name-only --diff-filter=ACMR -- 'server/*.py' | sed 's#^server/##')
+[ -z "$files" ] && exit 0
+command -v uv >/dev/null 2>&1 || { echo "pre-commit: uv not found; skipping ruff"; exit 0; }
+
+cd server || exit 1
+# shellcheck disable=SC2086  # file names in this repo have no spaces
+if ! uv run --quiet ruff check $files || ! uv run --quiet ruff format --check $files; then
+  echo
+  echo "pre-commit: ruff found style problems (CI would fail). Fix them with:"
+  echo "  cd server && uv run ruff format . && uv run ruff check --fix ."
+  echo "then 'git add' the files and commit again."
+  exit 1
+fi

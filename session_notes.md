@@ -32,6 +32,7 @@ Template:
   - Sybil lookups and persistence moved from `main.py` into `SybilRuntime`.
 - Fixed a bug: a shop that passed the graph policy but wasn't approved yet skipped the guard→Ask path. New `tests/test_shield.py` tests the step decision without the run loop. 249 tests pass, browser-use tests pass in their own env, and ruff is clean (wrapped 3 long lines in `presets.py`).
 - Contract change (Dev B OK'd it): `DecisionPayload.correcting` / `ExecutedPayload.correcting` name the audit step a correction answers. The evidence cards use them instead of guessing, so an unrelated retry is no longer shown as the correction. Older replays still use the old guess. `api-types.ts` regenerated.
+- CI had been red since 15 Nov 10:07 (about 40 pushes) only because of ruff style errors in `server/`. Since that step ran first, tests and the web job never ran. CI is now 3 separate jobs (server-lint, server-tests, web), and `.githooks/pre-commit` runs ruff before a commit. **Each clone runs once: `git config core.hooksPath .githooks`** (also noted in AGENTS.md / CLAUDE.md).
 - Not done: one queue for runs, lab and scan. It would only add waiting (a run would wait behind scans), with no speed gain.
 
 ### 2026-11-16 · Dev A · Claude Code · Sybil review clean-up
