@@ -7,6 +7,7 @@ import asyncio
 import base64
 import json
 import logging
+import os
 import time
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
@@ -101,7 +102,8 @@ _sybil = SybilRuntime()
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     global _browser, _bus
     pw = await async_playwright().start()
-    _browser = await pw.chromium.launch(args=["--no-sandbox"])
+    # Chromium refuses to sandbox as root (the Docker image runs as root).
+    _browser = await pw.chromium.launch(chromium_sandbox=os.getuid() != 0)
     store = make_store(settings)
     if isinstance(store, PgStore):
         _router.cache = PgCache(store)

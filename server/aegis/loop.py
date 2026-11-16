@@ -8,6 +8,7 @@ nothing else in aegis/ reads it.
 
 import argparse
 import asyncio
+import os
 import sys
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -407,7 +408,8 @@ async def _cli() -> None:
     agent = LLMAgent(LLMRouter(cfg), use_cache=not a.no_cache)
     url = start_url(a.traps.split(","), a.variant, a.arena)
     async with async_playwright() as pw:
-        browser = await pw.chromium.launch(args=["--no-sandbox"])
+        # Chromium refuses to sandbox as root (the Docker image runs as root).
+        browser = await pw.chromium.launch(chromium_sandbox=os.getuid() != 0)
         async for ev in run_side(
             browser, run_id="cli", mode=a.mode, task=a.task, url=url, agent=agent
         ):
