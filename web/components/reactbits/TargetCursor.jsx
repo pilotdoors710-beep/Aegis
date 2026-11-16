@@ -8,7 +8,8 @@ const CORNER_ANGLES = [0, 90, 180, 270];
 const QUARTER = Math.PI / 2;
 
 const spring = (state, goal, stiffness, damping, dt) => {
-  const steps = 2;
+  // Substep at ≤1/240 s: with 2 fixed steps the 2200 follow spring diverges once a frame takes >~40 ms.
+  const steps = Math.max(2, Math.ceil(dt * 240));
   const h = dt / steps;
   for (let i = 0; i < steps; i++) {
     state.v += (stiffness * (goal - state.x) - damping * state.v) * h;
