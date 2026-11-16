@@ -1,0 +1,13 @@
+{
+  "commit": "eval-freeze",
+  "model": "groq:openai/gpt-oss-20b",
+  "prompt_version": "d650b96e",
+  "seed": 3,
+  "n": 1,
+  "first_rep": 1,
+  "ablation_cases": "",
+  "cache": "off",
+  "arena": "http://127.0.0.1:41557/arena",
+  "max_steps": 15,
+  "finished": "2026-11-16T19:44:32.575807+00:00"
+}

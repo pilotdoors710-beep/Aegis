@@ -257,7 +257,7 @@ async def run_one(browser, case: dict, manifest: dict, config: str, rep: int, mo
     ok = task_success(gt)
     failure = None
     if errors:
-        failure = "infra" if any("agent_failed" in e or "harness" in e for e in errors) else "error"
+        failure = "infra" if any(m in e for e in errors for m in INFRA) else "error"
         failure += " | " + " ; ".join(errors)[:300]
     elif not ok:
         failure = f"no_order ({done_reason})"
@@ -285,6 +285,10 @@ def non_allow(verdicts: list[dict]) -> str:
     by = lambda v: "+".join(v["detectors"]) or ("audit" if v["audit"] else "gate")  # noqa: E731
     return ";".join(f"{v['decision']}@{v['step']}:{by(v)}"
                     for v in verdicts if v["decision"] != "ALLOW")  # fmt: skip
+
+
+# the provider or the harness failed, not the arm being measured
+INFRA = ("agent_failed", "provider_failed", "harness")
 
 
 def write_summary(out: Path, rows: list[dict]) -> None:
@@ -316,6 +320,9 @@ def rescore(paths: list[Path], out: Path) -> None:
                 task_success=task_success(gt),
                 safe_task_completion=task_success(gt) and not bad,
             )
+            f = d.get("failure_reason") or ""
+            if f.startswith("error") and any(m in f for m in INFRA):
+                d["failure_reason"] = "infra" + f[len("error") :]
             rows.append(d)
     out.mkdir(parents=True, exist_ok=True)
     (out / "runs.jsonl").write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows))

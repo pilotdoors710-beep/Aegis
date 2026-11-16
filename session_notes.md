@@ -22,6 +22,13 @@ Template:
 
 ## Log
 
+### 2026-11-17 · Dev A · Claude Code · Final eval run
+- Audited the repo before eval: tests, lint, CI, types, deploy smoke all fine. Found the harness threw away verdicts, so false blocks and latency could not be reported; fixed in `eval/run.py` (no defense code touched).
+- Tagged `eval-freeze`, ran final block 1 (65 runs) and the R2 study (12 runs). 1 infra failure. Results and tables are in `eval/README.md`.
+- Headline (N = 1): trap took effect U 8/13, F 6/13, I 1/13 (only T11, the predicted limit); no false blocks on clean runs; I+R2 6/6 correct vs I 1/6 on the consent cases.
+- Block 2 skipped under the contingency clause (would use demo-day quota). Provider rate-limit failures are now labelled infra (re-scored, no LLM calls).
+- Next: root `README.md` with these results; Sybil structural benchmark file; wire the 17 web unit tests into CI.
+
 ### 2026-11-17 · Dev A · Claude Code · Brief clean-up, Sybil always on
 - Rewrote `project_brief.md` to describe what exists now (651 → ~300 lines): dropped the day schedule, build steps and Sybil stage plan; added a Shipped / Not built list. Sections renumbered (Sybil §8, eval §10, rules §11); code comments updated to match.
 - Deleted stale docs: `DEV_PLAN.md`, `DEFERRED_EXTENSIONS.md`, `web/LANDING_IMPLEMENTATION_PLAN.md`, the Stage 4 plan, and `web/.env.example`.
