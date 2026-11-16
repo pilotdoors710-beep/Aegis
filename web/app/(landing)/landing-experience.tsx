@@ -270,7 +270,7 @@ export function LandingExperience() {
                 delay: 1.0,
               }}
             >
-              You gave your AI a card and told it to browse the web—but the internet is full of traps waiting to trick it. Aegis acts as a real-time bodyguard over your agent’s shoulder, catching sneaky subscriptions, killing deceptive checkouts, and verifying the receipt before a single dollar leaves your wallet.
+              You handed your AI agent a card and sent it shopping. Plenty of pages are built to trick it, with a pre-ticked plan, a fake close button or a hidden line telling it to buy more. Aegis checks each click before it happens and compares the receipt with what you asked for before anything is paid.
             </motion.p>
           </div>
         </div>

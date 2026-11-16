@@ -214,14 +214,14 @@
 
 .subtitleRevealed {
   color: #b8cce4; /* light steel blue */
-  text-shadow: 0 1px 2px rgb(8 13 20 / 55%), 0 2px 14px rgb(8 13 20 / 45%);
+  text-shadow: 0 2px 0 rgb(8 13 20 / 70%), 0 4px 10px rgb(8 13 20 / 70%), 0 10px 30px rgb(8 13 20 / 55%);
   transition: color 0.3s ease;
 }
 
 .subtitleEncrypted {
   color: #c2a15a;
   opacity: 0.9;
-  text-shadow: 0 1px 2px rgb(8 13 20 / 55%), 0 2px 12px rgb(8 13 20 / 45%);
+  text-shadow: 0 2px 0 rgb(8 13 20 / 70%), 0 4px 10px rgb(8 13 20 / 70%), 0 10px 30px rgb(8 13 20 / 55%);
 }
 
 .heroDescription {
