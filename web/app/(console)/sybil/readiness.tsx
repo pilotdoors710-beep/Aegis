@@ -4,6 +4,7 @@ import { SkeletonGroup, SkeletonLines, Skeleton } from "@/components/skeleton";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { api, type Schema } from "@/lib/api";
+import { siteOptions, toggleBridge, toggleTakeover, type SiteOptions } from "@/lib/sybil-edits";
 import styles from "./sybil.module.css";
 import { SybilGraph, type SelectedEdge } from "./graph";
 import { RunView } from "../run-view";
@@ -26,17 +27,25 @@ function download(name: string, content: string, type: string) {
 }
 
 
+function SiteAction({ active, disabled, onClick, label, note }: { active: boolean; disabled: boolean; onClick: () => void; label: string; note: string }) {
+  return (
+    <div style={{ marginTop: "var(--s2)", paddingTop: "var(--s2)", borderTop: "1px solid var(--line)" }}>
+      <button className={active ? "secondary-button" : "primary-button"} disabled={disabled} onClick={onClick} style={{ width: "100%" }}>
+        {label}
+      </button>
+      <p style={{ color: "var(--muted)", fontSize: "0.75rem", marginTop: "var(--s1)" }}>{note}</p>
+    </div>
+  );
+}
+
 function NodeInspector({
   node,
   recommendations,
   outgoingCount,
   incomingCount,
-  isBridged,
-  canBridge,
+  options,
   busy,
   onToggleBridge,
-  isCompromised,
-  canTakeOver,
   onToggleTakeover,
   onClose,
 }: {
@@ -44,16 +53,12 @@ function NodeInspector({
   recommendations: Schema["SybilRecommendation"][];
   outgoingCount: number;
   incomingCount: number;
-  isBridged?: boolean;
-  canBridge?: boolean;
-  busy?: boolean;
-  onToggleBridge?: (nodeId: string) => void;
-  isCompromised?: boolean;
-  canTakeOver?: boolean;
-  onToggleTakeover?: (nodeId: string) => void;
+  options: SiteOptions | null; // null: not a real site, or no revision to edit yet
+  busy: boolean;
+  onToggleBridge: (nodeId: string) => void;
+  onToggleTakeover: (nodeId: string) => void;
   onClose: () => void;
 }) {
-  const takeoverCost = node.anchor ? 15 : 5;
   return (
     <div className={styles.inspector} aria-labelledby="node-inspector-title">
       <div className={styles.inspectorHead}>
@@ -98,43 +103,31 @@ function NodeInspector({
           </dd>
         </div>
       </dl>
-      {node.provenance === "observed" && onToggleTakeover && (
-        <div style={{ marginTop: "var(--s2)", paddingTop: "var(--s2)", borderTop: "1px solid var(--line)" }}>
-          <button
-            className={isCompromised ? "secondary-button" : "primary-button"}
-            disabled={busy || (!isCompromised && !canTakeOver)}
-            onClick={() => onToggleTakeover(node.id)}
-            style={{ width: "100%" }}
-          >
-            {isCompromised
-              ? `Release this site (-${takeoverCost} credits)`
-              : `Take over this ${node.anchor ? "anchor" : "site"} (+${takeoverCost} credits)`}
-          </button>
-          <p style={{ color: "var(--muted)", fontSize: "0.75rem", marginTop: "var(--s1)" }}>
-            {isCompromised
-              ? "The attacker controls this real website and links it into the attack cluster."
-              : node.anchor
-                ? "Seizes a trusted anchor and links it into the attack cluster (costs 15 credits)."
-                : "Seizes this real website and links it into the attack cluster (costs 5 credits)."}
-          </p>
-        </div>
+      {options && (
+        <SiteAction
+          active={options.compromised}
+          disabled={busy || !options.canTakeOver}
+          onClick={() => onToggleTakeover(node.id)}
+          label={options.compromised
+            ? `Release this site (-${options.takeoverCost} credits)`
+            : `Take over this ${node.anchor ? "anchor" : "site"} (+${options.takeoverCost} credits)`}
+          note={options.compromised
+            ? "The attacker controls this real website and links it into the attack cluster."
+            : `Seizes ${node.anchor ? "a trusted anchor" : "this real website"} and links it into the attack cluster.`}
+        />
       )}
-      {node.provenance === "observed" && !node.anchor && !isCompromised && onToggleBridge && (
-        <div style={{ marginTop: "var(--s2)", paddingTop: "var(--s2)", borderTop: "1px solid var(--line)" }}>
-          <button
-            className={isBridged ? "secondary-button" : "primary-button"}
-            disabled={busy || (!isBridged && !canBridge)}
-            onClick={() => onToggleBridge(node.id)}
-            style={{ width: "100%" }}
-          >
-            {isBridged ? "Disconnect real-web bridge (-2 credits)" : "Bridge to attack (+2 credits)"}
-          </button>
-          <p style={{ color: "var(--muted)", fontSize: "0.75rem", marginTop: "var(--s1)" }}>
-            {isBridged
-              ? "This real website has a cooperating link pointing into the attack cluster (costs 2 credits)."
-              : "Creates a cooperating link from this real website into the attack cluster (costs 2 credits)."}
-          </p>
-        </div>
+      {options && !node.anchor && !options.compromised && (
+        <SiteAction
+          active={options.bridged}
+          disabled={busy || !options.canBridge}
+          onClick={() => onToggleBridge(node.id)}
+          label={options.bridged
+            ? `Disconnect real-web bridge (-${options.bridgeCost} credits)`
+            : `Bridge to attack (+${options.bridgeCost} credits)`}
+          note={options.bridged
+            ? "This real website has a cooperating link pointing into the attack cluster."
+            : "Creates a cooperating link from this real website into the attack cluster."}
+        />
       )}
     </div>
   );
@@ -402,92 +395,29 @@ export function SybilReadiness() {
     }
   }
 
-  async function toggleBridge(nodeId: string) {
-    if (!revision) return;
+  // Every edit path: build the next edit set, let the server price and validate it, show it.
+  async function submitEdits(next: () => Schema["SybilScenarioCreate"], failure: string) {
     setBusy(true);
     setError(null);
     try {
-      const isBridged = revision.edits.cooperating_links.some((l) => l.source === nodeId);
-      const targetNode = revision.edits.injected_nodes[0];
-      if (!isBridged && !targetNode) throw new Error("Create an attack with simulated websites first.");
-      let updatedCoop: Schema["SybilLink"][];
-      let updatedAdded: Schema["SybilLink"][];
-
-      if (isBridged) {
-        updatedCoop = revision.edits.cooperating_links.filter((l) => l.source !== nodeId);
-        // Drop the link each removed bridge paid for, whatever simulated site it points at.
-        const paid = new Set(revision.edits.cooperating_links.filter((l) => l.source === nodeId).map((l) => l.target));
-        updatedAdded = revision.edits.added_links.filter((l) => !(l.source === nodeId && paid.has(l.target)));
-      } else {
-        const bridge = { source: nodeId, target: targetNode };
-        updatedCoop = [...revision.edits.cooperating_links, bridge];
-        updatedAdded = [...revision.edits.added_links, bridge];
-      }
-
-      const nextEdits: Schema["SybilScenarioCreate"] = {
-        ...revision.edits,
-        cooperating_links: updatedCoop,
-        added_links: updatedAdded,
-      };
-
-      const next = await api.createSybilScenario(nextEdits);
-      await showRevision(next);
+      await showRevision(await api.createSybilScenario(next()));
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Toggling bridge failed.");
+      setError(cause instanceof Error ? cause.message : failure);
     } finally {
       setBusy(false);
     }
   }
 
-  async function toggleTakeover(nodeId: string) {
-    if (!revision) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const edits = revision.edits;
-      const owned = edits.compromised.includes(nodeId);
-      const targetNode = edits.injected_nodes[0];
-      if (!owned && !targetNode) throw new Error("Create an attack with simulated websites first.");
-      // A taken-over site needs no cooperation credit, and the server rejects both at once.
-      const cooperating_links = edits.cooperating_links.filter((l) => l.source !== nodeId);
-      const nextEdits: Schema["SybilScenarioCreate"] = owned
-        ? {
-            ...edits,
-            compromised: edits.compromised.filter((id) => id !== nodeId),
-            cooperating_links,
-            added_links: edits.added_links.filter((l) => l.source !== nodeId),
-          }
-        : {
-            ...edits,
-            compromised: [...edits.compromised, nodeId],
-            cooperating_links,
-            added_links: edits.added_links.some((l) => l.source === nodeId && l.target === targetNode)
-              ? edits.added_links
-              : [...edits.added_links, { source: nodeId, target: targetNode }],
-          };
-      await showRevision(await api.createSybilScenario(nextEdits));
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Takeover failed.");
-    } finally {
-      setBusy(false);
-    }
-  }
+  const onToggleBridge = (site: string) =>
+    revision && void submitEdits(() => toggleBridge(revision.edits, site), "Toggling bridge failed.");
+  const onToggleTakeover = (site: string) =>
+    revision && void submitEdits(() => toggleTakeover(revision.edits, site), "Takeover failed.");
 
   function parseDraft() {
     return JSON.parse(draft) as Schema["SybilScenarioCreate"];
   }
 
-  async function applyDraft() {
-    setBusy(true);
-    setError(null);
-    try {
-      await showRevision(await api.createSybilScenario(parseDraft()));
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Scenario edit failed.");
-    } finally {
-      setBusy(false);
-    }
-  }
+  const applyDraft = () => submitEdits(parseDraft, "Scenario edit failed.");
 
   async function previewDraft() {
     if (!revision) return;
@@ -661,7 +591,7 @@ export function SybilReadiness() {
               />
             </label>
             <label>
-              Real-web bridge links ({bridges * 2} / 25 credits)
+              Real-web bridge links
               <WakeSlider
                 min={0}
                 max={12}
@@ -695,7 +625,7 @@ export function SybilReadiness() {
             </div>
             <div>
               <dt>External credits</dt>
-              <dd>{revision?.budget.external_credits ?? 0} / 25</dd>
+              <dd>{revision ? `${revision.budget.external_credits} / ${revision.budget.credit_limit}` : "—"}</dd>
             </div>
           </dl>
           <p>Generation uses seed 1. Repeating the same settings produces the same immutable revision.</p>
@@ -743,18 +673,14 @@ export function SybilReadiness() {
               recommendations={nodeRecommendations}
               outgoingCount={outgoingCount}
               incomingCount={incomingCount}
-              isBridged={revision?.edits.cooperating_links.some((l) => l.source === selectedNode.id)}
-              canBridge={(revision?.budget.external_credits ?? 0) + 2 <= 25}
-              busy={busy}
-              onToggleBridge={toggleBridge}
-              isCompromised={revision?.edits.compromised.includes(selectedNode.id)}
-              canTakeOver={
-                (revision?.budget.external_credits ?? 0) +
-                  (selectedNode.anchor ? 15 : 5) -
-                  (revision?.edits.cooperating_links.some((l) => l.source === selectedNode.id) ? 2 : 0) <=
-                25
+              options={
+                revision && selectedNode.provenance === "observed"
+                  ? siteOptions(revision, selectedNode.id, selectedNode.anchor)
+                  : null
               }
-              onToggleTakeover={toggleTakeover}
+              busy={busy}
+              onToggleBridge={onToggleBridge}
+              onToggleTakeover={onToggleTakeover}
               onClose={() => setSelectedNodeId(null)}
             />
           ) : selectedEdge ? (

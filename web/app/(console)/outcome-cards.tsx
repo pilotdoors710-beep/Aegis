@@ -1,22 +1,21 @@
-import { useEffect, useState } from "react";
 import Counter from "@/components/reactbits/Counter";
-import { api, type RunEvent, type Schema } from "@/lib/api";
+import { type RunEvent, type Schema } from "@/lib/api";
 import { type AskEvent, commitmentKey } from "@/lib/run-evidence";
 
 type DoneEvent = Extract<RunEvent, { kind: "done" }>;
 type Commitment = Schema["Commitment"];
 
 const PERIOD_SHORT: Record<string, string> = { month: "mo", year: "yr" };
-// Mirrors POLICY_MIN_* in server/aegis/sybil_runtime.py; change both together. The run's own
-// recorded graph evidence is not exposed to the web yet, so this card re-judges with the
-// current formula, which for runs scored before sybil-v2 can differ from what Aegis saw.
-const POLICY = { total: 60, support: 0.5, withdrawal: 0.5 };
-type ShopScore = Schema["SybilShopScore"];
-function trustCheck(score: ShopScore) {
-  if (score.total_robustness < POLICY.total) return `failed the trust check (${score.total_robustness.toFixed(1)} / 100, needs ${POLICY.total})`;
-  if (score.structural_support < POLICY.support) return `failed the trust check (too little support, ${score.structural_support.toFixed(2)})`;
-  if (score.anchor_withdrawal_resilience < POLICY.withdrawal) return `failed the trust check (${score.total_robustness.toFixed(1)} / 100, support rests on too few anchors)`;
-  return null;
+type GraphEvidence = Schema["SybilGraphEvidence"];
+
+// The verdict comes from the run's frozen evidence (policy_passed); this only says which
+// recorded floor the shop missed.
+function trustLine(evidence: GraphEvidence, shop: Schema["SybilShopEvidence"]) {
+  const score = `${shop.total_robustness.toFixed(1)} / 100`;
+  if (shop.policy_passed) return `passed the trust check (${score})`;
+  if (shop.total_robustness < evidence.minimum_total) return `failed the trust check (${score}, needs ${evidence.minimum_total})`;
+  if (shop.structural_support < evidence.minimum_support) return `failed the trust check (${score}, too little support)`;
+  return `failed the trust check (${score}, support rests on too few anchors)`;
 }
 
 const rupees =(value: number) => `₹${value.toLocaleString("en-IN")}`;
@@ -46,12 +45,8 @@ function difference(left: DoneEvent, right: DoneEvent) {
 }
 
 export function OutcomeCards({ events, summary }: { events: RunEvent[]; summary: Schema["RunSummary"] | null }) {
-  // Sybil runs: judge each side's shop afterwards against the run's frozen revision (current formula).
-  const revision = summary?.sybil_revision_id;
-  const [scores, setScores] = useState<Schema["SybilAssessmentRecord"]["scores"]>(null);
-  useEffect(() => {
-    if (revision) api.createSybilAssessment(revision).then((a) => setScores(a.scores ?? null), () => setScores(null));
-  }, [revision]);
+  // Sybil runs: both sides' shops are judged by the evidence Aegis froze at launch.
+  const evidence = summary?.sybil_graph_evidence ?? null;
   const left = events.findLast((event): event is DoneEvent => event.kind === "done" && event.mode === "unshielded");
   const right = events.findLast((event): event is DoneEvent => event.kind === "done" && event.mode === "shielded");
   // Keep both browser panes in place while either agent is still streaming.
@@ -78,9 +73,8 @@ export function OutcomeCards({ events, summary }: { events: RunEvent[]; summary:
           return <div key={index} className="outcome-arc">{line}</div>;
         }) : <p className="outcome-no-recurring">No recurring charges</p>}
         {done.payload.outcome.shop && (() => {
-          const score = scores?.[done.payload.outcome.shop as "A" | "B"];
-          const failed = score ? trustCheck(score) : null;
-          return <p className={failed ? "outcome-recurring-only" : undefined}>Bought from Shop {done.payload.outcome.shop}{score && (failed ? ` · ${failed}` : ` · passed the trust check (${score.total_robustness.toFixed(1)} / 100)`)}</p>;
+          const shop = evidence?.shops[done.payload.outcome.shop as "A" | "B"];
+          return <p className={shop && !shop.policy_passed ? "outcome-recurring-only" : undefined}>Bought from Shop {done.payload.outcome.shop}{evidence && shop && ` · ${trustLine(evidence, shop)}`}</p>;
         })()}
         <p>{done.payload.outcome.task_completed === true ? "Task completed" : done.payload.outcome.task_completed === false ? "Task incomplete" : "Completion unknown"}</p>
         {done.payload.reason !== "completed" && <p className="outcome-reason">{timedOut ? "Stopped: approval timed out. Nobody approved in time, so no order was placed." : cloakedDenied ? "Stopped before payment: this site showed the agent a different checkout than an ordinary browser, and you denied it." : `Stopped: ${done.payload.reason.replaceAll("_", " ")}`}</p>}

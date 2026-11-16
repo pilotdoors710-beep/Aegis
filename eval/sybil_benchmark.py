@@ -12,7 +12,7 @@ import numpy as np
 import scipy
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "server"))
-from aegis.sybil import assess
+from aegis.sybil import DEFAULT_CONFIG, assess
 from aegis.sybil_dataset import load_dataset
 
 
@@ -67,7 +67,7 @@ def benchmark(directory: Path, repeats: int) -> dict:
             raise RuntimeError("Full real-data assessment did not converge")
         full_times.append(result.elapsed_ms)
         score = result.scores["A"]
-    assert score is not None and len(score.tested_edges) <= 5
+    assert score is not None and len(score.cut_sources) <= DEFAULT_CONFIG.cut_sources
 
     propagation_p95 = percentile(propagation_times, 95)
     full_p95 = percentile(full_times, 95)
@@ -104,7 +104,7 @@ def benchmark(directory: Path, repeats: int) -> dict:
         },
         "workload": {
             "supporters": len(supporters),
-            "tested_edges": len(score.tested_edges),
+            "cut_sources": len(score.cut_sources),
             "score": score.total,
             "converged": True,
         },

@@ -1065,6 +1065,11 @@ export interface components {
              * @enum {string}
              */
             shield: "I" | "I_R2";
+            /**
+             * Requires Sybil Revision
+             * @default false
+             */
+            requires_sybil_revision: boolean;
         };
         /** RecurringTerm */
         RecurringTerm: {
@@ -1147,6 +1152,7 @@ export interface components {
             own_key: boolean;
             /** Sybil Revision Id */
             sybil_revision_id?: string | null;
+            sybil_graph_evidence?: components["schemas"]["SybilGraphEvidence"] | null;
         };
         /** ScanReport */
         ScanReport: {
@@ -1317,6 +1323,21 @@ export interface components {
              * @default 25
              */
             credit_limit: number;
+            /**
+             * Cooperating Link Cost
+             * @default 2
+             */
+            cooperating_link_cost: number;
+            /**
+             * Compromise Cost
+             * @default 5
+             */
+            compromise_cost: number;
+            /**
+             * Anchor Compromise Cost
+             * @default 15
+             */
+            anchor_compromise_cost: number;
         };
         /** SybilCounterfactualResult */
         SybilCounterfactualResult: {
@@ -1420,6 +1441,43 @@ export interface components {
              * @enum {string}
              */
             provenance: "observed" | "simulated";
+        };
+        /** SybilGraphEvidence */
+        SybilGraphEvidence: {
+            /** Revision Id */
+            revision_id: string;
+            /** Assessment Id */
+            assessment_id: string;
+            /**
+             * Formula Version
+             * @default sybil-v2
+             * @enum {string}
+             */
+            formula_version: "sybil-v1" | "sybil-v2";
+            /**
+             * Minimum Total
+             * @default 60
+             */
+            minimum_total: number;
+            /**
+             * Minimum Support
+             * @default 0.5
+             */
+            minimum_support: number;
+            /**
+             * Minimum Withdrawal
+             * @default 0.5
+             */
+            minimum_withdrawal: number;
+            /** Shops */
+            shops: {
+                [key: string]: components["schemas"]["SybilShopEvidence"];
+            };
+            /**
+             * Disclosure
+             * @default A heuristic measure of structural support and tested sensitivity. Not a probability that this shop is safe.
+             */
+            disclosure: string;
         };
         /** SybilGraphNode */
         SybilGraphNode: {
@@ -1574,6 +1632,23 @@ export interface components {
             /** Rank */
             rank: number;
         };
+        /** SybilShopEvidence */
+        SybilShopEvidence: {
+            /** Recommendation Count */
+            recommendation_count: number;
+            /** Structural Support */
+            structural_support: number;
+            /** Anchor Breadth */
+            anchor_breadth: number;
+            /** Anchor Withdrawal Resilience */
+            anchor_withdrawal_resilience: number;
+            /** Tested Connection Resilience */
+            tested_connection_resilience: number;
+            /** Total Robustness */
+            total_robustness: number;
+            /** Policy Passed */
+            policy_passed: boolean;
+        };
         /** SybilShopScore */
         SybilShopScore: {
             /** Recommendation Count */
@@ -1592,8 +1667,11 @@ export interface components {
             tested_connection_resilience: number;
             /** Total Robustness */
             total_robustness: number;
-            /** Tested Edges */
-            tested_edges: components["schemas"]["SybilLink"][];
+            /**
+             * Cut Sources
+             * @default []
+             */
+            cut_sources: string[];
         };
         /** SybilWeights */
         SybilWeights: {

@@ -211,7 +211,7 @@ async def test_create_run_sybil_validation(monkeypatch) -> None:
                     "anchor_withdrawal_resilience": 0.8,
                     "tested_connection_resilience": 0.85,
                     "total_robustness": 75.0,
-                    "tested_edges": [],
+                    "cut_sources": [],
                 },
                 "B": {
                     "recommendation_count": 50,
@@ -222,7 +222,7 @@ async def test_create_run_sybil_validation(monkeypatch) -> None:
                     "anchor_withdrawal_resilience": 0.1,
                     "tested_connection_resilience": 0.1,
                     "total_robustness": 30.0,
-                    "tested_edges": [],
+                    "cut_sources": [],
                 },
             },
         }

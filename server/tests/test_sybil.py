@@ -42,7 +42,7 @@ def test_anchor_decomposition_withdrawal_and_connection_intervention():
     assert score.breadth == pytest.approx(1)
     assert score.withdrawal == pytest.approx(1)
     assert score.connection == pytest.approx(0)
-    assert score.tested_edges == ((2, 3),)
+    assert score.cut_sources == (2,)
     assert graph.edges == ((0, 2), (1, 2), (2, 3))
     assert 0 <= score.total <= 100
 
@@ -106,12 +106,14 @@ def test_wide_honest_support_survives_the_cut():
     edges = [(a, s) for a in (0, 1) for s in range(2, 22)] + [(s, s + 20) for s in range(2, 22)]
     score = assess(_graph(42, edges), (0, 1), {r: ("A",) for r in range(22, 42)}, 1e-6)
     assert score.scores["A"].connection == pytest.approx(8 / 20)
-    assert len(score.scores["A"].tested_edges) == 12
+    assert len(score.scores["A"].cut_sources) == 12
 
 
 def test_cut_size_matches_what_the_credit_budget_can_buy():
     # Cheapest outside site an attacker can enlist is a 2-credit cooperating link.
-    assert Config().cut_sources == SybilBudget.model_fields["credit_limit"].default // 2
+    fields = SybilBudget.model_fields
+    limit, price = fields["credit_limit"].default, fields["cooperating_link_cost"].default
+    assert Config().cut_sources == limit // price
 
 
 def test_single_anchor_dependence_and_frozen_normalization():

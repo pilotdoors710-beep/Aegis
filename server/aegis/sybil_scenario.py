@@ -39,6 +39,8 @@ class BaseGraph:
 
     @cached_property
     def trust(self) -> np.ndarray:
+        """Clean-graph trust for choosing bridges: a full propagation, so the API warms it
+        at startup (api.main lifespan) rather than on the first bridge request."""
         anchors = tuple(self.index[a] for a in self.anchors)
         return assess(self.graph, anchors, {}, self.tau).trust
 
@@ -155,9 +157,17 @@ def apply(base: BaseGraph, edits: SybilScenarioCreate) -> AppliedScenario:
     )
     base_count = len(base.ids)
     internal_count = sum(u >= base_count and v >= base_count for u, v in added_indices)
-    credits = len(cooperation) * 2 + sum(15 if v in base.anchors else 5 for v in compromised)
-    budget = SybilBudget(
-        injected_websites=len(injected), internal_links=internal_count, external_credits=credits
+    prices = SybilBudget(injected_websites=0, internal_links=0, external_credits=0)
+    credits = len(cooperation) * prices.cooperating_link_cost + sum(
+        prices.anchor_compromise_cost if v in base.anchors else prices.compromise_cost
+        for v in compromised
+    )
+    budget = prices.model_copy(
+        update={
+            "injected_websites": len(injected),
+            "internal_links": internal_count,
+            "external_credits": credits,
+        }
     )
     if edits.mode == "challenge" and (
         len(injected) > budget.website_limit
@@ -210,17 +220,13 @@ def apply(base: BaseGraph, edits: SybilScenarioCreate) -> AppliedScenario:
     return AppliedScenario(
         revision,
         ids,
-        Graph(
-            len(ids), final_links, tuple(degrees)
-        ),
+        Graph(len(ids), final_links, tuple(degrees)),
         tuple(index[v] for v in anchors),
         tuple((v, tuple(shops)) for v, shops in sorted(recommendations.items())),
     )
 
 
-def generate(
-    dataset_id: str, config: SybilGenerate, base: BaseGraph | None = None
-) -> SybilScenarioCreate:
+def generate(dataset_id: str, config: SybilGenerate, base: BaseGraph) -> SybilScenarioCreate:
     """Bounded deterministic generation; rejection never silently clips dense attacks."""
     rng = random.Random(config.seed)
     nodes = tuple(f"sim:{config.seed}-{i}" for i in range(config.count))
@@ -245,7 +251,7 @@ def generate(
                         "Generated attack exceeds 100,000 internal links; lower density"
                     )
     cooperating = []
-    if config.bridges > 0 and base is not None:
+    if config.bridges > 0:
         anchors = set(base.anchors)
         degree = base.graph.original_outdegree
         # An attacker buys the sites whose single extra link carries the most trust.

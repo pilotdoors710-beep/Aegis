@@ -2,9 +2,20 @@ from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import httpx
+import pytest
+from fastapi import HTTPException
 
 from aegis.config import settings
-from aegis.schemas import SybilAssessmentRecord, SybilCounterfactualResult, SybilScoreDelta
+from aegis.schemas import (
+    RunCreate,
+    SybilAssessmentRecord,
+    SybilCounterfactualResult,
+    SybilLink,
+    SybilRecommendation,
+    SybilScenarioCreate,
+    SybilScoreDelta,
+    SybilShopScore,
+)
 from aegis.sybil import Graph
 from aegis.sybil_runtime import (
     SybilRuntime,
@@ -13,7 +24,7 @@ from aegis.sybil_runtime import (
     graph_evidence,
 )
 from aegis.sybil_scenario import BaseGraph
-from api.main import app
+from api.main import app, create_run
 
 
 async def test_sybil_is_disabled_by_default(monkeypatch):
@@ -243,7 +254,7 @@ def test_graph_evidence_applies_both_policy_thresholds() -> None:
             "anchor_withdrawal_resilience": 0.5,
             "tested_connection_resilience": 0.5,
             "total_robustness": total,
-            "tested_edges": [],
+            "cut_sources": [],
         }
         for shop, support, total in (("A", 0.5, 60), ("B", 0.49, 80))
     }
@@ -272,7 +283,7 @@ def test_bridge_inflated_score_still_fails_anchor_floor() -> None:
         "anchor_withdrawal_resilience": 0.11,
         "tested_connection_resilience": 1.0,
         "total_robustness": 62.9,
-        "tested_edges": [],
+        "cut_sources": [],
     }
     assessment = SybilAssessmentRecord.model_validate(
         {
@@ -283,3 +294,80 @@ def test_bridge_inflated_score_still_fails_anchor_floor() -> None:
         }
     )
     assert graph_evidence(assessment).shops["B"].policy_passed is False
+
+
+def test_graph_evidence_carries_the_policy_it_was_judged_by() -> None:
+    revision_id = "f" * 64
+    shop = {
+        "recommendation_count": 12,
+        "trust_weighted_support": 0.01,
+        "structural_support": 0.9,
+        "effective_anchors": 6,
+        "anchor_breadth": 0.7,
+        "anchor_withdrawal_resilience": 0.8,
+        "tested_connection_resilience": 0.2,
+        "total_robustness": 79.0,
+    }
+    assessment = SybilAssessmentRecord.model_validate(
+        {
+            "id": assessment_identity(revision_id),
+            "revision_id": revision_id,
+            "status": "complete",
+            "scores": {"A": shop},
+        }
+    )
+    evidence = graph_evidence(assessment)
+    assert evidence.minimum_withdrawal == 0.5
+    assert "L>=0.5" in evidence.policy_text()
+    assert evidence.shops["A"].policy_passed is True
+
+
+def test_assessments_stored_with_tested_edges_still_load() -> None:
+    legacy = {
+        "recommendation_count": 1,
+        "trust_weighted_support": 0.0,
+        "structural_support": 0.0,
+        "effective_anchors": 0.0,
+        "anchor_breadth": 0.0,
+        "anchor_withdrawal_resilience": 0.0,
+        "tested_connection_resilience": 0.0,
+        "total_robustness": 0.0,
+        "tested_edges": [{"source": "a.org", "target": "b.org"}],
+    }
+    assert SybilShopScore.model_validate(legacy).cut_sources == ()
+
+
+async def test_presets_and_sybil_revisions_must_match() -> None:
+    with pytest.raises(HTTPException, match="needs a Sybil revision"):
+        await create_run(RunCreate(preset_id="sybil-two-shop"))
+    with pytest.raises(HTTPException, match="does not take a Sybil revision"):
+        await create_run(RunCreate(preset_id="clean", sybil_revision_id="a" * 64))
+
+
+def test_view_keeps_every_real_site_an_edit_names() -> None:
+    nodes = tuple(
+        SimpleNamespace(
+            id=str(i), domain=f"site-{i}.invalid", original_outdegree=1,
+            retained_outdegree=1, x=float(i), y=0.0,
+        )
+        for i in range(6)
+    )  # fmt: skip
+    base = BaseGraph(
+        "test", "a" * 64, tuple(v.id for v in nodes),
+        Graph(6, tuple((i, (i + 1) % 6) for i in range(6)), (1,) * 6), ("0", "1"), 0.1,
+    )  # fmt: skip
+    dataset = SimpleNamespace(manifest=SimpleNamespace(id="test"), nodes=nodes, base=base)
+    injected = tuple(f"sim:{i}" for i in range(10))
+    runtime = SybilRuntime()
+    scenario = runtime.create(
+        dataset,
+        SybilScenarioCreate(
+            dataset_id="test",
+            injected_nodes=injected,
+            compromised=("5",),
+            added_links=(SybilLink(source="5", target="sim:0"),),
+            recommendations=tuple(SybilRecommendation(website=v, shop="B") for v in injected),
+        ),
+    )
+    shown = {node.id for node in runtime.view(dataset, scenario, limit=4).nodes}
+    assert "5" in shown  # the taken-over site is not crowded out by ten fake ones

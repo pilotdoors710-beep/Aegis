@@ -111,7 +111,7 @@ async def main():
             "anchor_withdrawal_resilience": 0.8,
             "tested_connection_resilience": 0.7,
             "total_robustness": 62.1,
-            "tested_edges": [],
+            "cut_sources": [],
         }
 
         async def respond_available(route):

@@ -4,7 +4,6 @@ import { Skeleton, SkeletonGroup, SkeletonLines } from "@/components/skeleton";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Counter from "@/components/reactbits/Counter";
-import { api } from "@/lib/api";
 import { useRunStream } from "@/lib/events";
 import type { RunEvent, Schema } from "@/lib/api";
 import { approvalLabels, latestAsks, pendingAsk } from "@/lib/run-evidence";
@@ -57,19 +56,12 @@ const EventRow = memo(function EventRow({ event, inspected, sample, onSelect }: 
 });
 
 // A Sybil run was judged against one frozen graph revision: show its scores and link back to it.
-function SybilRevision({ revisionId }: { revisionId: string }) {
-  const [assessment, setAssessment] = useState<Schema["SybilAssessmentRecord"] | null>(null);
-  const [failed, setFailed] = useState(false);
-  useEffect(() => {
-    // The server returns the stored assessment for this revision; it does not recompute.
-    api.createSybilAssessment(revisionId).then(setAssessment, () => setFailed(true));
-  }, [revisionId]);
-  const scores = assessment?.status === "complete" ? assessment.scores : null;
+// The scores come from the evidence frozen at launch, never a fresh assessment.
+function SybilRevision({ revisionId, evidence }: { revisionId: string; evidence: Schema["SybilGraphEvidence"] | null | undefined }) {
   return <section className="permission-pair" aria-label="Sybil graph revision"><h2>Shop trust scores used in this run</h2>
     <p>Frozen graph revision {revisionId.slice(0, 12)}. <Link href={`/sybil?revision=${revisionId}`}>Open graph and scores</Link></p>
-    {scores ? <dl>{(["A", "B"] as const).map((shop) => <div key={shop}><dt>Shop {shop}</dt><dd>{scores[shop].total_robustness.toFixed(1)} / 100</dd></div>)}</dl>
-      
-      : failed ? <p>Scores could not be loaded.</p> : assessment?.reason ? <p>{assessment.reason}</p> : <SkeletonGroup label="Loading scores…"><SkeletonLines n={2} /></SkeletonGroup>}
+    {evidence ? <dl>{(["A", "B"] as const).map((shop) => <div key={shop}><dt>Shop {shop}</dt><dd>{evidence.shops[shop].total_robustness.toFixed(1)} / 100 · {evidence.shops[shop].policy_passed ? "passed" : "failed"}</dd></div>)}</dl>
+      : <p>This run was recorded before scores were saved with runs; open the graph to see the revision.</p>}
   </section>;
 }
 
@@ -124,7 +116,7 @@ export function RunComparison({ summary, events, status, error, replay = false, 
     {error && <p className="error-message" role="alert">{error}</p>}
     <OutcomeCards events={events} summary={summary} />
     {summary && <PermissionPair summary={summary} finished={finished} />}
-    {showSybil && summary?.sybil_revision_id && <SybilRevision revisionId={summary.sybil_revision_id} />}
+    {showSybil && summary?.sybil_revision_id && <SybilRevision revisionId={summary.sybil_revision_id} evidence={summary.sybil_graph_evidence} />}
     <div className="comparison-grid">{(["unshielded", "shielded"] as const).map((mode) => <AgentPane key={mode} mode={mode} events={sides[mode]} summary={summary} replayStep={replayStep} />)}</div>
     {asks.length > 0 && <section className="approval-history" aria-label="Approval history"><h2>Approval history</h2>{asks.map((ask) => <p key={ask.payload.ask_id}>{summary?.is_sample ? "Recorded sample · " : replay ? "Recorded response · " : ""}{approvalLabels[ask.payload.status]} · {ask.payload.reason.replaceAll("_", " ")}</p>)}</section>}
     <EvidenceCards events={events} />

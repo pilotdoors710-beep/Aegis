@@ -22,6 +22,13 @@ Template:
 
 ## Log
 
+### 2026-11-16 · Dev A · Claude Code · Sybil review clean-up
+- Did: two reviews of the Sybil work, then fixed what they found. Scenario generation runs off the event loop, and the bridge trust pass now runs at startup.
+- The graph evidence now owns the policy (adds `minimum_withdrawal`, plus `passes()`). Runs save that evidence (`RunSummary.sybil_graph_evidence`), and the outcome card and run view read it instead of rescoring.
+- `tested_edges` → `cut_sources` (stored records still load). Edit prices live on `SybilBudget`; the web edit rules are in `web/lib/sybil-edits.ts`; the graph draws links from one style table.
+- Presets have `requires_sybil_revision`: it hides two-shop from the grid, and `POST /runs` rejects a preset/revision mismatch. The view keeps every real site an edit names.
+- Next: restart the :8000 backend. Runs from before today show "recorded before scores were saved with runs".
+
 ### 2026-11-16 · Dev A · Claude Code · Sybil attack fixes and sybil-v2
 - Did: WakeSlider for internal density; "Take over this site" button (5 credits, 15 for an anchor); Compare shows "Running…" until the run ends.
 - Fixed bridges: they came from the sites with the most links, so they carried almost no trust. They now come from the sites with the most trust per link. The graph view no longer scans all 50k ids for every link.

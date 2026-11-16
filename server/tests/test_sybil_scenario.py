@@ -103,8 +103,8 @@ def test_compromise_intervention_changes_outdegree_not_sink_omission(base):
 
 
 def test_generated_disconnected_support_and_cooperative_bridge(base):
-    attack = generate("test", SybilGenerate(count=100, pattern="hub", seed=7))
-    assert attack == generate("test", SybilGenerate(count=100, pattern="hub", seed=7))
+    attack = generate("test", SybilGenerate(count=100, pattern="hub", seed=7), base)
+    assert attack == generate("test", SybilGenerate(count=100, pattern="hub", seed=7), base)
     scenario = apply(base, attack)
     result = assess(scenario.graph, scenario.anchors, dict(scenario.recommendations), base.tau)
     assert result.scores["B"].count == 100
@@ -137,8 +137,8 @@ def test_research_background_edits_and_anchors_are_separate(base):
 @pytest.mark.parametrize("pattern", ["dense", "clusters", "hub", "chain"])
 def test_generation_is_reproducible_and_bounded(base, pattern):
     config = SybilGenerate(count=10, seed=123, pattern=pattern, density=1)
-    scenario = apply(base, generate("test", config))
-    assert scenario == apply(base, generate("test", config))
+    scenario = apply(base, generate("test", config, base))
+    assert scenario == apply(base, generate("test", config, base))
     assert scenario.revision.budget.injected_websites == 10
     assert scenario.revision.budget.external_credits == 0
     if pattern == "chain":
@@ -147,9 +147,9 @@ def test_generation_is_reproducible_and_bounded(base, pattern):
         assert scenario.revision.budget.internal_links == 18
 
 
-def test_generation_rejects_over_budget_instead_of_clipping():
+def test_generation_rejects_over_budget_instead_of_clipping(base):
     with pytest.raises(ValueError, match="100,000"):
-        generate("test", SybilGenerate(count=1000, density=1))
+        generate("test", SybilGenerate(count=1000, density=1), base)
 
 
 def test_research_settings_reach_engine_without_ownership(base):

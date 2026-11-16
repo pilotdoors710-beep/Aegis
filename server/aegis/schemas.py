@@ -5,7 +5,7 @@ commit as any change here.
 """
 
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
 
@@ -79,6 +79,10 @@ class SybilBudget(BaseModel):
     website_limit: int = 1000
     internal_link_limit: int = 100000
     credit_limit: int = 25
+    # Challenge prices (brief §14); the web reads these instead of hard-coding them.
+    cooperating_link_cost: int = 2
+    compromise_cost: int = 5
+    anchor_compromise_cost: int = 15
 
 
 class SybilScenarioRevision(BaseModel):
@@ -191,7 +195,15 @@ class SybilShopScore(BaseModel):
     anchor_withdrawal_resilience: float = Field(ge=0, le=1)
     tested_connection_resilience: float = Field(ge=0, le=1)
     total_robustness: float = Field(ge=0, le=100)
-    tested_edges: tuple[SybilLink, ...]
+    cut_sources: tuple[str, ...] = ()  # outside websites E cut together, highest flow first
+
+    @model_validator(mode="before")
+    @classmethod
+    def _drop_legacy_tested_edges(cls, data: Any) -> Any:
+        # Assessments stored before 16 Nov listed sample links as tested_edges.
+        if isinstance(data, dict) and "tested_edges" in data:
+            data = {k: v for k, v in data.items() if k != "tested_edges"}
+        return data
 
 
 class SybilAssessmentRecord(BaseModel):
@@ -245,13 +257,29 @@ class SybilGraphEvidence(BaseModel):
     revision_id: str = Field(pattern=r"^[a-f0-9]{64}$")
     assessment_id: str = Field(pattern=r"^[a-f0-9]{64}$")
     formula_version: Literal["sybil-v1", "sybil-v2"] = "sybil-v2"  # v1 kept so stored replays load
+    # The graph policy (brief §14). L: buying bridges inflates E (and so R) but cannot fake
+    # many anchors. policy_passed on each shop is computed from these by passes().
     minimum_total: float = 60
     minimum_support: float = 0.5
+    minimum_withdrawal: float = 0.5
     shops: dict[Literal["A", "B"], SybilShopEvidence]
     disclosure: str = (
         "A heuristic measure of structural support and tested sensitivity. "
         "Not a probability that this shop is safe."
     )
+
+    def passes(self, total: float, support: float, withdrawal: float) -> bool:
+        return (
+            total >= self.minimum_total
+            and support >= self.minimum_support
+            and withdrawal >= self.minimum_withdrawal
+        )
+
+    def policy_text(self) -> str:
+        return (
+            f"needs R>={self.minimum_total:g}, S>={self.minimum_support:g}, "
+            f"L>={self.minimum_withdrawal:g}"
+        )
 
 
 TrapType = Literal[
@@ -667,6 +695,8 @@ class Preset(BaseModel):
     pair_of: str | None = None  # links an R1 authorized/forbidden pair
     consent: Literal["", "r", "o"] = ""  # R2 arena fixture: reversed-meaning consent wording
     shield: Literal["I", "I_R2"] = "I"  # I_R2 = experimental disposable-copy checks
+    # Launches only with a frozen Sybil graph revision (from /sybil); hidden from the grid.
+    requires_sybil_revision: bool = False
 
 
 class OwnLLM(BaseModel):
@@ -712,6 +742,8 @@ class RunSummary(BaseModel):
     is_sample: bool = False
     own_key: bool = False  # visitor's own LLM key: not an eval run
     sybil_revision_id: str | None = None
+    # The frozen evidence Aegis judged shops with; replays read this, never a fresh score.
+    sybil_graph_evidence: SybilGraphEvidence | None = None
 
 
 class AskDecision(BaseModel):

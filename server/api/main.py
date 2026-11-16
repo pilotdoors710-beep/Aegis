@@ -93,6 +93,16 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         await store.mark_interrupted()
     _bus = RunBus(store)
     _sybil.on_assessment = store.save_sybil_assessment
+    if settings.sybil_enabled:
+        # Load the graph and its bridge-choosing trust pass now, off the event loop, so no
+        # request pays for them while a live run is streaming.
+        try:
+            dataset = await asyncio.to_thread(
+                _load_sybil_dataset, str(settings.sybil_data_dir.resolve())
+            )
+            await asyncio.to_thread(lambda: dataset.base.trust)
+        except (OSError, ValueError) as error:
+            log.warning("Sybil dataset unavailable at startup: %s", error)
     try:
         yield
     finally:
@@ -212,8 +222,7 @@ async def generate_sybil_scenario(dataset_id: str, body: SybilGenerate):
     if dataset.base.dataset_id != dataset_id:
         raise HTTPException(404, "Sybil dataset not found")
     try:
-        # Off the event loop: bridges need a full-graph trust pass on first use, and dense
-        # generation is O(count²); either would stall live run streams.
+        # Off the event loop: dense generation is O(count²) and would stall live run streams.
         attack = await asyncio.to_thread(generate, dataset_id, body, dataset.base)
         revision = _sybil.create(dataset, attack).revision
     except ValueError as error:
@@ -380,9 +389,8 @@ async def healthz_arena() -> HealthArena:
 
 @app.get("/presets")
 async def list_presets() -> list[Preset]:
-    # The two-shop Sybil preset only makes sense with a graph revision, so it launches from
-    # /sybil and stays out of the console grid. POST /runs still accepts it.
-    return [p for p in PRESETS if p.variant != "two-shop"]
+    # Presets that need a graph revision launch from /sybil, not the console grid.
+    return [p for p in PRESETS if not p.requires_sybil_revision]
 
 
 # --- Trap Lab (R2 disposable trials on a judge-written checkbox) -----------------------------
@@ -575,6 +583,13 @@ async def create_run(body: RunCreate) -> RunCreated:
     preset = next((p for p in PRESETS if p.id == body.preset_id), None)
     if preset is None:
         raise HTTPException(status_code=404, detail=f"unknown preset {body.preset_id!r}")
+    if preset.requires_sybil_revision != bool(body.sybil_revision_id):
+        raise HTTPException(
+            400,
+            f"Preset {preset.id!r} needs a Sybil revision"
+            if preset.requires_sybil_revision
+            else f"Preset {preset.id!r} does not take a Sybil revision",
+        )
     evidence: SybilGraphEvidence | None = None
     if body.sybil_revision_id:
         dataset = _sybil_dataset()
@@ -602,7 +617,7 @@ async def create_run(body: RunCreate) -> RunCreated:
         created_at=datetime.now(UTC),
         model=f"{own.provider}:{own.model}" if own else settings.agent_models.split(",")[0] or None,
         own_key=own is not None,
-        sybil_revision_id=body.sybil_revision_id,
+        sybil_revision_id=body.sybil_revision_id, sybil_graph_evidence=evidence,
     ), AskGate(auto_approve=auto))  # fmt: skip
     task = asyncio.create_task(
         _run(run_id, preset, OwnKeyRouter(own) if own else _router, graph_evidence=evidence)

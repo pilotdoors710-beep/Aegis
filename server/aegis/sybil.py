@@ -107,6 +107,28 @@ class Propagation:
 DEFAULT_CONFIG = Config()
 
 
+def _connection_cut(
+    graph: Graph, trust: np.ndarray, supporters: list[int], config: Config
+) -> tuple[tuple[int, ...], list[tuple[int, int]]]:
+    """E's intervention: the outside websites sending the most flow into the supporters.
+
+    Every link from them into the supporters is cut together, so links among supporters
+    and extra links bought from one website cannot pad the test. Returns the cut sources
+    (highest flow first) and the links to remove.
+    """
+    links = graph.canonical_edges
+    entering = links[np.isin(links[:, 1], supporters) & ~np.isin(links[:, 0], supporters)]
+    if not entering.size:
+        return (), []
+    original = np.asarray(graph.original_outdegree)
+    flows = (1 - config.restart) * trust[entering[:, 0]] / original[entering[:, 0]]
+    sources, inverse = np.unique(entering[:, 0], return_inverse=True)
+    source_flow = np.bincount(inverse, weights=flows)
+    cut = sources[np.lexsort((sources, -source_flow))[: config.cut_sources]]
+    edges = entering[np.isin(entering[:, 0], cut)]
+    return tuple(cut.tolist()), [(u, v) for u, v in edges.tolist()]
+
+
 def _without_edges_transition(
     matrix: csr_array, graph: Graph, edges: list[tuple[int, int]]
 ) -> csr_array:
@@ -186,7 +208,7 @@ class ShopScore:
     connection: float
     total: float
     anchor_mass: tuple[float, ...]
-    tested_edges: tuple[tuple[int, int], ...]
+    cut_sources: tuple[int, ...]  # outside websites E cut together, highest flow first
 
 
 @dataclass(frozen=True)
@@ -243,34 +265,17 @@ def assess(
         breadth = float(np.clip((effective - 1) / (len(anchors) - 1), 0, 1))
         withdrawn = (per_anchor.sum() - per_anchor) / (len(anchors) - 1)
         withdrawal = float(np.clip(withdrawn.min() / mass, 0, 1))
-        # E: cut every link from the outside websites carrying the most trust into the
-        # supporters, all at once. Links among supporters and extra links bought from one
-        # website therefore cannot pad the test.
-        links = graph.canonical_edges
-        entering = links[np.isin(links[:, 1], supporters) & ~np.isin(links[:, 0], supporters)]
-        candidates = []
+        cut_sources, cut_edges = _connection_cut(graph, trust, supporters, config)
         connection = 0.0
-        if entering.size:
-            original = np.asarray(graph.original_outdegree)
-            flows = (1 - config.restart) * trust[entering[:, 0]] / original[entering[:, 0]]
-            sources, inverse = np.unique(entering[:, 0], return_inverse=True)
-            source_flow = np.bincount(inverse, weights=flows)
-            cut = sources[np.lexsort((sources, -source_flow))[: config.cut_sources]]
-            removed_edges = entering[np.isin(entering[:, 0], cut)]
-            candidates = [
-                tuple(map(int, removed_edges[removed_edges[:, 0] == u][0])) for u in cut
-            ]
+        if cut_sources:
             removed = propagate(
-                _without_edges_transition(matrix, graph, [tuple(e) for e in removed_edges]),
-                seeds.mean(axis=1),
-                config,
+                _without_edges_transition(matrix, graph, cut_edges), seeds.mean(axis=1), config
             )
             if not removed.converged:
                 return Assessment(
                     trust[:-1], result.mass[:-1], removed, None, (perf_counter() - started) * 1000
                 )
-            ratio = float(allocation @ removed.mass[supporters]) / mass
-            connection = float(np.clip(ratio, 0, 1))
+            connection = float(np.clip(allocation @ removed.mass[supporters] / mass, 0, 1))
         w_base, w_breadth, w_withdrawal, w_connection = config.weights
         total = (
             100
@@ -287,7 +292,7 @@ def assess(
             connection,
             total,
             tuple(float(a) for a in per_anchor),
-            tuple(candidates),
+            cut_sources,
         )
     return Assessment(
         trust[:-1], result.mass[:-1], result, scores, (perf_counter() - started) * 1000

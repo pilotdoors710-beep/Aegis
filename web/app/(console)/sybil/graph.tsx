@@ -23,6 +23,21 @@ export interface SelectedEdge {
 type Kind = "observed" | "simulated" | "anchor" | "shop";
 type Node = SimulationNodeDatum & { id: string; label: string; kind: Kind };
 type Link = { source: Node; target: Node; kind: "observed" | "simulated" | "rec" };
+
+const COLORS = { attack: "#d97745", bridge: "#38bdf8", shopA: "#10b981", shopAFill: "#064e3b", shopB: "#ef4444", shopBFill: "#4a2414" };
+
+// A bridge is a simulated link from a real site (cooperating or taken over, anchors included)
+// into the attack. Free links from fake sites out to real ones are not bridges.
+const isBridge = (l: Link) => l.kind === "simulated" && l.source.kind !== "simulated" && l.target.kind === "simulated";
+
+// Link layers in draw order; a null colour means the theme foreground.
+const LINK_STYLES: { match: (l: Link) => boolean; dash: number[]; color: string | null; alpha: number; width: number }[] = [
+  { match: (l) => l.kind === "observed", dash: [], color: null, alpha: 0.14, width: 1 },
+  { match: (l) => l.kind === "simulated" && !isBridge(l), dash: [5, 4], color: COLORS.attack, alpha: 0.8, width: 1 },
+  { match: isBridge, dash: [4, 3], color: COLORS.bridge, alpha: 1, width: 2 },
+  { match: (l) => l.kind === "rec" && l.target.id === "shop:A", dash: [3, 3], color: COLORS.shopA, alpha: 0.9, width: 1.5 },
+  { match: (l) => l.kind === "rec" && l.target.id === "shop:B", dash: [2, 4], color: COLORS.shopB, alpha: 0.9, width: 1.5 },
+];
 type View = { k: number; x: number; y: number };
 
 const RADIUS: Record<Kind, number> = { observed: 3, simulated: 4.5, anchor: 7, shop: 14 };
@@ -194,78 +209,19 @@ export function SybilGraph({
       ctx.translate(width / 2 + x, height / 2 + y);
       ctx.scale(k, k);
       const lineScale = 1 / Math.max(k, 0.5);
-      // 1. Observed edges
-      ctx.beginPath();
-      for (const l of s.links) {
-        if (l.kind === "observed") {
+      for (const style of LINK_STYLES) {
+        ctx.beginPath();
+        for (const l of s.links) {
+          if (!style.match(l)) continue;
           ctx.moveTo(l.source.x!, l.source.y!);
           ctx.lineTo(l.target.x!, l.target.y!);
         }
+        ctx.setLineDash(style.dash);
+        ctx.strokeStyle = style.color ?? palette.fg;
+        ctx.globalAlpha = style.alpha;
+        ctx.lineWidth = style.width * lineScale;
+        ctx.stroke();
       }
-      ctx.setLineDash([]);
-      ctx.strokeStyle = palette.fg;
-      ctx.globalAlpha = 0.14;
-      ctx.lineWidth = 1 * lineScale;
-      ctx.stroke();
-
-      // A bridge is a simulated link from a real site (cooperating or taken over, anchors included)
-      // into the attack. Free links from fake sites out to real ones are not bridges.
-      const isBridge = (l: Link) => l.kind === "simulated" && l.source.kind !== "simulated" && l.target.kind === "simulated";
-
-      // 2. Other simulated edges (attack cluster internals and links out of it)
-      ctx.beginPath();
-      for (const l of s.links) {
-        if (l.kind === "simulated" && !isBridge(l)) {
-          ctx.moveTo(l.source.x!, l.source.y!);
-          ctx.lineTo(l.target.x!, l.target.y!);
-        }
-      }
-      ctx.setLineDash([5, 4]);
-      ctx.strokeStyle = "#d97745";
-      ctx.globalAlpha = 0.8;
-      ctx.lineWidth = 1 * lineScale;
-      ctx.stroke();
-
-      // 3. Bridge links (real websites linking into the attack cluster)
-      ctx.beginPath();
-      for (const l of s.links) {
-        if (isBridge(l)) {
-          ctx.moveTo(l.source.x!, l.source.y!);
-          ctx.lineTo(l.target.x!, l.target.y!);
-        }
-      }
-      ctx.setLineDash([4, 3]);
-      ctx.strokeStyle = "#38bdf8";
-      ctx.globalAlpha = 1.0;
-      ctx.lineWidth = 2 * lineScale;
-      ctx.stroke();
-
-      // 4. Recommendation links: Shop A (emerald) vs Shop B (coral/red)
-      ctx.beginPath();
-      for (const l of s.links) {
-        if (l.kind === "rec" && l.target.id === "shop:A") {
-          ctx.moveTo(l.source.x!, l.source.y!);
-          ctx.lineTo(l.target.x!, l.target.y!);
-        }
-      }
-      ctx.setLineDash([3, 3]);
-      ctx.strokeStyle = "#10b981";
-      ctx.globalAlpha = 0.9;
-      ctx.lineWidth = 1.5 * lineScale;
-      ctx.stroke();
-
-      ctx.beginPath();
-      for (const l of s.links) {
-        if (l.kind === "rec" && l.target.id === "shop:B") {
-          ctx.moveTo(l.source.x!, l.source.y!);
-          ctx.lineTo(l.target.x!, l.target.y!);
-        }
-      }
-      ctx.setLineDash([2, 4]);
-      ctx.strokeStyle = "#ef4444";
-      ctx.globalAlpha = 0.9;
-      ctx.lineWidth = 1.5 * lineScale;
-      ctx.stroke();
       ctx.setLineDash([]);
       ctx.globalAlpha = 1;
       const sel = s.selectedEdge;
@@ -297,9 +253,9 @@ export function SybilGraph({
         } else if (n.kind === "shop") {
           const isShopA = n.id === "shop:A";
           ctx.roundRect(n.x! - r * 1.6, n.y! - r, r * 3.2, r * 2, 4);
-          ctx.fillStyle = isShopA ? "#064e3b" : "#4a2414";
+          ctx.fillStyle = isShopA ? COLORS.shopAFill : COLORS.shopBFill;
           ctx.fill();
-          ctx.strokeStyle = isShopA ? "#10b981" : "#ef4444";
+          ctx.strokeStyle = isShopA ? COLORS.shopA : COLORS.shopB;
           ctx.lineWidth = 1.5 * lineScale;
           ctx.stroke();
           ctx.fillStyle = palette.fg;
@@ -551,7 +507,7 @@ export function SybilGraph({
         </button>
       </div>
       <p className={styles.graphLegend}>
-        ◇ trusted anchor · ● real website · <span>●</span> attack cluster · <span style={{ color: "#38bdf8" }}>---</span> bridge link · <span style={{ color: "#10b981" }}>Shop A</span> · <span style={{ color: "#ef4444" }}>Shop B</span> · scroll to zoom, drag to pan
+        ◇ trusted anchor · ● real website · <span>●</span> attack cluster · <span style={{ color: COLORS.bridge }}>---</span> bridge link · <span style={{ color: COLORS.shopA }}>Shop A</span> · <span style={{ color: COLORS.shopB }}>Shop B</span> · scroll to zoom, drag to pan
       </p>
     </div>
   );

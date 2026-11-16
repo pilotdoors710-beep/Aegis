@@ -66,7 +66,6 @@ from aegis.schemas import (
 )
 from aegis.security import install_guard, origin
 from aegis.snapshot import screenshot_b64, take_snapshot
-from aegis.sybil_runtime import POLICY_TEXT
 from aegis.trials import ReplayStep, apply_trial, diff_states, run_trials, run_two_view
 from aegis.verdict import (
     GUARD,
@@ -361,7 +360,8 @@ async def run_side(
                                 element_id=action.target_id,
                                 evidence=(
                                     f"Shop {target_shop} failed topological trust policy "
-                                    f"({POLICY_TEXT}; got R={evidence.total_robustness:.1f}, "
+                                    f"({graph_evidence.policy_text()}; "  # type: ignore[union-attr]
+                                    f"got R={evidence.total_robustness:.1f}, "
                                     f"S={evidence.structural_support:.3f}, "
                                     f"L={evidence.anchor_withdrawal_resilience:.2f}) "
                                     f"under frozen revision {graph_evidence.revision_id[:8]}."  # type: ignore[union-attr]

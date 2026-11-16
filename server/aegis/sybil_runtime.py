@@ -19,7 +19,6 @@ from aegis.schemas import (
     SybilGraphEvidence,
     SybilGraphNode,
     SybilGraphView,
-    SybilLink,
     SybilRecommendation,
     SybilScenarioCreate,
     SybilScoreDelta,
@@ -66,10 +65,7 @@ def calculate_assessment(directory: str, edits_json: str) -> dict:
             anchor_withdrawal_resilience=score.withdrawal,
             tested_connection_resilience=score.connection,
             total_robustness=score.total,
-            tested_edges=tuple(
-                SybilLink(source=scenario.ids[u], target=scenario.ids[v])
-                for u, v in score.tested_edges
-            ),
+            cut_sources=tuple(scenario.ids[u] for u in score.cut_sources),
         )
     return SybilAssessmentRecord(
         id=assessment_id,
@@ -83,24 +79,6 @@ def calculate_assessment(directory: str, edits_json: str) -> dict:
     ).model_dump(mode="json")
 
 
-# Graph policy floors (brief §14). L: buying bridges inflates E (and so R) but cannot fake
-# many anchors. Every check and message reads these; the web outcome card mirrors them.
-POLICY_MIN_TOTAL = 60.0
-POLICY_MIN_SUPPORT = 0.5
-POLICY_MIN_WITHDRAWAL = 0.5
-POLICY_TEXT = (
-    f"needs R>={POLICY_MIN_TOTAL:g}, S>={POLICY_MIN_SUPPORT:g}, L>={POLICY_MIN_WITHDRAWAL:g}"
-)
-
-
-def policy_passed(total: float, support: float, withdrawal: float) -> bool:
-    return (
-        total >= POLICY_MIN_TOTAL
-        and support >= POLICY_MIN_SUPPORT
-        and withdrawal >= POLICY_MIN_WITHDRAWAL
-    )
-
-
 def assessment_identity(revision_id: str) -> str:
     return hashlib.sha256(f"{FORMULA_VERSION}:{revision_id}".encode()).hexdigest()
 
@@ -108,26 +86,27 @@ def assessment_identity(revision_id: str) -> str:
 def graph_evidence(assessment: SybilAssessmentRecord) -> SybilGraphEvidence:
     if assessment.status != "complete" or assessment.scores is None:
         raise ValueError("A complete converged assessment is required for graph evidence")
-    return SybilGraphEvidence(
-        revision_id=assessment.revision_id,
-        assessment_id=assessment.id,
-        shops={
-            shop: SybilShopEvidence(
-                recommendation_count=score.recommendation_count,
-                structural_support=score.structural_support,
-                anchor_breadth=score.anchor_breadth,
-                anchor_withdrawal_resilience=score.anchor_withdrawal_resilience,
-                tested_connection_resilience=score.tested_connection_resilience,
-                total_robustness=score.total_robustness,
-                policy_passed=policy_passed(
-                    score.total_robustness,
-                    score.structural_support,
-                    score.anchor_withdrawal_resilience,
-                ),
-            )
-            for shop, score in assessment.scores.items()
-        },
+    # The evidence carries the policy, so build it first and judge each shop against it.
+    policy = SybilGraphEvidence(
+        revision_id=assessment.revision_id, assessment_id=assessment.id, shops={}
     )
+    shops = {
+        shop: SybilShopEvidence(
+            recommendation_count=score.recommendation_count,
+            structural_support=score.structural_support,
+            anchor_breadth=score.anchor_breadth,
+            anchor_withdrawal_resilience=score.anchor_withdrawal_resilience,
+            tested_connection_resilience=score.tested_connection_resilience,
+            total_robustness=score.total_robustness,
+            policy_passed=policy.passes(
+                score.total_robustness,
+                score.structural_support,
+                score.anchor_withdrawal_resilience,
+            ),
+        )
+        for shop, score in assessment.scores.items()
+    }
+    return policy.model_copy(update={"shops": shops})
 
 
 def calculate_counterfactual(
@@ -163,8 +142,7 @@ def calculate_counterfactual(
     for shop in ("A", "B"):
         old, new = before_scores[shop], after_scores[shop]
         deltas[shop] = SybilScoreDelta(
-            trust_weighted_support=new["trust_weighted_support"]
-            - old["trust_weighted_support"],
+            trust_weighted_support=new["trust_weighted_support"] - old["trust_weighted_support"],
             structural_support=new["structural_support"] - old["structural_support"],
             anchor_breadth=new["anchor_breadth"] - old["anchor_breadth"],
             anchor_withdrawal_resilience=new["anchor_withdrawal_resilience"]
@@ -203,17 +181,23 @@ class SybilRuntime:
 
     def view(self, dataset: Dataset, scenario: AppliedScenario, limit: int) -> SybilGraphView:
         base_count = len(dataset.nodes)
-        required = list(scenario.anchors)
-        # Real recommenders first: a large attack must not push the honest ones out of view.
-        required.extend(i for i, _ in scenario.recommendations if i < base_count)
-        # Real bridge sources before injected nodes, so a big attack cannot crowd them out.
+        # Real sites that matter come before injected ones, so a big attack cannot crowd
+        # them out: anchors, real recommenders (incl. the Shop A baseline), then every real
+        # site an edit names (bridges, takeovers, removed links and recommendations).
+        edits = scenario.revision.edits
         index = dataset.base.index
-        required.extend(
-            index[link.source]
-            for link in scenario.revision.edits.cooperating_links
-            if link.source in index
-        )
-        required.extend(range(base_count, len(scenario.ids)))
+        named = [
+            *edits.compromised,
+            *(end for link in (*edits.cooperating_links, *edits.added_links, *edits.removed_links)
+              for end in (link.source, link.target)),
+            *(r.website for r in (*edits.recommendations, *edits.removed_recommendations)),
+        ]  # fmt: skip
+        required = [
+            *scenario.anchors,
+            *(i for i, _ in scenario.recommendations if i < base_count),
+            *(index[name] for name in named if name in index),
+            *range(base_count, len(scenario.ids)),
+        ]
         visible_indices = list(dict.fromkeys(required))[:limit]
         if len(visible_indices) < limit:
             selected = set(visible_indices)
