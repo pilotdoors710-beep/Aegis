@@ -212,7 +212,10 @@ async def generate_sybil_scenario(dataset_id: str, body: SybilGenerate):
     if dataset.base.dataset_id != dataset_id:
         raise HTTPException(404, "Sybil dataset not found")
     try:
-        revision = _sybil.create(dataset, generate(dataset_id, body, dataset.base)).revision
+        # Off the event loop: bridges need a full-graph trust pass on first use, and dense
+        # generation is O(count²); either would stall live run streams.
+        attack = await asyncio.to_thread(generate, dataset_id, body, dataset.base)
+        revision = _sybil.create(dataset, attack).revision
     except ValueError as error:
         raise HTTPException(422, str(error)) from error
     try:

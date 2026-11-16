@@ -83,6 +83,24 @@ def calculate_assessment(directory: str, edits_json: str) -> dict:
     ).model_dump(mode="json")
 
 
+# Graph policy floors (brief §14). L: buying bridges inflates E (and so R) but cannot fake
+# many anchors. Every check and message reads these; the web outcome card mirrors them.
+POLICY_MIN_TOTAL = 60.0
+POLICY_MIN_SUPPORT = 0.5
+POLICY_MIN_WITHDRAWAL = 0.5
+POLICY_TEXT = (
+    f"needs R>={POLICY_MIN_TOTAL:g}, S>={POLICY_MIN_SUPPORT:g}, L>={POLICY_MIN_WITHDRAWAL:g}"
+)
+
+
+def policy_passed(total: float, support: float, withdrawal: float) -> bool:
+    return (
+        total >= POLICY_MIN_TOTAL
+        and support >= POLICY_MIN_SUPPORT
+        and withdrawal >= POLICY_MIN_WITHDRAWAL
+    )
+
+
 def assessment_identity(revision_id: str) -> str:
     return hashlib.sha256(f"{FORMULA_VERSION}:{revision_id}".encode()).hexdigest()
 
@@ -101,11 +119,10 @@ def graph_evidence(assessment: SybilAssessmentRecord) -> SybilGraphEvidence:
                 anchor_withdrawal_resilience=score.anchor_withdrawal_resilience,
                 tested_connection_resilience=score.tested_connection_resilience,
                 total_robustness=score.total_robustness,
-                # L floor: buying bridges inflates E (and so R) but cannot fake many anchors.
-                policy_passed=(
-                    score.total_robustness >= 60
-                    and score.structural_support >= 0.5
-                    and score.anchor_withdrawal_resilience >= 0.5
+                policy_passed=policy_passed(
+                    score.total_robustness,
+                    score.structural_support,
+                    score.anchor_withdrawal_resilience,
                 ),
             )
             for shop, score in assessment.scores.items()

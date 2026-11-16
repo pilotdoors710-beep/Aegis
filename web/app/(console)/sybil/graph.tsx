@@ -208,10 +208,14 @@ export function SybilGraph({
       ctx.lineWidth = 1 * lineScale;
       ctx.stroke();
 
-      // 2. Simulated attack cluster edges (internal)
+      // A bridge is a simulated link from a real site (cooperating or taken over, anchors included)
+      // into the attack. Free links from fake sites out to real ones are not bridges.
+      const isBridge = (l: Link) => l.kind === "simulated" && l.source.kind !== "simulated" && l.target.kind === "simulated";
+
+      // 2. Other simulated edges (attack cluster internals and links out of it)
       ctx.beginPath();
       for (const l of s.links) {
-        if (l.kind === "simulated" && l.source.kind === "simulated" && l.target.kind === "simulated") {
+        if (l.kind === "simulated" && !isBridge(l)) {
           ctx.moveTo(l.source.x!, l.source.y!);
           ctx.lineTo(l.target.x!, l.target.y!);
         }
@@ -222,13 +226,10 @@ export function SybilGraph({
       ctx.lineWidth = 1 * lineScale;
       ctx.stroke();
 
-      // 3. Bridge links (cooperating real-web domains into attack cluster)
+      // 3. Bridge links (real websites linking into the attack cluster)
       ctx.beginPath();
       for (const l of s.links) {
-        if (
-          l.kind === "simulated" &&
-          (l.source.kind === "observed" || l.target.kind === "observed")
-        ) {
+        if (isBridge(l)) {
           ctx.moveTo(l.source.x!, l.source.y!);
           ctx.lineTo(l.target.x!, l.target.y!);
         }

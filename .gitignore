@@ -8,3 +8,4 @@ node_modules/
 eval/__pycache__/
 
 graphify-out/
+.DS_Store

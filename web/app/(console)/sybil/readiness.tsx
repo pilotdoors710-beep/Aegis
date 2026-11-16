@@ -408,15 +408,16 @@ export function SybilReadiness() {
     setError(null);
     try {
       const isBridged = revision.edits.cooperating_links.some((l) => l.source === nodeId);
-      const targetNode = revision.edits.injected_nodes[0] || "sim:1-0";
+      const targetNode = revision.edits.injected_nodes[0];
+      if (!isBridged && !targetNode) throw new Error("Create an attack with simulated websites first.");
       let updatedCoop: Schema["SybilLink"][];
       let updatedAdded: Schema["SybilLink"][];
 
       if (isBridged) {
         updatedCoop = revision.edits.cooperating_links.filter((l) => l.source !== nodeId);
-        updatedAdded = revision.edits.added_links.filter(
-          (l) => !(l.source === nodeId && l.target === targetNode),
-        );
+        // Drop the link each removed bridge paid for, whatever simulated site it points at.
+        const paid = new Set(revision.edits.cooperating_links.filter((l) => l.source === nodeId).map((l) => l.target));
+        updatedAdded = revision.edits.added_links.filter((l) => !(l.source === nodeId && paid.has(l.target)));
       } else {
         const bridge = { source: nodeId, target: targetNode };
         updatedCoop = [...revision.edits.cooperating_links, bridge];

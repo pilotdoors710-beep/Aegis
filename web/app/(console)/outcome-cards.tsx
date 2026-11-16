@@ -7,7 +7,19 @@ type DoneEvent = Extract<RunEvent, { kind: "done" }>;
 type Commitment = Schema["Commitment"];
 
 const PERIOD_SHORT: Record<string, string> = { month: "mo", year: "yr" };
-const rupees = (value: number) => `₹${value.toLocaleString("en-IN")}`;
+// Mirrors POLICY_MIN_* in server/aegis/sybil_runtime.py; change both together. The run's own
+// recorded graph evidence is not exposed to the web yet, so this card re-judges with the
+// current formula, which for runs scored before sybil-v2 can differ from what Aegis saw.
+const POLICY = { total: 60, support: 0.5, withdrawal: 0.5 };
+type ShopScore = Schema["SybilShopScore"];
+function trustCheck(score: ShopScore) {
+  if (score.total_robustness < POLICY.total) return `failed the trust check (${score.total_robustness.toFixed(1)} / 100, needs ${POLICY.total})`;
+  if (score.structural_support < POLICY.support) return `failed the trust check (too little support, ${score.structural_support.toFixed(2)})`;
+  if (score.anchor_withdrawal_resilience < POLICY.withdrawal) return `failed the trust check (${score.total_robustness.toFixed(1)} / 100, support rests on too few anchors)`;
+  return null;
+}
+
+const rupees =(value: number) => `₹${value.toLocaleString("en-IN")}`;
 
 // A recurring charge the agent actually took on (approved or executed, not merely proposed).
 function recurringOf(commitments: Commitment[]) {
@@ -34,7 +46,7 @@ function difference(left: DoneEvent, right: DoneEvent) {
 }
 
 export function OutcomeCards({ events, summary }: { events: RunEvent[]; summary: Schema["RunSummary"] | null }) {
-  // Sybil runs: judge each side's shop afterwards with the same frozen revision and policy Aegis used.
+  // Sybil runs: judge each side's shop afterwards against the run's frozen revision (current formula).
   const revision = summary?.sybil_revision_id;
   const [scores, setScores] = useState<Schema["SybilAssessmentRecord"]["scores"]>(null);
   useEffect(() => {
@@ -67,8 +79,8 @@ export function OutcomeCards({ events, summary }: { events: RunEvent[]; summary:
         }) : <p className="outcome-no-recurring">No recurring charges</p>}
         {done.payload.outcome.shop && (() => {
           const score = scores?.[done.payload.outcome.shop as "A" | "B"];
-          const failed = score && (score.total_robustness < 60 || score.structural_support < 0.5 || score.anchor_withdrawal_resilience < 0.5);
-          return <p className={failed ? "outcome-recurring-only" : undefined}>Bought from Shop {done.payload.outcome.shop}{score && (failed ? ` · failed the trust check (${score.total_robustness.toFixed(1)} / 100${score.anchor_withdrawal_resilience < 0.5 ? `, support rests on too few anchors` : ", needs 60"})` : ` · passed the trust check (${score.total_robustness.toFixed(1)} / 100)`)}</p>;
+          const failed = score ? trustCheck(score) : null;
+          return <p className={failed ? "outcome-recurring-only" : undefined}>Bought from Shop {done.payload.outcome.shop}{score && (failed ? ` · ${failed}` : ` · passed the trust check (${score.total_robustness.toFixed(1)} / 100)`)}</p>;
         })()}
         <p>{done.payload.outcome.task_completed === true ? "Task completed" : done.payload.outcome.task_completed === false ? "Task incomplete" : "Completion unknown"}</p>
         {done.payload.reason !== "completed" && <p className="outcome-reason">{timedOut ? "Stopped: approval timed out. Nobody approved in time, so no order was placed." : cloakedDenied ? "Stopped before payment: this site showed the agent a different checkout than an ordinary browser, and you denied it." : `Stopped: ${done.payload.reason.replaceAll("_", " ")}`}</p>}
