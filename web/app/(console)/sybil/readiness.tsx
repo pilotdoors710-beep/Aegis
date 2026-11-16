@@ -16,6 +16,9 @@ type GraphView = Schema["SybilGraphView"];
 type GraphNode = Schema["SybilGraphNode"];
 type Assessment = Schema["SybilAssessmentRecord"];
 type Counterfactual = Schema["SybilCounterfactualResult"];
+type BottleneckWitness = Schema["SybilBottleneckWitness"];
+type AttackSearchResult = Schema["SybilAttackSearchResult"];
+type BenchmarkSummary = Schema["SybilBenchmarkSummary"];
 
 function download(name: string, content: string, type: string) {
   const url = URL.createObjectURL(new Blob([content], { type }));
@@ -260,6 +263,10 @@ export function SybilReadiness() {
   const endRun = useCallback(() => setRun((current) => current && { ...current, ended: true }), []);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<SelectedEdge | null>(null);
+  const [witness, setWitness] = useState<BottleneckWitness | null>(null);
+  const [searchResult, setSearchResult] = useState<AttackSearchResult | null>(null);
+  const [benchmarkSummary, setBenchmarkSummary] = useState<BenchmarkSummary | null>(null);
+  const [stage4Busy, setStage4Busy] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -341,6 +348,7 @@ export function SybilReadiness() {
     setRun(null);
     setSelectedNodeId(null);
     setSelectedEdge(null);
+    setWitness(null);
     try {
       const [nextView, job] = await Promise.all([
         api.sybilView(next.id),
@@ -495,6 +503,66 @@ export function SybilReadiness() {
     }
   }
 
+  async function runWitness(targetShop: "A" | "B") {
+    if (!revision) return;
+    setStage4Busy(`witness-${targetShop}`);
+    setError(null);
+    try {
+      const res = await api.sybilBottleneck(revision.id, targetShop);
+      setWitness(res);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not find the weak points.");
+    } finally {
+      setStage4Busy(null);
+    }
+  }
+
+  async function runSearch() {
+    if (!dataset?.dataset_id) return;
+    setStage4Busy("search");
+    setError(null);
+    try {
+      const res = await api.sybilAttackSearch(dataset.dataset_id, {
+        target: "B",
+        max_proposals: 500,
+        max_seconds: 60,
+        seed: 1,
+      });
+      setSearchResult(res);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Attack search failed.");
+    } finally {
+      setStage4Busy(null);
+    }
+  }
+
+  async function loadSearchedAttack() {
+    if (!searchResult?.best_revision_id) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const saved = await api.sybilScenario(searchResult.best_revision_id);
+      await showRevision(saved);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not load that attack.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function runBenchmark(sample: boolean) {
+    setStage4Busy(sample ? "benchmark-sample" : "benchmark-full");
+    setError(null);
+    try {
+      const res = await api.sybilBenchmark(sample);
+      setBenchmarkSummary(res);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Attack test failed.");
+    } finally {
+      setStage4Busy(null);
+    }
+  }
+
   return (
     <div className={styles.page}>
       <h1 className="sr-only">Sybil Playground</h1>
@@ -641,6 +709,8 @@ export function SybilReadiness() {
                 view={view}
                 selectedNodeId={selectedNodeId}
                 selectedEdge={selectedEdge}
+                witnessCutEdges={witness?.cut_edges}
+                witnessNodes={witness?.bottleneck_nodes}
                 onSelectNode={(id) => {
                   setSelectedNodeId(id);
                   setSelectedEdge(null);
@@ -754,6 +824,298 @@ export function SybilReadiness() {
         A rough score based on how trust flows through website links. It is not the chance that a
         shop is safe.
       </p>
+      <section className={styles.stage4Section} aria-labelledby="stage4-title">
+        <div className={styles.stage4Header}>
+          <div>
+            <h2 id="stage4-title">Deeper analysis</h2>
+            <p>
+              Find the weak points in a shop&apos;s trust, let the computer hunt for the strongest attack, and test many attacks at once.
+            </p>
+          </div>
+          {stage4Busy && <span className={styles.stage4Meta}>Working…</span>}
+        </div>
+
+        <div className={styles.stage4Grid}>
+          {/* Card 1: weak points */}
+          <div className={styles.stage4Card}>
+            <div>
+              <h3>
+                Weak points
+                {witness && (
+                  <span className={styles.cutEdgeBadge}>
+                    Shop {witness.shop}
+                  </span>
+                )}
+              </h3>
+              <p className={styles.stage4Meta}>
+                The fewest websites that all of a shop&apos;s trust has to pass through. Remove them and the trust is cut off.
+              </p>
+            </div>
+
+            {witness ? (
+              <>
+                <dl className={styles.facts}>
+                  <div>
+                    <dt>Trust that gets through / weak points</dt>
+                    <dd>
+                      <strong>{witness.max_flow.toFixed(1)}</strong> ({witness.cut_size} weak points)
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Part of the map checked</dt>
+                    <dd>
+                      {witness.subgraph_nodes} sites · {witness.subgraph_edges} links
+                      {witness.complete ? " (every path checked, so this is exact)" : " (only part of the map, so exact for this part only)"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Weak point sites</dt>
+                    <dd>{witness.bottleneck_nodes.length ? witness.bottleneck_nodes.slice(0, 8).join(", ") : "none"}{witness.bottleneck_nodes.length > 8 && ` +${witness.bottleneck_nodes.length - 8} more`}</dd>
+                  </div>
+                  <div>
+                    <dt>Links into them</dt>
+                    <dd>{witness.cut_edges.length} links</dd>
+                  </div>
+                </dl>
+                <p className={styles.stage4Meta}>Checks up to 2,500 sites on the shortest paths from the trusted sites to the shop&apos;s recommenders.</p>
+                {(witness.bottleneck_nodes.length > 0 || witness.cut_edges.length > 0) && (
+                  <span className={styles.cutEdgeBadge}>Shown as amber rings and dashed links on the map</span>
+                )}
+              </>
+            ) : (
+              <p className={styles.stage4Meta}>
+                Shows which few websites a shop&apos;s trust depends on. A real shop usually has many paths; a faked one often hangs on a few.
+              </p>
+            )}
+
+            <div className={styles.actions}>
+              <button
+                className="secondary-button"
+                disabled={!revision || busy || stage4Busy !== null}
+                onClick={() => void runWitness("B")}
+              >
+                {stage4Busy === "witness-B" ? "Checking B…" : "Check Shop B (attacked)"}
+              </button>
+              <button
+                className="secondary-button"
+                disabled={!revision || busy || stage4Busy !== null}
+                onClick={() => void runWitness("A")}
+              >
+                {stage4Busy === "witness-A" ? "Checking A…" : "Check Shop A (real)"}
+              </button>
+              {witness && (
+                <button
+                  className="secondary-button"
+                  disabled={stage4Busy !== null}
+                  onClick={() => setWitness(null)}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Card 2: attack search */}
+          <div className={styles.stage4Card}>
+            <div>
+              <h3>
+                Find the strongest attack
+                {searchResult && (
+                  <span className={searchResult.best_passed_policy ? styles.failBadge : styles.passBadge}>
+                    {searchResult.best_passed_policy ? "An attack got past Aegis" : "No attack got past Aegis"}
+                  </span>
+                )}
+              </h3>
+              <p className={styles.stage4Meta}>
+                The computer tries up to 500 attacks in 60 seconds, each within the 25-credit budget, and keeps the one that scores highest. No AI model is used.
+              </p>
+            </div>
+
+            {searchResult ? (
+              <>
+                <dl className={styles.facts}>
+                  <div>
+                    <dt>Attacks tried</dt>
+                    <dd>{searchResult.proposals_evaluated} in {searchResult.elapsed_s.toFixed(2)} s</dd>
+                  </div>
+                  <div>
+                    <dt>Best attack shape</dt>
+                    <dd><code>{searchResult.best_proposal.pattern}</code> ({searchResult.best_proposal.count} sites)</dd>
+                  </div>
+                  <div>
+                    <dt>Credits used</dt>
+                    <dd>{searchResult.best_proposal.credits} / 25 credits</dd>
+                  </div>
+                  <div>
+                    <dt>Highest Shop B score</dt>
+                    <dd>
+                      <strong>{searchResult.best_score.toFixed(1)}</strong> (trust {searchResult.best_proposal.support.toFixed(2)} · without top trusted site {searchResult.best_proposal.withdrawal.toFixed(2)} · after cutting top links {searchResult.best_proposal.connection.toFixed(2)})
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Stopped because</dt>
+                    <dd>{{ iteration_limit: "tried all 500 attacks", time_limit: "60 seconds ran out", space_exhausted: "no more attacks left to try" }[searchResult.stopped_reason]}</dd>
+                  </div>
+                </dl>
+                <p className={styles.stage4Meta}>This is the strongest attack it found. There may be a stronger one.</p>
+                {searchResult.history.length > 0 && (
+                  <div>
+                    <span className={styles.stage4Meta}>Each time it found a better attack:</span>
+                    <div className={styles.trajectoryList}>
+                      {searchResult.history.map((h) => (
+                        <div key={h.iteration}>
+                          #{h.iteration}: {h.pattern} ({h.count} sites, {h.credits} cr) → score {h.score.toFixed(2)}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className={styles.stage4Meta}>
+                Tries different shapes of fake sites, paid links and site takeovers. It finds a strong attack, but there could be a stronger one it missed.
+              </p>
+            )}
+
+            <div className={styles.actions}>
+              <button
+                className="primary-button"
+                disabled={!ready || busy || stage4Busy !== null}
+                onClick={() => void runSearch()}
+              >
+                {stage4Busy === "search" ? "Searching (up to 60 s)…" : "Find the strongest attack"}
+              </button>
+              {searchResult && (
+                <button
+                  className="secondary-button"
+                  disabled={busy || stage4Busy !== null}
+                  onClick={() => void loadSearchedAttack()}
+                >
+                  Load this attack
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Card 3: attack test */}
+          <div className={styles.stage4Card}>
+            <div>
+              <h3>
+                Test many attacks
+              </h3>
+              <p className={styles.stage4Meta}>
+                Runs 180 different attacks on Shop B, plus 30 runs with no attack to compare against.
+              </p>
+            </div>
+
+            {benchmarkSummary ? (
+              <>
+                <dl className={styles.facts}>
+                  <div>
+                    <dt>Runs</dt>
+                    <dd>
+                      {benchmarkSummary.total_scenarios} ({benchmarkSummary.attacks_tested} attacks, {benchmarkSummary.controls_tested} with no attack
+                      {benchmarkSummary.unavailable > 0 && `, ${benchmarkSummary.unavailable} could not be scored`})
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Time taken</dt>
+                    <dd>{benchmarkSummary.elapsed_s.toFixed(1)} s</dd>
+                  </div>
+                </dl>
+
+                <table className={styles.stage4Table} aria-label="Attack test results">
+                  <thead>
+                    <tr>
+                      <th>Shop B…</th>
+                      <th>Under attack</th>
+                      <th>Without attack</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {([
+                      ["beats A on number of recommendations", benchmarkSummary.count_beats_a_rate, benchmarkSummary.reference.count_beats_a],
+                      ["beats A on plain Google-style ranking (PageRank)", benchmarkSummary.pagerank_beats_a_rate, benchmarkSummary.reference.pagerank_beats_a],
+                      ["beats A on trust from the 8 trusted sites", benchmarkSummary.support_beats_a_rate, benchmarkSummary.reference.support_beats_a],
+                      ["beats A on the full Aegis score", benchmarkSummary.score_beats_a_rate, benchmarkSummary.reference.score_beats_a],
+                      ["gets past Aegis without a warning", benchmarkSummary.policy_pass_rate, benchmarkSummary.reference.passed_policy],
+                    ] as const).map(([label, rate, reference]) => (
+                      <tr key={label}>
+                        <td>{label}</td>
+                        <td>{(rate * 100).toFixed(1)}%</td>
+                        <td>{reference ? "yes" : "no"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className={styles.stage4Meta}>
+                  How often attacks get past Aegis if one part of the score is switched off:{" "}
+                  {Object.entries(benchmarkSummary.ablation_policy_pass_rates)
+                    .map(([name, rate]) => `${name.replaceAll("_", " ")} ${(rate * 100).toFixed(1)}%`)
+                    .join(" · ")}
+                  . Runs with no attack that pass: {(benchmarkSummary.control_policy_pass_rate * 100).toFixed(1)}%.
+                </p>
+                <p className={styles.stage4Meta}>The no-attack runs use random real websites. We have not checked that those sites are honest, and this test does not prove any shop is safe.</p>
+
+                <details className={styles.formula}>
+                  <summary>See every run ({benchmarkSummary.rows.length + benchmarkSummary.controls.length})</summary>
+                  <div style={{ maxHeight: "160px", overflowY: "auto", marginTop: "8px" }}>
+                    <table className={styles.stage4Table}>
+                      <thead>
+                        <tr>
+                          <th>Shape</th>
+                          <th>Size</th>
+                          <th>Credits</th>
+                          <th>Count</th>
+                          <th>PageRank</th>
+                          <th>Trust</th>
+                          <th>Score</th>
+                          <th>Aegis</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...benchmarkSummary.rows, ...benchmarkSummary.controls].map((r, i) => (
+                          <tr key={i}>
+                            <td>{r.family}</td>
+                            <td>{r.size}</td>
+                            <td>{r.credits_used}</td>
+                            <td>{r.count_beats_a ? "beats A" : "–"}</td>
+                            <td>{r.pagerank_beats_a ? "beats A" : "–"}</td>
+                            <td>{r.support_beats_a ? "beats A" : "–"}</td>
+                            <td>{r.converged ? r.total_robustness.toFixed(1) : "unavailable"}</td>
+                            <td>{r.passed_policy ? "passed" : "warned"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+              </>
+            ) : (
+              <p className={styles.stage4Meta}>
+                Shows how often simple measures (like counting recommendations) get fooled, compared with the full Aegis score.
+              </p>
+            )}
+
+            <div className={styles.actions}>
+              <button
+                className="secondary-button"
+                disabled={busy || stage4Busy !== null}
+                onClick={() => void runBenchmark(true)}
+              >
+                {stage4Busy === "benchmark-sample" ? "Running…" : "Quick test (42 runs)"}
+              </button>
+              <button
+                className="secondary-button"
+                disabled={busy || stage4Busy !== null}
+                onClick={() => void runBenchmark(false)}
+              >
+                {stage4Busy === "benchmark-full" ? "Running (a few minutes the first time)…" : "Full test (210 runs)"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
       {revision && (
         <details className={styles.advanced}>
           <summary>Edit the attack by hand (JSON)</summary>

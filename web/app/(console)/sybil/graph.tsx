@@ -82,6 +82,8 @@ export function SybilGraph({
   view,
   selectedNodeId,
   selectedEdge,
+  witnessCutEdges,
+  witnessNodes,
   onSelectNode,
   onSelectEdge,
   onClearSelection,
@@ -89,6 +91,8 @@ export function SybilGraph({
   view: GraphView;
   selectedNodeId: string | null;
   selectedEdge: SelectedEdge | null;
+  witnessCutEdges?: Array<{ source: string; target: string }>;
+  witnessNodes?: readonly string[];
   onSelectNode: (id: string) => void;
   onSelectEdge: (edge: SelectedEdge) => void;
   onClearSelection: () => void;
@@ -107,6 +111,8 @@ export function SybilGraph({
     goal: { k: 1, x: 0, y: 0 } as View,
     selectedNodeId,
     selectedEdge,
+    witnessCutEdges: witnessCutEdges ?? [],
+    witnessNodes: new Set(witnessNodes ?? []),
     hover: null as Node | null,
     dirty: true,
     reduced: false,
@@ -126,9 +132,11 @@ export function SybilGraph({
     Object.assign(state.current, {
       selectedNodeId,
       selectedEdge,
+      witnessCutEdges: witnessCutEdges ?? [],
+      witnessNodes: new Set(witnessNodes ?? []),
       dirty: true,
     });
-  }, [selectedNodeId, selectedEdge]);
+  }, [selectedNodeId, selectedEdge, witnessCutEdges, witnessNodes]);
 
   // Physics: rebuilt whenever the server returns a new graph view.
   useEffect(() => {
@@ -240,6 +248,26 @@ export function SybilGraph({
           ctx.stroke();
         }
       }
+      if (s.witnessCutEdges && s.witnessCutEdges.length > 0) {
+        ctx.beginPath();
+        for (const cut of s.witnessCutEdges) {
+          const l = s.links.find(
+            (link) =>
+              (link.source.id === cut.source && link.target.id === cut.target) ||
+              (link.source.id === cut.target && link.target.id === cut.source)
+          );
+          if (l) {
+            ctx.moveTo(l.source.x!, l.source.y!);
+            ctx.lineTo(l.target.x!, l.target.y!);
+          }
+        }
+        ctx.setLineDash([4, 3]);
+        ctx.strokeStyle = "#f59e0b"; // amber min-cut highlight
+        ctx.globalAlpha = 1.0;
+        ctx.lineWidth = 3.5 * lineScale;
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
       for (const n of s.nodes) {
         const r = RADIUS[n.kind];
         ctx.beginPath();
@@ -273,6 +301,13 @@ export function SybilGraph({
           ctx.globalAlpha = n.kind === "simulated" ? 1 : 0.55;
           ctx.fill();
           ctx.globalAlpha = 1;
+        }
+        if (s.witnessNodes.has(n.id)) {
+          ctx.beginPath();
+          ctx.arc(n.x!, n.y!, r + 3, 0, Math.PI * 2);
+          ctx.strokeStyle = "#f59e0b"; // amber: a weak point (min-cut site)
+          ctx.lineWidth = 2.5 * lineScale;
+          ctx.stroke();
         }
         if (n.id === s.selectedNodeId || n === s.hover) {
           ctx.beginPath();
@@ -511,7 +546,7 @@ export function SybilGraph({
         </button>
       </div>
       <p className={styles.graphLegend}>
-        ◇ trusted site · ● real website · <span>●</span> fake site · <span style={{ color: COLORS.bridge }}>---</span> paid link from a real site · <span style={{ color: COLORS.shopA }}>Shop A</span> · <span style={{ color: COLORS.shopB }}>Shop B</span> · scroll to zoom, drag to pan
+        ◇ trusted site · ● real website · <span>●</span> fake site · <span style={{ color: COLORS.bridge }}>---</span> paid link from a real site · <span style={{ color: "#f59e0b" }}>○ ---</span> weak point and the links into it · <span style={{ color: COLORS.shopA }}>Shop A</span> · <span style={{ color: COLORS.shopB }}>Shop B</span> · scroll to zoom, drag to pan
       </p>
     </div>
   );
