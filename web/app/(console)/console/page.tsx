@@ -78,10 +78,10 @@ function RunStats({ runs }: { runs: Run[] }) {
 
 // What every protected action passes through (brief §3 pipeline); a description, not live data.
 const PIPELINE = [
-  ["Snapshot", "DOM, styles, hit-test"],
-  ["Detect", "Overlays, fake controls, hidden text"],
-  ["Audit", "Cart vs your permission"],
-  ["Verdict", "Allow · Reroute · Ask"],
+  ["Look", "Reads the page"],
+  ["Spot", "Finds hidden tricks"],
+  ["Check", "Compares the cart with your request"],
+  ["Decide", "Allow, retry or ask you"],
 ] as const;
 
 // Greedy word wrap for the step cards; SVG text has no wrapping of its own.
@@ -170,9 +170,9 @@ export default function ConsolePage() {
   return <>
     <section className="console-hero">
       <div className="hero-copy">
-        <span className="label">Runtime shield for browser agents</span>
+        <span className="label">A safety check for browser agents</span>
         <h1 id="console-heading" tabIndex={-1}>The same agent, with and without Aegis</h1>
-        <p className="lede">Both agents get the same task and the same trapped shop. Aegis checks every action before it runs and compares the checkout with what you asked for.</p>
+        <p className="lede">Two copies of one agent shop in the same trap-filled store. Aegis checks each step the protected one takes before it happens, and catches anything at checkout you didn&apos;t ask for.</p>
         {featured && <div className="hero-run">
           <p><span className="preset-code">{tags(featured).join(" ")}</span>{featured.description}</p>
           {approval(featured)}
