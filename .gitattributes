@@ -1,2 +1,0 @@
-# Preserve exact LF line endings for ThreeUI registered shader files
-src/shaders/** text eol=lf
