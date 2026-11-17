@@ -37,8 +37,9 @@ async def test_sybil_is_disabled_by_default(monkeypatch):
     assert response.status_code == 404
 
 
-async def test_enabled_preview_does_not_claim_imported_data(monkeypatch):
+async def test_enabled_preview_does_not_claim_imported_data(monkeypatch, tmp_path):
     monkeypatch.setattr(settings, "sybil_enabled", True)
+    monkeypatch.setattr(settings, "sybil_data_dir", tmp_path)  # no artifact, even on the demo PC
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://test"
     ) as client:
