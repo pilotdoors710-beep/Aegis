@@ -44,11 +44,10 @@ dependencies for float64 sparse propagation and sensitivity calculations.
 Set `NEXT_PUBLIC_API_URL` (defaults to `http://localhost:8000`), then run `pnpm dev`. The browser connects directly to FastAPI; its CORS configuration must allow the web origin.
 
 - `/`: entrance on every direct visit or refresh. Scrolling (or the "Scroll to enter" link, or Enter on it) enters `/console`.
-- `/console`: server-provided demo presets, live launch requests, and a separately labelled sample stream. Use this direct URL for stage demos.
-- `/runs`: stored run list, with an unavailable state while persistence returns HTTP 501.
+- `/console`: server-provided demo presets and live launch requests. Use this direct URL for stage demos.
+- `/runs`: stored run list.
 - `/runs/<id>`: live comparison, queue position at launch, screenshots, step counters, verdict evidence, and the permission ledger.
 - `/runs/<id>?replay=1`: stored-event replay with previous/next steps and a slider; always marked REPLAY.
-- `/runs/sample?replay=1`: sample replay, also marked SAMPLE DATA.
 - `/stats`: server-provided evaluation counts and latency fields. Sample, pilot and final data always carry distinct labels; every rate keeps its count and denominator visible.
 - `/health`: remote Chromium infrastructure check.
 - `/arena/index.html?traps=none`: clean simulated shop.
