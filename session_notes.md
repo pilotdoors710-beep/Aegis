@@ -25,7 +25,7 @@ Template:
 ### 2026-11-17 · Dev A · Claude Code · README finished
 - Did: checked the README against the code and eval results. Added "Check a real website" (Sybil), the two-view check, preset names, missing env vars, the web unit test command, the Sybil benchmark, and the extra screens on Scan. Updated the T11 limit (caught once with R2 on).
 - Works now: commands, routes, anchors and numbers in the README match the source and `eval/README.md`.
-- Also: MIT license (Bashline); themed 404 page in `web/app/not-found.tsx` (tell Dev B).
+- Also: MIT license (Bashline); themed 404 page in `web/app/not-found.tsx`.
 - Next: wire the 17 web unit tests into CI.
 
 ### 2026-11-17 · Dev A · Claude Code · real shops for the Sybil sample

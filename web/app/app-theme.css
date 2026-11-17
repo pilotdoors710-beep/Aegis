@@ -332,7 +332,7 @@
 .app-theme caption { caption-side: bottom; text-align: left; padding-block: var(--s2); font-size: .75rem; color: var(--muted); }
 .app-theme .stats-summary { margin-top: var(--s3); padding: var(--s4); background: var(--raise); border-radius: 12px; }
 .app-theme .stats-summary ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: var(--s3); margin: var(--s3) 0; padding: 0; list-style: none; }
-.app-theme .stats-summary li { padding-left: var(--s2); border-left: 2px solid var(--gold); }
+.app-theme .stats-summary li { padding-top: var(--s2); border-top: 1px solid var(--line-strong); }
 .app-theme .stats-summary li p { margin: 4px 0 0; color: var(--muted); line-height: 1.55; }
 .app-theme .stats-summary li b { color: var(--fg); }
 .app-theme .ratio { display: inline-grid; gap: var(--s1); min-width: 72px; }
