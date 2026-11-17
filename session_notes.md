@@ -22,6 +22,11 @@ Template:
 
 ## Log
 
+### 2026-11-18 · Dev A · Claude Code · two-shop page favours Shop B
+- Found: the last two Sybil runs had both sides pick Shop A. Nothing in the code had changed; the model's first click is close to a coin flip (A was listed first).
+- Did: Shop B is now listed first on the two-shop page with a "Most recommended" badge. Same page on both sides.
+- Next: run the Sybil preset a few times on the live site to check the unprotected side now goes to B.
+
 ### 2026-11-17 · Dev A · Claude Code · codebase cleanup
 - Did: removed the fake sample run (server, API, `is_sample` field, web labels, smoke check, day-1 verify script) and the fake `/stats` fallback (now 404 if no results; Docker mounts `final-stats.json`).
 - Did: deleted unused web code and assets: old landing slider/tunnel/scene, button/demo/math-scramble, root `src/shaders`, unused fonts/logos/icons, 7 unused packages (incl. threeui, three).
