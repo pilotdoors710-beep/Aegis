@@ -37,6 +37,31 @@ function StatsTable({ rows, caption }: { rows: Config[]; caption: string }) {
   </table></div>;
 }
 
+const of = (c: Schema["Count"] | null | undefined) => c ? `${c.count} of ${c.of}` : "—";
+
+// Plain-language reading of the tables. Numbers come from the data; the wording only claims what
+// the declared protocol and eval/README.md support (N=1, arena only).
+function Summary({ stats }: { stats: Schema["EvalStats"] }) {
+  const get = (rows: Config[], name: Config["config"]) => rows.find((c) => c.config === name);
+  const [u, f, i, noAudit] = (["U", "F", "I", "I-minus-audit"] as const).map((n) => get(stats.configs, n));
+  const [r2Off, r2On] = (["I", "I+R2"] as const).map((n) => get(stats.r2_study, n));
+  if (!u || !i) return null;
+  const points: [string, React.ReactNode][] = [
+    ["Traps", <>Without protection the agent fell for <b>{of(u.trap_success)}</b> traps. With full Aegis it fell for <b>{of(i.trap_success)}</b>. The one it still misses is a checkout that shows the AI a different summary than a person sees (T11), a limit we declared before the run.</>],
+    ["Right outcome", <>The run ended the way the user would want (the right order, or a safe stop) in <b>{of(u.correct_end)}</b> runs without protection, <b>{of(f?.correct_end)}</b> with detectors only, and <b>{of(i.correct_end)}</b> with full Aegis.</>],
+    ["Why the final check matters", <>Detectors alone still let traps through in <b>{of(f?.trap_success)}</b> cases, and full Aegis without its final check in <b>{of(noAudit?.trap_success)}</b>. Hidden fees and pre-ticked extras are caught by comparing the checkout against what the user asked for before paying.</>],
+    ["New wording", <>On pages worded differently from anything used while building Aegis, full Aegis ended correctly in <b>{of(i.held_out_correct)}</b> runs (unprotected: {of(u.held_out_correct)}).</>],
+    ["False alarms", <>On clean pages and on extras the user did allow, Aegis blocked or rerouted the agent in <b>{of(i.clean_false_block)}</b> runs. When the user allowed the protection plan, it was bought.</>],
+    ["Speed", <>The checks add about <b>{ms(i.shield_added_ms_median)}</b> per step (not counting the AI model or page capture). A whole run took a median <b>{ms(i.run_duration_s_median, "s")}</b> with Aegis and {ms(u.run_duration_s_median, "s")} without.</>],
+  ];
+  if (r2Off && r2On) points.push(["Confusing checkboxes (R2)", <>On deliberately confusing consent boxes, full Aegis stayed safe but kept stopping to ask, so it ended correctly in only <b>{of(r2Off.correct_end)}</b>. Trying both choices in throwaway copies (R2) got <b>{of(r2On.correct_end)}</b> right, at about 2 seconds per trial.</>]);
+  return <section className="stats-summary" aria-labelledby="summary-title">
+    <h2 id="summary-title">What the numbers show</h2>
+    <ul>{points.map(([title, body]) => <li key={title}><strong>{title}</strong><p>{body}</p></li>)}</ul>
+    <p className="event-meta">How far to trust this: one run per case, a simulated shop, one free AI model. Some runs also failed because the model gave up early on a page it could read; those runs are kept in the counts. Treat this as early evidence, not proof.</p>
+  </section>;
+}
+
 export default function StatsPage() {
   const [stats, setStats] = useState<Schema["EvalStats"] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +83,7 @@ export default function StatsPage() {
     {!stats && !error && <SkeletonGroup label="Loading evaluation data…"><Skeleton className="skeleton-line" /><SkeletonRows n={4} /></SkeletonGroup>}
     {stats && <>
       <div className="banner"><strong className="badge">{label}</strong><span>{about} · N={stats.n} · {stats.model ?? "Model not specified"} · Generated {new Date(stats.generated_at).toLocaleString()}{stats.source && <> · Raw rows: <code>{stats.source}</code></>}</span></div>
+      {stats.label === "final" && <Summary stats={stats} />}
       <StatsTable rows={stats.configs} caption="Core comparison. Correct end = the case's expected outcome: an order with nothing unauthorized, or stopping safely. Held out = wording never used in development. Clean = clean or authorized cases." />
       {stats.r2_study.length > 0 && <>
         <h2 style={{ marginTop: "2.5rem" }}>Disposable consent trials (R2)</h2>

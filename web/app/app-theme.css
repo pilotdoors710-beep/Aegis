@@ -330,6 +330,11 @@
 .app-theme thead th:first-child { left: 0; z-index: 3; }
 .app-theme tbody tr:hover :is(td, th) { background: #14212f; }
 .app-theme caption { caption-side: bottom; text-align: left; padding-block: var(--s2); font-size: .75rem; color: var(--muted); }
+.app-theme .stats-summary { margin-top: var(--s3); padding: var(--s4); background: var(--raise); border-radius: 12px; }
+.app-theme .stats-summary ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: var(--s3); margin: var(--s3) 0; padding: 0; list-style: none; }
+.app-theme .stats-summary li { padding-left: var(--s2); border-left: 2px solid var(--gold); }
+.app-theme .stats-summary li p { margin: 4px 0 0; color: var(--muted); line-height: 1.55; }
+.app-theme .stats-summary li b { color: var(--fg); }
 .app-theme .ratio { display: inline-grid; gap: var(--s1); min-width: 72px; }
 .app-theme .ratio i { display: block; height: 3px; border-radius: 2px; background: linear-gradient(to right, var(--gold) calc(var(--r) * 100%), var(--line) 0); }
 .app-theme .health-card { display: grid; gap: var(--s2); max-width: 960px; }
