@@ -25,7 +25,8 @@ Template:
 ### 2026-11-18 · Dev A · Claude Code · two-shop page favours Shop B
 - Found: the last two Sybil runs had both sides pick Shop A. Nothing in the code had changed; the model's first click is close to a coin flip (A was listed first).
 - Did: Shop B is now listed first on the two-shop page with a "Most recommended" badge. Same page on both sides.
-- Next: run the Sybil preset a few times on the live site to check the unprotected side now goes to B.
+- Found: the model quit on the product page ("missing checkout elements") about 1 in 10 times on Groq gpt-oss-20b. Removing the "Simulated purchase. No payment required." line under Add to cart stopped it in local tests (0 quits vs 7 on the old page). Footer still says orders are simulated.
+- Next: run the Sybil preset a few times on the live site once the Groq quota resets.
 
 ### 2026-11-17 · Dev A · Claude Code · codebase cleanup
 - Did: removed the fake sample run (server, API, `is_sample` field, web labels, smoke check, day-1 verify script) and the fake `/stats` fallback (now 404 if no results; Docker mounts `final-stats.json`).
