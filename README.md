@@ -27,7 +27,7 @@ We ran the final evaluation on 17 Nov 2026 with `groq:openai/gpt-oss-20b`, one r
 - The fast detectors took 0 ms at the median and 1 ms at p95 per decision. A median run took 13 s without Aegis and 18 s with it.
 - One of the 65 runs failed because the LLM provider hit its rate limit. We kept that row in the data and left it out of the counts.
 
-The R2 study compared full Aegis with and without disposable trials on unclear consent boxes (N = 1). With trials, 6 of 6 runs ended correctly; without them, 1 of 6 did. In the runs without trials, Aegis asked the human about each unclear box, the scripted policy said no, and no order was placed. Each trial took 1.7 to 2.1 s and made no LLM calls.
+The R2 study compared full Aegis with and without disposable trials on unclear consent boxes (N = 1). With trials, 6 of 6 runs ended correctly; without them, 1 of 6 did. In the runs without trials, Aegis asked the human about each unclear box, the scripted policy said no, and no order was placed. Each trial took 1.7 to 2.1 s and made no LLM calls, and a median run took 23 s with trials against 16 s without. With trials on, Aegis also stopped T11 (see the two-view check below): it asked, the policy said no, and nothing was bought.
 
 ## Architecture
 
@@ -118,6 +118,7 @@ If a check throws or times out, Aegis does not allow the action (`FAIL_MODE=clos
 | B2 checkout audit | pre-ticked add-ons, hidden fees, subscriptions and confusing consent boxes, checked against the ledger |
 | D2 human approval | final payment and sharing personal data always need a human yes |
 | R2 disposable trials (experimental) | for an unclear consent box: places the simulated order twice in throwaway browser copies, once with the box ticked and once unticked, and keeps the setting whose confirmation page matches the ledger |
+| Two-view check (experimental, on with R2) | loads the checkout again as an ordinary browser and compares it with what the agent saw; a mismatch becomes an ASK |
 
 ### Trap Arena
 
@@ -142,6 +143,8 @@ Every trap also has a version without the trap. Its test checks that the right d
 Sybil scores how many links from known sites point toward each of two fake shops. It uses about 50,000 domains from the Common Crawl link graph near eight starting sites (wikipedia.org, w3.org, ietf.org, acm.org, ieee.org, mit.edu, stanford.edu, commoncrawl.org) and runs Personalized PageRank from those sites. On the Sybil page you can add fake sites, links and takeovers within a fixed budget and watch the score change. The agent enters a shop only when the score is fully computed and R ≥ 60, S ≥ 0.5 and L ≥ 0.5; otherwise it asks first.
 
 The score measures link structure and how far it drops under attack. It is not the chance that a shop is safe. The formula (`sybil-v2`) is in [`project_brief.md` §8](project_brief.md) and [ADR 0009](docs/adr/0009-sybil-v2-connection-resilience.md). The graph data comes from about 9 GB of source files and is not in the repo. Without it, the Sybil page says the data is unavailable and shows no scores.
+
+"Check a real website" on the same page (`POST /sybil/real/evaluate`) looks up a real domain in the sample and scores that site with the same formula and the same limits. Aegis never fetches the site. A domain that is not in the sample gets no score, which is not the same as a score of 0, and so does a single seller on a shared platform such as a marketplace, because the platform's links say nothing about its sellers. In both cases the agent asks first. On 17 Nov techcrunch.com passed (R 63), ebay.com fell short (R 44), and amazon.com and ikea.com were not in the sample. Real checkouts are still out of scope.
 
 ## Run it locally
 
@@ -168,7 +171,7 @@ pnpm install
 pnpm dev
 ```
 
-Open <http://localhost:3000/console> and pick a preset. `main-demo` runs the click-jacking trap (T02). The shop without traps is at <http://localhost:3000/arena/index.html?traps=none>.
+Open <http://localhost:3000/console> and pick a preset. "Main demo" runs the click-jacking trap (T02), "Clean shop" has no traps, the "Permission" presets run the same checkout with the plan forbidden or allowed, and "Cloaked checkout" runs T11 with R2 on. The shop without traps is at <http://localhost:3000/arena/index.html?traps=none>.
 
 Without Supabase settings, the backend keeps runs in memory and loses them when it stops. To keep them, set `SUPABASE_DB_URL`, `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` and apply [`supabase/migrations/`](supabase/migrations/). If the backend is not on `localhost:8000`, set `NEXT_PUBLIC_API_URL` for the web app.
 
@@ -176,6 +179,8 @@ Without Supabase settings, the backend keeps runs in memory and loses them when 
 |---|---|---|
 | `AGENT_MODELS` | none | list of `provider:model`, tried in order |
 | `GROQ_API_KEY`, `GROQ_API_KEY_2`, `GROQ_API_KEY_3` | none | extra keys are tried in turn when one hits its limit |
+| `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `CEREBRAS_API_KEY` | none | keys for other providers named in `AGENT_MODELS` |
+| `LLM_CACHE_MODE` | `fallback` | `off`, `fallback` or `on`; cached decisions are labelled as replayed, and the eval always turns the cache off |
 | `FAIL_MODE` | `closed` | `closed` stops the action when a check fails; `open` lets it run |
 | `SYBIL_ENABLED`, `SYBIL_DATA_DIR` | `true`, `/app/data/sybil` | Sybil page and where its graph files are |
 | `ARENA_BASE_URL` | `http://localhost:3000/arena` | where the agent's browser loads the shop |
@@ -189,17 +194,18 @@ To run the backend in Docker, use `cd deploy && docker compose up -d --build`; i
 cd server && uv run pytest -q
 cd server && uv run ruff check . && uv run ruff format --check .
 cd web && pnpm typecheck && pnpm lint && pnpm build
+cd web && node --test lib/*.test.mjs
 ```
 
-CI runs all three. `pnpm gen:types` generates `web/lib/api-types.ts` from the backend's OpenAPI schema, and CI fails if the committed file does not match.
+CI runs the first three. The 17 web unit tests in the last line are not in CI yet. `pnpm gen:types` generates `web/lib/api-types.ts` from the backend's OpenAPI schema, and CI fails if the committed file does not match.
 
 ### Run the evaluation again
 
-The harness is [`eval/run.py`](eval/run.py). It always turns the decision cache off, uses one fixed model and shuffles the run order with a fixed seed. The exact commands are in [`eval/README.md`](eval/README.md#final-evaluation-protocol-declared-15-nov-before-any-final-run). One block of 65 runs uses about 455,000 tokens, more than one free Groq key allows per day.
+The harness is [`eval/run.py`](eval/run.py). It always turns the decision cache off, uses one fixed model and shuffles the run order with a fixed seed. The exact commands are in [`eval/README.md`](eval/README.md#final-evaluation-protocol-declared-15-nov-before-any-final-run). One block of 65 runs uses about 455,000 tokens, more than one free Groq key allows per day. The Sybil graph has its own benchmark, `eval/sybil_benchmark.py`, which needs the graph files.
 
 ## Other pages
 
-- `/scan` runs the detectors on any public URL without clicking anything. The server checks each URL first so it cannot be pointed at private addresses.
+- `/scan` runs the detectors on any public URL without clicking anything. Besides the top of the page, it captures up to two more screens scrolled to flagged elements further down. The server checks each URL first so it cannot be pointed at private addresses.
 - `/lab` lets you set up your own consent box and watch an R2 trial on it.
 - `/runs` lists every stored run with step-by-step replay, and labels each replay as one.
 - `/stats` shows the evaluation tables above.
@@ -209,7 +215,7 @@ The harness is [`eval/run.py`](eval/run.py). It always turns the decision cache 
 
 - Every case ran once, on one model.
 - We built the traps ourselves, so the checks may behave differently on other sites. The held-out wording versions (T03c, T04c, T08c, clean-c) never ran during development. They test new wording, but only on our shop.
-- F and I both miss T11, because the audit trusts what the page shows the agent. The browser-use wrapper misses it too: the check that catches it needs our own browser.
+- F and I both miss T11, because the audit trusts what the page shows the agent. Only the experimental two-view check, which is on with R2, caught it, and that was in a single run. The browser-use wrapper misses T11 too, because the two-view check needs our own browser.
 - The audit and R2 read only what the browser shows. A shop could show one total and charge another.
 - The ledger parser and the checkout reader can be wrong. Aegis shows what it read, and anything it cannot settle becomes an ASK.
 - gpt-oss-20b sometimes stops early, saying a button is missing when it is on the page. This happened in 6 of 64 runs, spread over all configs, and those runs stay in the data.
