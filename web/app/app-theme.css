@@ -316,12 +316,16 @@
 
 /* Runs, stats, health */
 .app-theme .banner { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s1) var(--s2); margin-bottom: var(--s3); font-size: .875rem; color: var(--muted); }
-.app-theme .table-scroll { overflow: auto; max-height: 70svh; margin-top: var(--s3); padding-block: 0 var(--s2); }
+.app-theme .table-scroll { --pad: var(--s4); overflow: auto; max-height: 70svh; margin-top: var(--s3); padding-block: 0 var(--s2); }
 .app-theme table { width: 100%; border-collapse: separate; border-spacing: 0; text-align: left; font-size: .875rem; font-variant-numeric: tabular-nums; }
 .app-theme th, .app-theme td { padding: var(--s2) var(--s3) var(--s2) 0; white-space: nowrap; border-bottom: 1px solid var(--line); vertical-align: top; }
 .app-theme td.wrap { white-space: normal; min-width: 24ch; }
 .app-theme thead th { position: sticky; top: 0; z-index: 2; background: var(--raise); font: 400 .75rem var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 .app-theme tbody th { position: sticky; left: 0; z-index: 1; background: var(--raise); font-weight: 600; }
+/* The pinned first column sticks inside the container's padding: paint that gap and draw an edge so
+   cells scrolling sideways pass cleanly underneath instead of showing beside it. */
+.app-theme :is(tbody th, thead th:first-child) { box-shadow: calc(-1 * var(--pad, 0px)) 0 0 var(--raise), inset -1px 0 0 var(--line); }
+.app-theme :is(tbody th, thead th:first-child) + :is(th, td) { padding-left: var(--s3); }
 .app-theme tbody th a { text-decoration: underline; text-decoration-color: var(--gold); text-underline-offset: 4px; }
 .app-theme thead th:first-child { left: 0; z-index: 3; }
 .app-theme tbody tr:hover :is(td, th) { background: #14212f; }
@@ -369,6 +373,7 @@
   .app-theme :is(.comparison-grid,.permission-pair-grid) > *, .app-theme :is(.comparison-grid,.permission-pair-grid) > * + * { padding: 0 0 var(--s3); border-left: 0; }
   .app-theme :is(.comparison-grid,.permission-pair-grid) > * + * { padding-top: var(--s3); border-top: 1px solid var(--line); }
   .app-theme :is(.tile,.lab-form,.scan-form,.result > .verdict,.result > .comparison-grid,.scan-result,.table-scroll,.health-card) { padding: var(--s3); }
+  .app-theme .table-scroll { --pad: var(--s3); }
   .app-theme .run-bar { flex-wrap: wrap; }
   .app-theme .run-bar .task-line { flex-basis: 100%; order: 3; white-space: normal; }
   .app-theme .two-view-grid { grid-template-columns: 1fr; }

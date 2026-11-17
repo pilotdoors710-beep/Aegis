@@ -26,6 +26,7 @@ Template:
 - `/stats` now serves `eval/results/final-stats.json` (made by `eval/run.py --stats` from the re-scored final rows, no LLM calls) instead of sample data; sample only if the file is missing.
 - Schema: `ConfigStats` gains correct end, held-out correct, infra excluded; shield-only counts are null for U; `EvalStats` gains a separate `r2_study` table and `source`. Types regenerated.
 - Stats page (web): new columns, "no shield" for U, separate R2 table, latency footnote. Numbers match the `eval/README.md` tables.
+- Fixed the pinned first table column (stats and runs): scrolled cells showed in the padding gap beside it; now covered, with a divider.
 
 ### 2026-11-17 · Dev A · Claude Code · Scan shows flagged elements below the first screen
 - `/scan` now returns `screens`: the top of the page plus up to 2 screens scrolled to flagged elements further down. Boxes are measured again after each scroll, and it waits for scroll-in animations. `screenshot_b64` on `ScanReport` is gone (contract change, types regenerated).
