@@ -13,11 +13,11 @@ const STATUS: Record<Evidence["status"], string> = {
   scored: "In the sample",
   anchor: "Trusted starting site",
   not_in_sample: "Not in the sample",
-  shared_platform: "Seller on a shared platform",
+  shared_platform: "Shared platform seller",
   unavailable: "Could not score",
 };
 
-const pct = (v: number) => (v * 100).toFixed(1);
+const pct = (v: number) => `${Math.round(v * 100)}%`;
 
 export function RealSiteCheck() {
   const [query, setQuery] = useState("");
@@ -57,10 +57,6 @@ export function RealSiteCheck() {
       <div className={styles.stage4Header}>
         <div>
           <h2 id="real-site-title">Check a real website</h2>
-          <p>
-            Looks a real site up in the 50,000-site Common Crawl sample and scores it with the same formula as the shops
-            above. The site itself is never opened.
-          </p>
         </div>
         {busy && <span className={styles.stage4Meta}>Checking…</span>}
       </div>
@@ -69,11 +65,11 @@ export function RealSiteCheck() {
         <div className={styles.stage4Card}>
           <form className={styles.controls} onSubmit={submit}>
             <label>
-              Website or link
+              Website
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="example.com or https://shop.example.com/item"
+                placeholder="example.com"
                 maxLength={2048}
                 spellCheck={false}
                 autoCapitalize="off"
@@ -86,7 +82,7 @@ export function RealSiteCheck() {
             </div>
           </form>
           <div>
-            <span className={styles.stage4Meta}>Try one:</span>
+            <span className={styles.stage4Meta}>Examples</span>
             <div className={styles.actions}>
               {EXAMPLES.map((example) => (
                 <button key={example} className="secondary-button" disabled={busy} onClick={() => void check(example)}>
@@ -109,7 +105,7 @@ export function RealSiteCheck() {
                 <h3>
                   {result.domain ?? result.host}
                   <span className={result.policy_passed ? styles.passBadge : styles.cutEdgeBadge}>
-                    {result.policy_passed ? "Agent may go ahead" : "Agent asks you first"}
+                    {result.policy_passed ? "Agent goes ahead" : "Agent asks first"}
                   </span>
                 </h3>
                 <p className={styles.stage4Meta}>
@@ -143,14 +139,14 @@ export function RealSiteCheck() {
                     <dd>{pct(score.tested_connection_resilience)}</dd>
                   </div>
                   <div>
-                    <dt>Sampled sites linking to it</dt>
+                    <dt>Sites linking to it</dt>
                     <dd>{result.links_in.toLocaleString()}</dd>
                   </div>
                 </dl>
               )}
               {result.anchor_paths.length > 0 && (
                 <div>
-                  <span className={styles.stage4Meta}>Shortest link paths from trusted starting sites:</span>
+                  <span className={styles.stage4Meta}>Links from trusted sites</span>
                   <ol className={styles.trajectoryList}>
                     {result.anchor_paths.map((path) => (
                       <li key={path.anchor}>{path.hops.join(" → ")}</li>
@@ -159,18 +155,12 @@ export function RealSiteCheck() {
                 </div>
               )}
               {result.top_linkers.length > 0 && (
-                <p className={styles.stage4Meta}>Sends it the most trust: {result.top_linkers.join(", ")}</p>
+                <p className={styles.stage4Meta}>Most trust from: {result.top_linkers.join(", ")}</p>
               )}
-              <p className={styles.stage4Meta}>
-                Policy {result.policy} · {result.elapsed_ms.toFixed(0)} ms
-              </p>
               <p className={styles.disclosure}>{result.disclosure}</p>
             </>
           ) : (
-            <p className={styles.stage4Meta}>
-              Pick an example or type a site. Sites outside the sample, and single sellers on shared platforms, get no
-              score: the agent asks you first.
-            </p>
+            <p className={styles.stage4Meta}>Pick an example or type a site.</p>
           )}
         </div>
       </div>

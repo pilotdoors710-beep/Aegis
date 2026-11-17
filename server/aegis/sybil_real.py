@@ -143,15 +143,15 @@ def _verdict(score: SybilShopScore) -> tuple[bool, str]:
     s = score.structural_support
     lw = score.anchor_withdrawal_resilience
     if POLICY.passes(r, s, lw):
-        return True, f"Passes the graph policy: R {r:.1f}, S {s:.2f}, L {lw:.2f}."
+        return True, "Passes every check."
     short = []
     if r < POLICY.minimum_total:
-        short.append(f"R {r:.1f} < {POLICY.minimum_total:g}")
+        short.append(f"score {r:.1f}, needs {POLICY.minimum_total:g}")
     if s < POLICY.minimum_support:
-        short.append(f"S {s:.2f} < {POLICY.minimum_support:g}")
+        short.append(f"trust {s:.0%}, needs {POLICY.minimum_support:.0%}")
     if lw < POLICY.minimum_withdrawal:
-        short.append(f"L {lw:.2f} < {POLICY.minimum_withdrawal:g}")
-    return False, f"Below the graph policy ({', '.join(short)}); the agent asks first."
+        short.append(f"without top trusted site {lw:.0%}, needs {POLICY.minimum_withdrawal:.0%}")
+    return False, f"Too low: {'; '.join(short)}."
 
 
 def evaluate_real_domain(dataset: Any, query: str, max_paths: int = 3) -> SybilRealDomainEvidence:
@@ -176,21 +176,14 @@ def evaluate_real_domain(dataset: Any, query: str, max_paths: int = 3) -> SybilR
             domain=None,
             status="shared_platform",
             policy_passed=False,
-            reason=(
-                f"This looks like one seller on {platform}. Sellers there share the "
-                "platform's address, so the platform's own links can't vouch for them. "
-                "The agent asks first."
-            ),
+            reason=f"One seller on {platform}. The platform's links don't vouch for its sellers.",
         )
     if matched is None:
         return done(
             domain=None,
             status="not_in_sample",
             policy_passed=False,
-            reason=(
-                f"{host} is not among the {len(index.domains):,} sites sampled around the "
-                "anchors, so there is no link evidence either way. The agent asks first."
-            ),
+            reason=f"Not among the {len(index.domains):,} sampled sites, so no link evidence.",
         )
 
     node = index.by_domain[matched]
@@ -211,14 +204,14 @@ def evaluate_real_domain(dataset: Any, query: str, max_paths: int = 3) -> SybilR
             **facts,
             status="anchor",
             policy_passed=True,
-            reason="One of the eight declared anchors: trust starts here by assumption.",
+            reason="One of the eight trusted starting sites.",
         )
     if score is None:
         return done(
             **facts,
             status="unavailable",
             policy_passed=False,
-            reason="Trust propagation did not converge; this result cannot pass graph policy.",
+            reason="The score did not settle, so it cannot pass.",
         )
     passed, reason = _verdict(score)
     return done(**facts, status="scored", policy_passed=passed, reason=reason)
