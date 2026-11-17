@@ -20,7 +20,8 @@ p { margin: 10px 0; }
 .product-card { position: relative; padding: 22px 28px; background: #e9eadd; border-radius: 4px; }
 .product-card:nth-child(2) { background: #e5e4da; }
 .product-card .lamp { float: right; transform: scale(.75); transform-origin: top right; margin-left: 20px; height: 170px; }
-.product-card p:not(.price):not(.eyebrow) { max-width: 290px; color: #516054; font-size: 14px; }
+.product-card .badge { display: inline-block; margin: 0 0 4px; padding: 3px 10px; border-radius: 999px; background: var(--accent); color: white; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+.product-card p:not(.price):not(.eyebrow):not(.badge) { max-width: 290px; color: #516054; font-size: 14px; }
 .price { font-size: 25px; font-variant-numeric: tabular-nums; }
 .variant-options { display: grid; gap: 12px; margin: 16px 0; }
 button, .button { display: inline-block; border: 0; border-radius: 3px; padding: 13px 22px; background: var(--accent); color: white; text-decoration: none; font: inherit; cursor: pointer; }
