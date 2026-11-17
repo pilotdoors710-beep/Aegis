@@ -22,6 +22,10 @@ Template:
 
 ## Log
 
+### 2026-11-17 · Antigravity · Sybil Stage 5 Plan
+- Added `docs/plans/2026-11-17-sybil-stage5-real-merchants.md`: complete step-by-step implementation plan for Stage 5 real merchant and live domain evaluation.
+- Architecture: canonical domain resolver (`sybil_resolver.py`), graph evaluator with BFS anchor path tracing (`sybil_real.py`), `POST /sybil/real/evaluate` endpoint, and `/sybil` Real Merchant Inspector UI.
+
 ### 2026-11-17 · Dev A · Claude Code · Stats page shows the final eval
 - `/stats` now serves `eval/results/final-stats.json` (made by `eval/run.py --stats` from the re-scored final rows, no LLM calls) instead of sample data; sample only if the file is missing.
 - Schema: `ConfigStats` gains correct end, held-out correct, infra excluded; shield-only counts are null for U; `EvalStats` gains a separate `r2_study` table and `source`. Types regenerated.
