@@ -1,0 +1,54 @@
+# Real shopping sites added to the Sybil sample for the Stage 5 lookup (one registrable
+# domain per line). Fixed on 2026-11-17 before any of them was scored; sites already in the
+# anchor sample (e.g. ebay.com, amazon.ca) are left as they are. Not endorsements or accusations.
+# Global marketplaces
+amazon.com
+amazon.in
+amazon.co.uk
+amazon.de
+amazon.co.jp
+ebay.co.uk
+aliexpress.com
+alibaba.com
+temu.com
+shein.com
+etsy.com
+walmart.com
+target.com
+costco.com
+bestbuy.com
+homedepot.com
+wayfair.com
+ikea.com
+rakuten.com
+mercadolibre.com
+shopee.com
+lazada.com
+zalando.com
+asos.com
+# Brands
+apple.com
+nike.com
+adidas.com
+zara.com
+hm.com
+uniqlo.com
+sephora.com
+decathlon.com
+# India
+flipkart.com
+myntra.com
+meesho.com
+ajio.com
+nykaa.com
+snapdeal.com
+tatacliq.com
+croma.com
+reliancedigital.in
+jiomart.com
+bigbasket.com
+firstcry.com
+lenskart.com
+pepperfry.com
+# Platforms
+shopify.com

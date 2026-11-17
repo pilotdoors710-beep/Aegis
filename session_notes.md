@@ -22,6 +22,11 @@ Template:
 
 ## Log
 
+### 2026-11-17 · Dev A · Claude Code · real shops for the Sybil sample
+- Did: `sybil_prepare.py --include eval/sybil_shops.txt` adds 47 named shopping sites (amazon.com, flipkart.com, ikea.com, …) on top of the anchor sample, which stays exactly the same. The loader accepts them.
+- Works now: tests pass; the current live artifact still loads unchanged.
+- Blocked / next: the friend with the 9 GB source runs the command in the Stage 5 plan ("Adding real shops") and sends the 4 files; then switch `SYBIL_DATA_DIR` on the PC.
+
 ### 2026-11-17 · Dev A · Claude Code · Sybil Stage 5: check a real website
 - Did: rewrote the Stage 5 plan (the draft's code didn't match the engine and its score was mis-calibrated) and built it: `POST /sybil/real/evaluate` + "Check a real website" on `/sybil`.
 - Works now: any URL/domain is matched in the 50k sample and scored on its own trust with sybil-v2 and the same policy; anchor link paths and top linkers shown. Not in sample / platform seller → no score → asks first.

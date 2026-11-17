@@ -47,6 +47,42 @@ would go ahead or ask first.
 - Links are not endorsements; asset/CDN links count too. Missing incoming links are possible.
 - The score describes the imported graph, not the whole web or the merchant's behaviour.
 
+## Adding real shops (amazon.com, flipkart.com, …)
+
+The anchor sample does not contain most big shops. `eval/sybil_shops.txt` lists 47 shopping
+sites, fixed before any of them was scored. `sybil_prepare.py --include` adds them on top of
+the sample:
+
+- **The anchor sample does not change.** It has the same 50k sites and the same 1M hash-selected
+  links (tested in `eval/test_sybil_extract.py`).
+- **Each listed shop joins only if a sampled site links to it.** It keeps every link between it
+  and the sample, outside the edge limit, plus its true outdegree. Its depth is one past its
+  shallowest linker.
+- **The manifest records them** as `extraction.included`. The loader checks the base limits
+  without them and allows depth + 1 only for these sites.
+- **Some values change as a result.** τ, the baseline Shop A/B recommenders and the dataset hash
+  are recomputed. Old playground revisions stop applying, as with any new artifact.
+
+**Run on the machine that has the 9 GB source** (same environment as the first extraction):
+
+```bash
+cd server && uv run python ../eval/sybil_prepare.py \
+  --source ../.sybil-data/source \
+  --output ../.sybil-data/artifact-shops \
+  --jar <path to the cc-webgraph jar used before> \
+  --webgraph-commit 8a3a34e2f3bc16b865ee234eab83a4917086b814 \
+  --include ../eval/sybil_shops.txt
+```
+
+It prints which shops were added, which were already sampled and which nothing in the sample
+links to. Send the four output files (`manifest.json`, `nodes.json`, `adjacency.npz`,
+`reverse.npz`, ~12 MB).
+
+**Deploy:**
+1. Copy the four files to a new folder on the PC, e.g. `server/data/sybil-shops/`.
+2. Point `SYBIL_DATA_DIR` at that folder and restart `aegis.service`.
+3. Keep `server/data/sybil/` as the fallback: switching back is a one-line `.env` change.
+
 ## Changes from the draft
 
 - **Score:** the draft summed every in-linker's full trust as separate "recommendations". τ is

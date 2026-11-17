@@ -79,17 +79,23 @@ def load_dataset(directory: Path) -> Dataset:
         raise ValueError("Adjacency must contain unique, unit-weight observed links")
     if (matrix.T != reverse).nnz:
         raise ValueError("Reverse adjacency does not match forward links")
+    included = set(manifest.extraction.included)
+    if not included <= set(ids) or included & set(manifest.anchors):
+        raise ValueError("Included sites must be non-anchor dataset nodes")
+    named = np.array([v.id in included for v in nodes])
     kept = np.diff(matrix.indptr)
     if any(
         v.retained_outdegree != kept[i]
         or v.original_outdegree < kept[i]
-        or v.depth > manifest.extraction.maximum_depth
+        or v.depth > manifest.extraction.maximum_depth + int(named[i])
         for i, v in enumerate(nodes)
     ):
         raise ValueError("Dataset degrees or extraction depths are inconsistent")
+    links = matrix.tocoo()
+    sample_edges = int(np.count_nonzero(~(named[links.row] | named[links.col])))
     if (
-        manifest.nodes > manifest.extraction.node_limit
-        or manifest.edges > manifest.extraction.edge_limit
+        manifest.nodes - len(included) > manifest.extraction.node_limit
+        or sample_edges > manifest.extraction.edge_limit
     ):
         raise ValueError("Dataset exceeds extraction limits")
     coordinates = matrix.tocoo()

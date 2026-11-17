@@ -62,3 +62,38 @@ def test_disconnected_or_small_source_is_not_padded():
     assert result.ids == (1, 2)
     assert result.edges == ()
     assert result.original_outdegree == (0, 0)
+
+
+def _graph():
+    # 0, 1 anchors. 2..39 sampled. 50 is the named shop: linked by 2 and 3, links to 4.
+    # 60 is a named site nobody in the sample links to.
+    edges = {0: tuple(range(2, 30)), 1: tuple(range(20, 40)), 2: (50, 3), 3: (50, 4), 50: (4, 99)}
+    reverse = {}
+    for u, row in edges.items():
+        for v in row:
+            reverse.setdefault(v, []).append(u)
+    return (lambda u: iter(edges.get(u, ())), lambda v: iter(reverse.get(v, ())))
+
+
+def test_named_sites_leave_the_anchor_sample_unchanged():
+    forward, reverse = _graph()
+    kwargs = dict(node_limit=30, edge_limit=15, fanout=40, maximum_depth=1, seed=7)
+    plain = module.extract(forward, reverse, (0, 1), **kwargs)
+    named = module.extract(forward, reverse, (0, 1), include=(50, 60, 0), **kwargs)
+    assert 50 not in plain.ids
+    assert named.included == (50,)  # 60 has no sampled linker; 0 is already sampled
+    assert set(named.ids) == set(plain.ids) | {50}
+    base = tuple(e for e in named.edges if 50 not in e)
+    assert base == plain.edges  # same hash-selected edges under the same limit
+
+
+def test_named_site_keeps_all_its_sample_links_and_true_degree():
+    forward, reverse = _graph()
+    kwargs = dict(node_limit=50, edge_limit=10**6, fanout=40, maximum_depth=1)
+    assert 50 not in module.extract(forward, reverse, (0, 1), **kwargs).ids
+    named = module.extract(forward, reverse, (0, 1), include=(50,), **kwargs)
+    i = named.ids.index(50)
+    assert {(2, 50), (3, 50), (50, 4)} <= set(named.edges)
+    assert named.original_outdegree[i] == 2  # the link to 99 counts but is not sampled
+    assert named.retained_outdegree[i] == 1
+    assert named.depth[i] == named.depth[named.ids.index(2)] + 1

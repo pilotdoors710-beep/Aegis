@@ -23,6 +23,9 @@ class Extraction:
     node_limit: int
     edge_limit: int
     version: str = "seeded-neighborhood-v1"
+    # Named sites added after sampling (Stage 5), with every link between them and the sample.
+    # The anchor sample and its edge selection are exactly what they would be without them.
+    included: tuple[int, ...] = ()
 
 
 def extract(
@@ -35,6 +38,7 @@ def extract(
     fanout: int = 128,
     maximum_depth: int = 4,
     seed: int = 1,
+    include: Iterable[int] = (),
 ) -> Extraction:
     if len(set(anchors)) != len(anchors) or not anchors:
         raise ValueError("Distinct source anchors are required")
@@ -64,8 +68,19 @@ def extract(
         depth.update(dict.fromkeys(frontier, level))
         if not frontier or len(depth) == node_limit:
             break
+    sampled = set(depth)
+    # A named site joins only if a sampled site links to it; its depth is one past the
+    # shallowest such linker. Sites already sampled are left as they are.
+    included = []
+    for v in sorted(set(include) - sampled):
+        linkers = [depth[u] for u in reverse(v) if u in sampled]
+        if linkers:
+            included.append(v)
+            depth[v] = min(linkers) + 1
+    extra = set(included)
     ids = tuple(sorted(depth))
     original = {}
+    named_edges = []
 
     def retained_edges():
         for u in ids:
@@ -73,7 +88,9 @@ def extract(
             # WebGraph adjacency is already unique. Do not materialize entire high-degree rows.
             for v in forward(u):
                 degree += 1
-                if v in depth:
+                if v in extra or (u in extra and v in depth):
+                    named_edges.append((u, v))  # kept in full, outside the edge limit
+                elif v in sampled and u in sampled:
                     yield u, v
             original[u] = degree
 
@@ -81,7 +98,8 @@ def extract(
         u, v = edge
         return hashlib.sha256(f"{seed}:{u}:{v}".encode("ascii")).digest(), edge
 
-    edges = tuple(sorted(heapq.nsmallest(edge_limit, retained_edges(), key=edge_priority)))
+    edges = heapq.nsmallest(edge_limit, retained_edges(), key=edge_priority)
+    edges = tuple(sorted(edges + named_edges))
     counts = dict.fromkeys(ids, 0)
     for u, _ in edges:
         counts[u] += 1
@@ -96,4 +114,5 @@ def extract(
         maximum_depth,
         node_limit,
         edge_limit,
+        included=tuple(included),
     )

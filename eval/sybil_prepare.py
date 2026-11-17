@@ -95,6 +95,16 @@ class Adjacency:
             self.process.stdout.close()
 
 
+def read_include(path: Path) -> tuple[str, ...]:
+    """One registrable domain per line; blank lines and # comments ignored."""
+    rows = path.read_text(encoding="utf-8").splitlines()
+    names = tuple(dict.fromkeys(r.split("#")[0].strip().lower() for r in rows))
+    names = tuple(n for n in names if n)
+    if len(names) > 200 or any(n in ANCHORS for n in names):
+        raise ValueError("At most 200 included sites, none of them an anchor")
+    return names
+
+
 def prepare(args):
     source, output = args.source.resolve(), args.output.resolve()
     if output.exists():
@@ -137,9 +147,18 @@ def prepare(args):
             )
     label_file = source / f"{RELEASE}-domain-vertices.txt.gz"
     print("Finding curated anchors in source domain labels", flush=True)
-    anchors = {name: node for node, name in labels(label_file) if name in ANCHORS}
+    wanted = read_include(args.include) if args.include else ()
+    anchors, named = {}, {}
+    for node, name in labels(label_file):
+        if name in ANCHORS:
+            anchors[name] = node
+        if name in wanted:
+            named[name] = node
     if set(anchors) != set(ANCHORS):
         raise ValueError(f"Curated anchors missing: {set(ANCHORS) - set(anchors)}")
+    for name in wanted:
+        if name not in named:
+            print(f"Included site not in the source graph: {name}", flush=True)
     adjacency = Adjacency(args.java, args.jar.resolve(), basename)
     try:
         expected = preflight["release"]["stats"]["domain"]["nodes"]
@@ -154,9 +173,18 @@ def prepare(args):
             fanout=args.fanout,
             maximum_depth=args.depth,
             seed=args.seed,
+            include=tuple(named.values()),
         )
     finally:
         adjacency.close()
+    ids, added = set(result.ids), set(result.included)
+    sampled_named = sorted(n for n, v in named.items() if v in ids and v not in added)
+    unlinked = sorted(n for n, v in named.items() if v not in ids)
+    print(
+        f"Included {len(added)} named sites; already sampled: {sampled_named}; "
+        f"no sampled site links to: {unlinked}",
+        flush=True,
+    )
     retained = set(result.ids)
     domains = {node: name for node, name in labels(label_file) if node in retained}
     if len(domains) != len(retained):
@@ -199,6 +227,9 @@ def prepare(args):
     extraction = asdict(result)
     for key in ("ids", "edges", "original_outdegree", "retained_outdegree", "depth"):
         del extraction[key]
+    extraction["included"] = [str(v) for v in result.included]
+    if not extraction["included"]:
+        del extraction["included"]  # same manifest shape as before when nothing is added
     manifest = {
         "release": RELEASE,
         "source_counts": preflight["release"]["stats"]["domain"],
@@ -246,4 +277,7 @@ if __name__ == "__main__":
     parser.add_argument("--fanout", type=int, default=128)
     parser.add_argument("--depth", type=int, default=4)
     parser.add_argument("--seed", type=int, default=1)
+    parser.add_argument(
+        "--include", type=Path, help="named sites to add after sampling, e.g. eval/sybil_shops.txt"
+    )
     prepare(parser.parse_args())

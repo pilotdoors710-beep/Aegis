@@ -142,3 +142,27 @@ def test_anchor_identity_is_checked(artifact):
     sign(path, manifest)
     with pytest.raises(ValueError, match="curated anchor"):
         load_dataset(path)
+
+
+def test_included_sites_are_outside_the_sample_limits(artifact):
+    # All 8 links touch the included site, so the anchor sample itself has none.
+    path, manifest = artifact
+    manifest["extraction"].update(included=["8"], edge_limit=1, node_limit=8, maximum_depth=1)
+    nodes = json.loads((path / "nodes.json").read_text(encoding="utf-8"))
+    nodes[8]["depth"] = 2  # one past its shallowest linker may exceed the sample depth
+    (path / "nodes.json").write_text(json.dumps(nodes), encoding="utf-8")
+    manifest["artifacts"]["nodes.json"] = file_hash(path / "nodes.json")
+    sign(path, manifest)
+    assert load_dataset(path).manifest.extraction.included == ("8",)
+    manifest["extraction"]["included"] = []
+    sign(path, manifest)
+    with pytest.raises(ValueError, match="inconsistent"):
+        load_dataset(path)
+
+
+def test_included_site_cannot_be_an_anchor(artifact):
+    path, manifest = artifact
+    manifest["extraction"]["included"] = ["0"]
+    sign(path, manifest)
+    with pytest.raises(ValueError, match="Included sites"):
+        load_dataset(path)

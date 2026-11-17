@@ -113,6 +113,9 @@ class SybilExtractionParameters(BaseModel):
     node_limit: int = Field(ge=8, le=50000)
     edge_limit: int = Field(ge=1, le=1000000)
     version: Literal["seeded-neighborhood-v1"]
+    # Named sites added after sampling with all their sample links (Stage 5). The limits above
+    # apply to the anchor sample without them.
+    included: tuple[str, ...] = Field(default=(), max_length=200)
 
 
 class SybilArtifactNode(BaseModel):
@@ -139,8 +142,8 @@ class SybilArtifactManifest(BaseModel):
     source_counts: SybilSourceCounts
     source_sha256: dict[str, str]
     extraction: SybilExtractionParameters
-    nodes: int = Field(ge=8, le=50000)
-    edges: int = Field(ge=1, le=1000000)
+    nodes: int = Field(ge=8, le=50200)  # node_limit plus at most 200 included sites
+    edges: int = Field(ge=1, le=5000000)  # edge_limit plus the included sites' links
     anchors: tuple[str, ...] = Field(min_length=8, max_length=8)
     tau: float = Field(gt=0)
     webgraph_commit: str = Field(pattern=r"^[a-f0-9]{40}$")
