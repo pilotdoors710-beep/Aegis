@@ -53,6 +53,10 @@ export const api = {
   sybilBenchmark: (sample = false, signal?: AbortSignal) => request<Schema["SybilBenchmarkSummary"]>(
     `/sybil/benchmark?sample=${sample}`, { signal },
   ),
+  sybilRealEvaluate: (body: Schema["SybilRealDomainRequest"], signal?: AbortSignal) => request<Schema["SybilRealDomainEvidence"]>(
+    "/sybil/real/evaluate",
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal },
+  ),
   presets: (signal?: AbortSignal) => request<Schema["Preset"][]>("/presets", { signal }),
   run: (id: string, signal?: AbortSignal) => request<Schema["RunSummary"]>(`/runs/${encodeURIComponent(id)}`, { signal }),
   runs: (signal?: AbortSignal) => request<Schema["RunSummary"][]>("/runs?limit=20", { signal }),

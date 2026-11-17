@@ -70,6 +70,8 @@ from aegis.schemas import (
     SybilGenerate,
     SybilGraphEvidence,
     SybilGraphView,
+    SybilRealDomainEvidence,
+    SybilRealDomainRequest,
     SybilScenarioCreate,
     SybilScenarioRevision,
     TrialReport,
@@ -79,6 +81,7 @@ from aegis.snapshot import evidence_screens, take_snapshot
 from aegis.sybil_benchmark import run_structural_benchmark
 from aegis.sybil_dataset import load_dataset
 from aegis.sybil_maxflow import compute_bottleneck_witness
+from aegis.sybil_real import domain_index, evaluate_real_domain
 from aegis.sybil_runtime import (
     AssessmentNotReady,
     PersistenceFailed,
@@ -118,6 +121,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
                 _load_sybil_dataset, str(settings.sybil_data_dir.resolve())
             )
             await asyncio.to_thread(lambda: dataset.base.trust)
+            await asyncio.to_thread(domain_index, dataset)
         except (OSError, ValueError) as error:
             log.warning("Sybil dataset unavailable at startup: %s", error)
     try:
@@ -305,6 +309,14 @@ async def _one_analysis():
         raise _analysis_busy()
     async with _analysis_slot:
         yield
+
+
+@app.post("/sybil/real/evaluate", response_model=SybilRealDomainEvidence)
+async def evaluate_sybil_real_domain(body: SybilRealDomainRequest):
+    """Stage 5: where a real domain stands in the imported sample. The query is never fetched."""
+    dataset = _sybil_dataset()
+    with _sybil_errors():
+        return await asyncio.to_thread(evaluate_real_domain, dataset, body.query, body.max_paths)
 
 
 @app.post(

@@ -179,7 +179,7 @@ Trap taxonomy (exact strings): `hidden_info`, `preselection`, `trick_wording`, `
 | E5 | Scan any URL (SSRF-validated via `security.py`) |
 | E6 | browser-use drop-in (`wrap.py`) |
 | E11 | Trap Lab: judge-built trial |
-| Sybil | Real-data graph scoring, playground, two-shop agent integration, advanced analysis (§8) |
+| Sybil | Real-data graph scoring, playground, two-shop agent integration, advanced analysis, real-website lookup (§8) |
 
 **Not built** (never present as implemented): A7 vision second opinion, B3 hidden-info expander, D3 loop detector, C2 label rewriter, T09/T10, E8 head-to-head, A6 OCR, A8 mutation watch, C4 cookie rules, E9/E10.
 
@@ -217,7 +217,7 @@ Scores how much real web-link trust stands behind each of two simulated shops, l
 - **Challenge budget:** 1,000 injected sites, 100,000 internal edges, 25 credits (bridge 2, takeover 5, anchor takeover 15). Edits create immutable revisions; undo/redo can't mint credits. Runs freeze the revision.
 - **Agent policy:** pass only with a full converged assessment and R ≥ 60, S ≥ 0.5, L ≥ 0.5; otherwise ASK before entering the shop. This ASK is separate from payment/audit approval. Graph failure never releases an uncertain action.
 - **Advanced analysis:** bounded min-cut bottleneck witness (≤ 2,500 nodes), seeded attack search (≤ 500 proposals / 60 s, no LLM, no optimality claim), structural benchmark (6 families × 3 sizes × 2 credit levels × 5 seeds + controls).
-- Real merchants are out of scope.
+- **Real websites (Stage 5):** `POST /sybil/real/evaluate` looks a real URL/domain up in the sample and scores the site's own trust with the same formula and policy. Not in the sample or one seller on a shared platform → no score (never 0) → ASK. Shown in amber, never as bad. Nothing is fetched. Plan: `docs/plans/2026-11-17-sybil-stage5-real-merchants.md`. Real checkouts stay out of scope.
 
 ---
 

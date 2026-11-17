@@ -140,6 +140,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sybil/real/evaluate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Evaluate Sybil Real Domain
+         * @description Stage 5: where a real domain stands in the imported sample. The query is never fetched.
+         */
+        post: operations["evaluate_sybil_real_domain_sybil_real_evaluate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sybil/scenarios/{revision_id}/bottleneck": {
         parameters: {
             query?: never;
@@ -1357,6 +1377,13 @@ export interface components {
              */
             removed: components["schemas"]["RemovedText"][];
         };
+        /** SybilAnchorPath */
+        SybilAnchorPath: {
+            /** Anchor */
+            anchor: string;
+            /** Hops */
+            hops: string[];
+        };
         /** SybilAssessmentRecord */
         SybilAssessmentRecord: {
             /** Id */
@@ -1865,6 +1892,73 @@ export interface components {
             source: string;
             /** Target */
             target: string;
+        };
+        /**
+         * SybilRealDomainEvidence
+         * @description Stage 5: the same sybil-v2 formula applied to a real domain's own trust in the sample.
+         *
+         *     `not_in_sample` and `shared_platform` mean no evidence, not a bad site: both go to ASK.
+         */
+        SybilRealDomainEvidence: {
+            /** Dataset Id */
+            dataset_id: string;
+            /** Query */
+            query: string;
+            /** Host */
+            host: string;
+            /** Domain */
+            domain: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "scored" | "anchor" | "not_in_sample" | "shared_platform" | "unavailable";
+            /**
+             * Links In
+             * @default 0
+             */
+            links_in: number;
+            /**
+             * Links Out
+             * @default 0
+             */
+            links_out: number;
+            /** Depth */
+            depth?: number | null;
+            /**
+             * Top Linkers
+             * @default []
+             */
+            top_linkers: string[];
+            /**
+             * Anchor Paths
+             * @default []
+             */
+            anchor_paths: components["schemas"]["SybilAnchorPath"][];
+            scores?: components["schemas"]["SybilShopScore"] | null;
+            /** Policy Passed */
+            policy_passed: boolean;
+            /** Policy */
+            policy: string;
+            /** Reason */
+            reason: string;
+            /** Elapsed Ms */
+            elapsed_ms: number;
+            /**
+             * Disclosure
+             * @default A heuristic measure of structural support and tested sensitivity in a 50,000-site Common Crawl sample. Not a probability that this site is safe. Links are not endorsements; a site missing from the sample has no evidence, not bad evidence.
+             */
+            disclosure: string;
+        };
+        /** SybilRealDomainRequest */
+        SybilRealDomainRequest: {
+            /** Query */
+            query: string;
+            /**
+             * Max Paths
+             * @default 3
+             */
+            max_paths: number;
         };
         /** SybilRecommendation */
         SybilRecommendation: {
@@ -2471,6 +2565,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SybilCounterfactualResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    evaluate_sybil_real_domain_sybil_real_evaluate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SybilRealDomainRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SybilRealDomainEvidence"];
                 };
             };
             /** @description Validation Error */

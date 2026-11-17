@@ -400,6 +400,47 @@ class SybilBenchmarkSummary(BaseModel):
     disclosure: str
 
 
+class SybilRealDomainRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    query: str = Field(min_length=1, max_length=2048)  # a URL or a bare domain; never fetched
+    max_paths: int = Field(default=3, ge=1, le=8)
+
+
+class SybilAnchorPath(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    anchor: str
+    hops: tuple[str, ...]  # anchor first, the looked-up domain last; each hop links to the next
+
+
+class SybilRealDomainEvidence(BaseModel):
+    """Stage 5: the same sybil-v2 formula applied to a real domain's own trust in the sample.
+
+    `not_in_sample` and `shared_platform` mean no evidence, not a bad site: both go to ASK.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid", allow_inf_nan=False)
+    dataset_id: str
+    query: str
+    host: str  # what the query parsed to
+    domain: str | None  # the graph node it matched, if any
+    status: Literal["scored", "anchor", "not_in_sample", "shared_platform", "unavailable"]
+    links_in: int = Field(default=0, ge=0)  # in-sample sites linking to it
+    links_out: int = Field(default=0, ge=0)  # observed outgoing links (sampled or not)
+    depth: int | None = None  # extraction hops from the nearest anchor
+    top_linkers: tuple[str, ...] = ()  # in-sample sites sending it the most trust
+    anchor_paths: tuple[SybilAnchorPath, ...] = ()
+    scores: SybilShopScore | None = None
+    policy_passed: bool
+    policy: str  # the thresholds checked, e.g. "needs R>=60, S>=0.5, L>=0.5"
+    reason: str
+    elapsed_ms: float = Field(ge=0)
+    disclosure: str = (
+        "A heuristic measure of structural support and tested sensitivity in a 50,000-site "
+        "Common Crawl sample. Not a probability that this site is safe. Links are not "
+        "endorsements; a site missing from the sample has no evidence, not bad evidence."
+    )
+
+
 TrapType = Literal[
     "hidden_info",
     "preselection",
