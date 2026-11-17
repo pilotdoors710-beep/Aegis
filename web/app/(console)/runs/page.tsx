@@ -26,7 +26,7 @@ export default function RunsPage() {
       return <tr key={run.run_id}>
         <th><div className="run-name"><Link href={`/runs/${encodeURIComponent(run.run_id)}${live ? "" : "?replay=1"}`} aria-label={`${live ? "Watch" : "Replay"} ${run.preset_id} run, started ${started}`}>{run.preset_id}</Link>
           <span className="run-task">{run.task}</span>
-          {(run.is_sample || run.own_key) && <span>{run.is_sample && <strong className="badge">SAMPLE DATA</strong>}{run.own_key && <strong className="badge">Your key · {run.model}</strong>}</span>}
+          {run.own_key && <span><strong className="badge">Your key · {run.model}</strong></span>}
           {run.sybil_revision_id && <Link className="badge" href={`/sybil?revision=${run.sybil_revision_id}`}>Sybil graph</Link>}</div></th>
         <td><OutcomeCell outcome={run.outcomes.unshielded} ledger={run.ledger} /></td>
         <td><OutcomeCell outcome={run.outcomes.shielded} ledger={run.ledger} /></td>

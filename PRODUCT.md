@@ -28,7 +28,7 @@ Success for the interface: a judge sees, in one paired run, what the unprotected
 
 - Stage demo: 2 minutes plus 2 minutes of questions, hard buzzer, 1280×720 projector, dark room. Demos start at `/console`.
 - Paired run: unprotected agent on the left, agent with Aegis on the right, live screenshots streaming, both starting from the same task.
-- Routes: `/` entrance, `/console` presets and sample run, `/runs` history and step replay, `/lab` disposable consent trials (experimental), `/scan` read-only scan of a public URL, `/stats` evaluation results, `/health` infrastructure check, `/arena` static trap shop (separate, not part of the console's look).
+- Routes: `/` entrance, `/console` presets, `/runs` history and step replay, `/lab` disposable consent trials (experimental), `/scan` read-only scan of a public URL, `/stats` evaluation results, `/health` infrastructure check, `/arena` static trap shop (separate, not part of the console's look).
 
 ## Capabilities and Constraints
 
@@ -51,7 +51,7 @@ Success for the interface: a judge sees, in one paired run, what the unprotected
 
 ## Evidence on Hand
 
-- A recorded sample run (`/runs/sample`) and live presets served by the backend.
+- Live presets served by the backend.
 - Evaluation results on `/stats`, labelled sample, pilot or final. Counts and denominators stay visible.
 - No customers, testimonials, pricing or benchmarks beyond the arena study exist; none may be invented.
 

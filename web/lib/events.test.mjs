@@ -52,7 +52,7 @@ function harness() {
       throw new Error(`Unexpected import ${name}`);
     },
   });
-  exports.useRunStream("sample");
+  exports.useRunStream("run-1");
   assert.equal(connections.length, 1);
   return { get state() { return state; }, get updates() { return updates; }, document,
     get connection() { return connections[0]; }, cleanup: () => cleanup(),
@@ -62,7 +62,7 @@ function harness() {
 test("bursts render once per frame, preserving order and reconnect deduplication", () => {
   const h = harness();
   for (let i = 0; i < 100; i++) {
-    const event = { run_id: "sample", kind: "snapshot", mode: "shielded", step: i, payload: {} };
+    const event = { run_id: "run-1", kind: "snapshot", mode: "shielded", step: i, payload: {} };
     h.connection.emit("snapshot", event, String(i));
     h.connection.emit("snapshot", event, String(i));
   }
@@ -74,10 +74,10 @@ test("bursts render once per frame, preserving order and reconnect deduplication
 
 test("approval and transport failure flush older pending events immediately", () => {
   const h = harness();
-  h.connection.emit("snapshot", { run_id: "sample", kind: "snapshot", mode: "shielded", payload: {} }, "1");
-  h.connection.emit("ask", { run_id: "sample", kind: "ask", mode: "shielded", payload: {} }, "2");
+  h.connection.emit("snapshot", { run_id: "run-1", kind: "snapshot", mode: "shielded", payload: {} }, "1");
+  h.connection.emit("ask", { run_id: "run-1", kind: "ask", mode: "shielded", payload: {} }, "2");
   assert.deepEqual(Array.from(h.state.events, e => e.kind), ["snapshot", "ask"]);
-  h.connection.emit("decision", { run_id: "sample", kind: "decision", mode: "shielded", payload: {} }, "3");
+  h.connection.emit("decision", { run_id: "run-1", kind: "decision", mode: "shielded", payload: {} }, "3");
   h.connection.readyState = 2;
   h.connection.onerror({type: "error"});
   assert.equal(h.state.events.length, 3);
@@ -88,36 +88,36 @@ test("approval and transport failure flush older pending events immediately", ()
 
 test("hidden tabs flush events immediately and unmount cancels pending batches", () => {
   const h = harness();
-  h.connection.emit("snapshot", { run_id: "sample", kind: "snapshot", mode: "shielded", payload: {} });
+  h.connection.emit("snapshot", { run_id: "run-1", kind: "snapshot", mode: "shielded", payload: {} });
   h.document.hidden = true;
   h.document.dispatchEvent({type: "visibilitychange"});
   assert.equal(h.state.events.length, 1);
-  h.connection.emit("snapshot", { run_id: "sample", kind: "snapshot", mode: "shielded", payload: {} });
+  h.connection.emit("snapshot", { run_id: "run-1", kind: "snapshot", mode: "shielded", payload: {} });
   assert.equal(h.state.events.length, 2);
   h.document.hidden = false;
-  h.connection.emit("snapshot", { run_id: "sample", kind: "snapshot", mode: "shielded", payload: {} });
+  h.connection.emit("snapshot", { run_id: "run-1", kind: "snapshot", mode: "shielded", payload: {} });
   h.cleanup(); h.flush();
   assert.equal(h.state.events.length, 2);
 });
 
 test("one stream handles summary, ignores unknown names, and closes after both distinct sides finish", () => {
   const h = harness();
-  assert.equal(h.connection.url, "https://api.example/runs/sample/stream");
-  h.connection.emit("run", { run_id: "sample", is_sample: true, future_field: true });
-  assert.equal(h.state.summary.is_sample, true);
+  assert.equal(h.connection.url, "https://api.example/runs/run-1/stream");
+  h.connection.emit("run", { run_id: "run-1", status: "running", future_field: true });
+  assert.equal(h.state.summary.status, "running");
   h.connection.emit("future_event", {});
-  h.connection.emit("done", { run_id: "sample", kind: "done", mode: "unshielded", payload: {} }, "1");
-  h.connection.emit("done", { run_id: "sample", kind: "done", mode: "unshielded", payload: {} }, "1");
+  h.connection.emit("done", { run_id: "run-1", kind: "done", mode: "unshielded", payload: {} }, "1");
+  h.connection.emit("done", { run_id: "run-1", kind: "done", mode: "unshielded", payload: {} }, "1");
   assert.equal(h.state.events.length, 1);
   assert.equal(h.connection.closed, false);
-  h.connection.emit("done", { run_id: "sample", kind: "done", mode: "shielded", payload: {} }, "2");
+  h.connection.emit("done", { run_id: "run-1", kind: "done", mode: "shielded", payload: {} }, "2");
   assert.equal(h.state.status, "complete");
   assert.equal(h.connection.closed, true);
 });
 
 test("application error events remain distinct from transport failures", () => {
   const h = harness();
-  h.connection.emit("error", { run_id: "sample", kind: "error", mode: "shielded", payload: { message: "Example error" } });
+  h.connection.emit("error", { run_id: "run-1", kind: "error", mode: "shielded", payload: { message: "Example error" } });
   assert.equal(h.state.events.length, 1);
   assert.equal(h.connection.closed, false);
   h.connection.readyState = 2; // the browser gave up (e.g. an HTTP error response)
@@ -132,7 +132,7 @@ test("a dropped connection is retried, resumes on the next frame, and fails afte
   h.connection.onerror({ type: "error" });
   assert.equal(h.state.status, "reconnecting");
   assert.equal(h.connection.closed, false);
-  h.connection.emit("done", { run_id: "sample", kind: "done", mode: "unshielded", payload: {} }, "7");
+  h.connection.emit("done", { run_id: "run-1", kind: "done", mode: "unshielded", payload: {} }, "7");
   assert.equal(h.state.status, "streaming");
   for (let i = 0; i < 5; i += 1) h.connection.onerror({ type: "error" });
   assert.equal(h.state.status, "reconnecting");
@@ -143,7 +143,7 @@ test("a dropped connection is retried, resumes on the next frame, and fails afte
 
 test("a mismatched run fails with a visible error", () => {
   const h = harness();
-  h.connection.emit("run", { run_id: "other", is_sample: false });
+  h.connection.emit("run", { run_id: "other", status: "running" });
   assert.equal(h.state.status, "error");
   assert.match(h.state.error, /invalid run summary/);
   assert.equal(h.connection.closed, true);
@@ -152,7 +152,7 @@ test("a mismatched run fails with a visible error", () => {
 test("unmount closes the stream and ignores late events", () => {
   const h = harness();
   h.cleanup();
-  h.connection.emit("done", { run_id: "sample", kind: "done", mode: "shielded", payload: {} });
+  h.connection.emit("done", { run_id: "run-1", kind: "done", mode: "shielded", payload: {} });
   assert.equal(h.connection.closed, true);
   assert.equal(h.state.events.length, 0);
 });

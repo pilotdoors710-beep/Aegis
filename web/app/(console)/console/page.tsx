@@ -60,7 +60,7 @@ const extras = (outcome: Schema["Outcome"] | null | undefined) => outcome?.commi
 
 // Genuine numbers only: drawn from recorded live runs, hidden when there are none.
 function RunStats({ runs }: { runs: Run[] }) {
-  const done = runs.filter((run) => run.status === "done" && !run.is_sample && run.outcomes.unshielded && run.outcomes.shielded);
+  const done = runs.filter((run) => run.status === "done" && run.outcomes.unshielded && run.outcomes.shielded);
   if (!done.length) return null;
   const sum = (side: "unshielded" | "shielded") => done.reduce((total, run) => total + extras(run.outcomes[side]), 0);
   const [bad, good] = [sum("unshielded"), sum("shielded")];
@@ -129,7 +129,7 @@ export default function ConsolePage() {
   const [runs, setRuns] = useState<Run[]>([]);
   // Newest first, so each preset maps to its latest in-progress run.
   const active = new Map<string, Run>();
-  for (const run of runs) if ((run.status === "queued" || run.status === "running") && !run.is_sample && !active.has(run.preset_id)) active.set(run.preset_id, run);
+  for (const run of runs) if ((run.status === "queued" || run.status === "running") && !active.has(run.preset_id)) active.set(run.preset_id, run);
   const anyActive = active.size > 0;
   useEffect(() => {
     const controller = new AbortController();

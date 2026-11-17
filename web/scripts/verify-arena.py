@@ -1,6 +1,6 @@
 """Browser contract checks. Run with the server's Playwright Python environment.
 
-From server/: uv run python ../web/lib/verify-arena.py
+From server/: uv run python ../web/scripts/verify-arena.py
 Set ARENA_BROWSER_CHANNEL=chrome to use installed Chrome instead of bundled Chromium.
 """
 

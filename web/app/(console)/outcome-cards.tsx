@@ -52,7 +52,7 @@ export function OutcomeCards({ events, summary }: { events: RunEvent[]; summary:
   // Keep both browser panes in place while either agent is still streaming.
   if (!left || !right) return null;
   return <section className="outcomes-section" aria-label="Final commitment comparison">
-    <div className="section-heading"><h2>{summary?.is_sample ? "Sample outcomes" : "Run outcomes"}</h2><span className="outcome-difference">{difference(left, right)}</span></div>
+    <div className="section-heading"><h2>Run outcomes</h2><span className="outcome-difference">{difference(left, right)}</span></div>
     <div className="comparison-grid">{(["unshielded", "shielded"] as const).map((mode) => {
       const done = mode === "shielded" ? right : left;
       const other = mode === "shielded" ? left : right;

@@ -72,9 +72,8 @@ export default function StatsPage() {
     });
     return () => controller.abort();
   }, []);
-  const label = stats?.label === "sample" ? "SAMPLE DATA" : stats?.label === "pilot" ? "PILOT · not a result" : "FINAL";
-  const about = stats?.label === "sample" ? "Illustrative values only. These are not measured Aegis results."
-    : stats?.label === "pilot" ? "Preliminary measurements; excluded from final claims."
+  const label = stats?.label === "pilot" ? "PILOT · not a result" : "FINAL";
+  const about = stats?.label === "pilot" ? "Preliminary measurements; excluded from final claims."
     : `Exploratory${stats?.n === 1 ? " (one run per case)" : ""}, simulated arena shop only`;
   return <>
     <header className="page-head"><span className="label">Evaluation</span><h1>Measured outcomes</h1>

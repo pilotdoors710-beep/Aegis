@@ -7,5 +7,6 @@ services:
       SYBIL_DATA_DIR: /app/data/sybil
     volumes:
       - ../server/data/sybil:/app/data/sybil:ro
+      - ../eval/results/final-stats.json:/eval/results/final-stats.json:ro  # /stats reads it
     shm_size: "1gb"          # Chromium needs more than the 64MB default /dev/shm
     ports: ["127.0.0.1:8000:8000"]   # Tailscale Funnel proxies to this

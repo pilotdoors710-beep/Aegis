@@ -42,7 +42,7 @@ export function useRunStream(runId: string): StreamState {
       if (closed) return;
       try {
         const summary = JSON.parse(message.data) as Schema["RunSummary"];
-        if (summary.run_id !== runId || typeof summary.is_sample !== "boolean") throw new Error();
+        if (summary.run_id !== runId || typeof summary.status !== "string") throw new Error();
         retries = 0;
         flush();
         setState((previous) => ({ ...previous, summary, status: "streaming" }));

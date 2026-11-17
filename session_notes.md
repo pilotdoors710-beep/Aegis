@@ -22,6 +22,12 @@ Template:
 
 ## Log
 
+### 2026-11-17 · Dev A · Claude Code · codebase cleanup
+- Did: removed the fake sample run (server, API, `is_sample` field, web labels, smoke check, day-1 verify script) and the fake `/stats` fallback (now 404 if no results; Docker mounts `final-stats.json`).
+- Did: deleted unused web code and assets: old landing slider/tunnel/scene, button/demo/math-scramble, root `src/shaders`, unused fonts/logos/icons, 7 unused packages (incl. threeui, three).
+- Did: web unit tests now run in CI; browser scripts moved to `web/scripts/`; `web/README.md` rewritten short.
+- Known: `tests/test_sybil_api.py::test_enabled_preview_does_not_claim_imported_data` fails locally (also before this change).
+
 ### 2026-11-17 · Dev A · Claude Code · README finished
 - Did: checked the README against the code and eval results. Added "Check a real website" (Sybil), the two-view check, preset names, missing env vars, the web unit test command, the Sybil benchmark, and the extra screens on Scan. Updated the T11 limit (caught once with R2 on).
 - Works now: commands, routes, anchors and numbers in the README match the source and `eval/README.md`.

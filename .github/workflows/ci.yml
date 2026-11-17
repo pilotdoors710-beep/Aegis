@@ -41,5 +41,5 @@ jobs:
           (cd server && uv sync && uv run python -c "import json; from api.main import app; print(json.dumps(app.openapi()))" > ../openapi.json)
           cd web && pnpm exec openapi-typescript ../openapi.json -o lib/api-types.ts
           git diff --exit-code lib/api-types.ts
-      - run: pnpm typecheck && pnpm lint && pnpm build
+      - run: pnpm typecheck && pnpm lint && node --test lib/*.test.mjs && pnpm build
         working-directory: web

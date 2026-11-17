@@ -916,7 +916,6 @@ class RunSummary(BaseModel):
     ledger: Ledger | None = None
     outcomes: SideOutcomes = SideOutcomes()
     model: str | None = None
-    is_sample: bool = False
     own_key: bool = False  # visitor's own LLM key: not an eval run
     sybil_revision_id: str | None = None
     # The frozen evidence Aegis judged shops with; replays read this, never a fresh score.
@@ -957,7 +956,7 @@ class ConfigStats(BaseModel):
 
 
 class EvalStats(BaseModel):
-    label: Literal["sample", "pilot", "final"]
+    label: Literal["pilot", "final"]
     generated_at: datetime
     model: str | None
     n: int

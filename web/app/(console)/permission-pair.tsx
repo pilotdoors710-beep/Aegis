@@ -38,13 +38,13 @@ export function PermissionPair({ summary, finished }: { summary: Schema["RunSumm
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!finished || summary.is_sample) return;
+    if (!finished) return;
     const controller = new AbortController();
     Promise.all([api.presets(controller.signal), api.runs(controller.signal)])
       .then(([nextPresets, nextRuns]) => { setPresets(nextPresets); setRuns(nextRuns); })
       .catch((cause: Error) => { if (!controller.signal.aborted) setError(cause.message); });
     return () => controller.abort();
-  }, [finished, summary.is_sample]);
+  }, [finished]);
 
   const currentPreset = useMemo(
     () => presets.find((preset) => preset.id === summary.preset_id),
@@ -55,7 +55,7 @@ export function PermissionPair({ summary, finished }: { summary: Schema["RunSumm
     ? runs.find((run) => run.preset_id === pairPreset.id && run.status === "done" && run.run_id !== summary.run_id)
     : undefined;
 
-  if (!finished || summary.is_sample || (!currentPreset?.pair_of && !error)) return null;
+  if (!finished || (!currentPreset?.pair_of && !error)) return null;
 
   async function launchPair() {
     if (!pairPreset) return;

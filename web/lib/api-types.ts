@@ -861,7 +861,7 @@ export interface components {
              * Label
              * @enum {string}
              */
-            label: "sample" | "pilot" | "final";
+            label: "pilot" | "final";
             /**
              * Generated At
              * Format: date-time
@@ -1229,11 +1229,6 @@ export interface components {
             outcomes: components["schemas"]["SideOutcomes"];
             /** Model */
             model?: string | null;
-            /**
-             * Is Sample
-             * @default false
-             */
-            is_sample: boolean;
             /**
              * Own Key
              * @default false

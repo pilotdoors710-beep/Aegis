@@ -5,12 +5,6 @@ const nextConfig: NextConfig = {
     // Static trap arena lives in public/arena; serve clean URLs.
     return [{ source: "/arena", destination: "/arena/index.html" }];
   },
-  modularizeImports: {
-    "@designcodeio/threeui": {
-      transform: "@designcodeio/threeui/components/{{member}}",
-      skipDefaultConversion: true,
-    },
-  },
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {

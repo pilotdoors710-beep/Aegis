@@ -1,7 +1,7 @@
 """Production entrance checks using the existing server Playwright environment.
 
 Start `pnpm start --port 3100` in web/, then run this from server/ with
-`uv run python ../web/lib/verify-landing.py`. Set BROWSER_CHANNEL=chrome to use
+`uv run python ../web/scripts/verify-landing.py`. Set BROWSER_CHANNEL=chrome to use
 installed Chrome. Artifacts go in ignored .next/landing-verification/.
 No LLM calls, real agent runs, or external API writes.
 """
@@ -162,7 +162,7 @@ class LandingChecks(unittest.TestCase):
                 self.assertLess((ink["left"] + ink["right"]) / 2, width / 2)  # wordmark sits in the left column
 
     def test_12_deep_links_skip_entrance(self):
-        for path in ["/console", "/runs", "/runs/sample?replay=1", "/lab", "/scan", "/stats", "/health"]:
+        for path in ["/console", "/runs", "/lab", "/scan", "/stats", "/health"]:
             self.page.goto(BASE + path)
             self.page.locator(".app-theme").wait_for()
             self.assertEqual(self.page.get_by_role("img", name="AEGIS").count(), 0, path)
@@ -182,72 +182,6 @@ class LandingChecks(unittest.TestCase):
           return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER); }""")
         # Informational only: headless GPU timing says little about the demo laptop.
         (OUTPUT / "profile.json").write_text(json.dumps({"browser": self.browser.version, "gpu": gpu, "landing_frame_intervals_ms": samples}, indent=2))
-
-    def test_17_console_launch_approval_sample_and_replay(self):
-        sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "server"))
-        from aegis.events import sample_run
-        from aegis.presets import PRESETS
-
-        summary_model, event_models = sample_run()
-        summary = summary_model.model_dump(mode="json")
-        events = [event.model_dump(mode="json") for event in event_models]
-        preset = next(p for p in PRESETS if p.id == "clean").model_dump(mode="json")
-        cors = {"access-control-allow-origin": "*"}
-        self.page.route("**/presets", lambda route: route.fulfill(json=[preset], headers=cors))
-        pending = next(e for e in events if e["kind"] == "ask" and e["payload"]["status"] == "pending")
-        mock_id = "landing-verification"
-        live = {**summary, "run_id": mock_id, "is_sample": False, "outcomes": {}, "status": "running"}
-        ask = {**pending, "run_id": mock_id}
-
-        stream_script = """(data=>{window.EventSource=class extends EventTarget {
-          constructor(url){super();this.closed=false;const sample=url.includes('/sample/');
-            setTimeout(()=>{if(this.closed)return;const summary=sample?data.summary:data.live;
-              this.dispatchEvent(new MessageEvent('run',{data:JSON.stringify(summary)}));
-              this.dispatchEvent(new MessageEvent('ask',{data:JSON.stringify(sample?data.pending:data.ask)}));},100);}
-          close(){this.closed=true;}
-        }})(__DATA__);"""
-        self.page.add_init_script(stream_script.replace("__DATA__", json.dumps({"summary": summary, "live": live, "pending": pending, "ask": ask})))
-
-        def create(route):
-            if route.request.method == "OPTIONS":
-                route.fulfill(headers={"access-control-allow-origin": "*", "access-control-allow-methods": "POST", "access-control-allow-headers": "content-type"})
-                return
-            self.assertEqual(route.request.post_data_json, {"preset_id": "clean"})
-            self.mocked_posts.append(route.request.url)
-            route.fulfill(json={"run_id": mock_id, "status": "running", "queue_position": 0}, headers=cors)
-
-        def approve(route):
-            if route.request.method == "OPTIONS":
-                route.fulfill(headers={"access-control-allow-origin": "*", "access-control-allow-methods": "POST", "access-control-allow-headers": "content-type"})
-                return
-            self.assertEqual(route.request.post_data_json, {"decision": "approve"})
-            self.mocked_posts.append(route.request.url)
-            route.fulfill(json={**ask["payload"], "status": "approved"}, headers=cors)
-
-        self.page.route("**/runs", create)
-        self.page.route("**/runs/landing-verification/ask/*", approve)
-        self.page.goto(BASE + "/console")
-        self.page.get_by_role("button", name="Launch live run").click()
-        self.page.wait_for_url("**/runs/landing-verification?queue=0")
-        self.page.get_by_role("dialog").wait_for()
-        self.page.get_by_role("button", name="Approve", exact=True).click()
-        self.page.wait_for_function("!document.querySelector('dialog[open]')")
-        self.assertEqual(len(self.posts), 2)
-        self.page.goto(BASE + "/console")
-        self.page.get_by_role("button", name="Play sample run").click()
-        self.page.get_by_role("dialog").wait_for()
-        self.assertTrue(self.page.get_by_role("button", name="Approve", exact=True).is_disabled())
-        self.assertTrue(self.page.get_by_text("SAMPLE APPROVAL", exact=True).is_visible())
-        self.assertEqual(len(self.posts), 2)
-        self.page.route("**/runs/sample", lambda route: route.fulfill(json=summary, headers=cors))
-        self.page.route("**/runs/sample/events", lambda route: route.fulfill(json=events, headers=cors))
-        self.page.goto(BASE + "/runs/sample?replay=1")
-        next_step = self.page.get_by_role("button", name="Next", exact=True)
-        next_step.wait_for()
-        self.page.wait_for_function("!document.querySelector('.replay-controls button:last-child').disabled")
-        next_step.click()
-        self.assertTrue(self.page.get_by_role("button", name="Previous").is_enabled())
-        self.assertEqual(self.page.get_by_role("dialog").count(), 0)
 
     def test_18_own_key_launch_sends_llm_and_is_never_stored(self):
         sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "server"))

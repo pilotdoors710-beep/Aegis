@@ -1,7 +1,4 @@
-"""FastAPI entrypoint.
-
-run_id "sample" always serves a labelled, contract-valid sample run.
-"""
+"""FastAPI entrypoint."""
 
 import asyncio
 import base64
@@ -27,14 +24,12 @@ from aegis.agent import Agent, LLMAgent
 from aegis.config import Settings, settings
 from aegis.detectors import run_fast
 from aegis.events import (
-    SAMPLE_RUN_ID,
     AskGate,
     PgCache,
     PgStore,
     RunBus,
     eval_stats,
     make_store,
-    sample_run,
 )
 from aegis.intent import parse_ledger
 from aegis.llm import AllProvidersFailed, LLMResult, LLMRouter
@@ -96,8 +91,6 @@ from aegis.trials import run_trials
 log = logging.getLogger("aegis.api")
 # One shared Chromium per process (brief §3); contexts are created per run side.
 _browser: Browser | None = None
-SAMPLE_FRAME_DELAY_S = 0.3
-SAMPLE_ASK_HOLD_S = 4.0  # keep the sample's pending approval dialog readable
 _sybil = SybilRuntime()
 
 
@@ -566,7 +559,9 @@ async def scan(body: ScanRequest) -> ScanReport:
 
 @app.get("/stats")
 async def stats() -> EvalStats:
-    return eval_stats()
+    if (result := eval_stats()) is None:
+        raise HTTPException(status_code=404, detail="no evaluation results published")
+    return result
 
 
 # --- Runs -----------------------------------------------------------------------------------
@@ -700,8 +695,6 @@ def _live(run_id: str):  # noqa: ANN202
 
 @app.get("/runs/{run_id}")
 async def get_run(run_id: str) -> RunSummary:
-    if run_id == SAMPLE_RUN_ID:
-        return sample_run()[0]
     if run := _bus.get(run_id):
         return run.summary
     if summary := await _stored(_bus.store.get_run(run_id), None):
@@ -712,8 +705,6 @@ async def get_run(run_id: str) -> RunSummary:
 @app.get("/runs/{run_id}/events")
 async def get_run_events(run_id: str) -> list[Event]:
     """Replay (E3). Runs still in memory include inline JPEGs; stored runs carry screenshot_url."""
-    if run_id == SAMPLE_RUN_ID:
-        return sample_run()[1]
     if run := _bus.get(run_id):
         return run.events
     if await _stored(_bus.store.get_run(run_id), None) is None:
@@ -724,23 +715,9 @@ async def get_run_events(run_id: str) -> list[Event]:
 @app.get("/runs/{run_id}/stream", response_class=EventSourceResponse)
 async def stream_run(run_id: str, request: Request) -> EventSourceResponse:
     """SSE (C2): `event: run` frame first, then `event: <kind>` frames; ends after both dones."""
-    if run_id != SAMPLE_RUN_ID:
-        _live(run_id)
-        last = request.headers.get("last-event-id", "")  # read raw: keeps the OpenAPI contract
-        return EventSourceResponse(
-            _bus.subscribe(run_id, int(last) if last.isdigit() else 0), ping=15
-        )
-    summary, events = sample_run()
-
-    async def gen() -> AsyncIterator[dict[str, str]]:
-        yield {"event": "run", "data": summary.model_dump_json()}
-        for i, ev in enumerate(events, start=1):
-            await asyncio.sleep(SAMPLE_FRAME_DELAY_S)
-            yield {"event": ev.kind, "id": str(i), "data": ev.model_dump_json()}
-            if ev.kind == "ask" and ev.payload.status == "pending":
-                await asyncio.sleep(SAMPLE_ASK_HOLD_S)
-
-    return EventSourceResponse(gen(), ping=15)
+    _live(run_id)
+    last = request.headers.get("last-event-id", "")  # read raw: keeps the OpenAPI contract
+    return EventSourceResponse(_bus.subscribe(run_id, int(last) if last.isdigit() else 0), ping=15)
 
 
 @app.post("/runs/{run_id}/ask/{ask_id}")
