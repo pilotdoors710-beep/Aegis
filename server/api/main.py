@@ -454,7 +454,9 @@ async def healthz_arena() -> HealthArena:
 @app.get("/presets")
 async def list_presets() -> list[Preset]:
     # Presets that need a graph revision launch from /sybil, not the console grid.
-    return [p for p in PRESETS if not p.requires_sybil_revision]
+    # The variant-a r1 pair is eval/test-only: gpt-oss loops looking for the plan before checkout.
+    hidden = {"r1-forbidden", "r1-authorized"}
+    return [p for p in PRESETS if not p.requires_sybil_revision and p.id not in hidden]
 
 
 # --- Trap Lab (R2 disposable trials on a judge-written checkbox) -----------------------------

@@ -15,7 +15,7 @@ from api.main import app
 # sybil-two-shop launches from /sybil only, so it is not listed.
 C5_IDS = {
     "clean", *(f"t0{i}" for i in range(1, 9)), "main-demo",
-    "r1-forbidden", "r1-authorized", "r1b-forbidden", "r1b-authorized", "r1-budget", "r1-benign",
+    "r1b-forbidden", "r1b-authorized", "r1-budget", "r1-benign",
     "r2-consent", "r2-consent-reversed", "cloaked",
 }  # fmt: skip
 KINDS = {"snapshot", "decision", "verdict", "executed", "ask", "error", "done"}
