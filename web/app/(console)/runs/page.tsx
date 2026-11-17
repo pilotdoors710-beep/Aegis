@@ -12,7 +12,7 @@ export default function RunsPage() {
   useEffect(() => {
     const controller = new AbortController();
     api.runs(controller.signal).then((rows) => { setLoading(false); setRuns(rows); setMessage(rows.length ? "" : "No stored runs yet."); }).catch((error: Error) => {
-      if (!controller.signal.aborted) { setLoading(false); setMessage(error instanceof ApiError && error.status === 501 ? "Stored run history is awaiting backend persistence. The sample replay is available below." : `Could not load history: ${error.message}`); }
+      if (!controller.signal.aborted) { setLoading(false); setMessage(error instanceof ApiError && error.status === 501 ? "Stored run history is awaiting backend persistence." : `Could not load history: ${error.message}`); }
     });
     return () => controller.abort();
   }, []);
@@ -20,7 +20,6 @@ export default function RunsPage() {
     <header className="page-head"><span className="label">Audit trail</span><h1>Run history</h1><p className="lede">Inspect stored decisions and page evidence, one step at a time.</p></header>
     {loading && <SkeletonGroup label="Loading run history…"><SkeletonRows n={5} /></SkeletonGroup>}
     {message && <p role="status">{message}</p>}
-    <Link className="secondary-button" href="/runs/sample?replay=1">Sample replay</Link>
     {runs.length > 0 && <div className="table-scroll runs-table" role="region" aria-label="Stored runs" tabIndex={0}><table><thead><tr><th>Run</th><th>Unprotected agent</th><th>With Aegis</th><th>Status</th><th>Started</th></tr></thead><tbody>{runs.map((run) => {
       const live = run.status === "queued" || run.status === "running";
       const started = new Date(run.created_at).toLocaleString();
