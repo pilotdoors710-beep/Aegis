@@ -29,9 +29,10 @@
   font-size-adjust: 0.53;
   overflow-x: clip;
   overflow-wrap: anywhere;
-  scrollbar-color: var(--line-strong) transparent;
+  scrollbar-color: rgb(194 161 90 / 55%) transparent;
 }
-:root:has(.app-theme) { background: #0b131c; }
+/* The page scrollbar belongs to <html>, outside .app-theme: gold thumb on the navy ground. */
+:root:has(.app-theme) { background: #0b131c; color-scheme: dark; scrollbar-color: rgb(194 161 90 / 55%) #0b131c; }
 .app-theme ::selection { background: rgb(194 161 90 / 45%); color: #fff; }
 .app-theme :where(h1,h2,h3,h4,p,dl,dd,figure,ul,ol,fieldset,legend) { margin: 0; padding: 0; }
 .app-theme :where(fieldset) { border: 0; min-width: 0; }
