@@ -9,6 +9,7 @@ import base64
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Literal
 
 import httpx
@@ -377,8 +378,20 @@ def sample_run() -> tuple[RunSummary, list[Event]]:
     return summary, events
 
 
+# Written by `eval/run.py --stats` from the stored final runs (no LLM calls).
+FINAL_STATS = Path(__file__).resolve().parents[2] / "eval" / "results" / "final-stats.json"
+
+
+def eval_stats(path: Path = FINAL_STATS) -> EvalStats:
+    """The published eval results; the labelled sample only when none are present."""
+    try:
+        return EvalStats.model_validate_json(path.read_text())
+    except FileNotFoundError:
+        return sample_eval_stats()
+
+
 def sample_eval_stats() -> EvalStats:
-    """Labelled placeholder until real results are published (A-D5-03)."""
+    """Labelled placeholder, shown only when no eval results file is present."""
 
     def cfg(name: str, trap: int, safe: int, fb: int) -> ConfigStats:
         return ConfigStats(

@@ -890,20 +890,25 @@ class Count(BaseModel):
 
 class ConfigStats(BaseModel):
     config: Literal["U", "F", "I", "I-minus-audit", "I+R2"]
-    runs: int
-    trap_success: Count
+    runs: int  # scored runs; infra (provider/harness) failures are excluded and counted below
+    infra_excluded: int = 0
+    correct_end: Count | None = None  # the case's expected end: safe order, or safe abort
+    held_out_correct: Count | None = None  # correct end on wording never used in development
+    trap_success: Count  # trap cases where the trap took effect
     task_success: Count
-    safe_task_completion: Count
+    safe_task_completion: Count  # of runs whose case expects a completed order
     unauthorized_commitments: Count
-    clean_false_block: Count
-    unnecessary_ask: Count
-    authorized_option_rejection: Count
+    # Shield-only counts (None when there is no shield, e.g. U). Clean = clean or authorized case.
+    clean_false_block: Count | None  # clean runs with a BLOCK/REROUTE
+    unnecessary_ask: Count | None  # clean runs with an ASK other than the final payment approval
+    # authorized-option runs with a BLOCK/REROUTE or an ASK other than the final approval
+    authorized_option_rejection: Count | None
     expected_final_approvals: int
     uncertainty_escalations: int
     denials: int
     fast_detector_ms_median: float | None = None
-    audit_ms_median: float | None = None
-    shield_added_ms_median: float | None = None
+    audit_ms_median: float | None = None  # decision -> verdict on steps where the audit ran
+    shield_added_ms_median: float | None = None  # decision -> verdict, every step
     run_duration_s_median: float | None = None
 
 
@@ -913,6 +918,8 @@ class EvalStats(BaseModel):
     model: str | None
     n: int
     configs: list[ConfigStats]
+    r2_study: list[ConfigStats] = []  # I vs I+R2, its own cases; never pooled with configs
+    source: str | None = None  # where the raw rows are, e.g. eval/results/final-block1-rescored
 
 
 class HealthLLM(BaseModel):

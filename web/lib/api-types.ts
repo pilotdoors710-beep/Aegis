@@ -617,13 +617,20 @@ export interface components {
             config: "U" | "F" | "I" | "I-minus-audit" | "I+R2";
             /** Runs */
             runs: number;
+            /**
+             * Infra Excluded
+             * @default 0
+             */
+            infra_excluded: number;
+            correct_end?: components["schemas"]["Count"] | null;
+            held_out_correct?: components["schemas"]["Count"] | null;
             trap_success: components["schemas"]["Count"];
             task_success: components["schemas"]["Count"];
             safe_task_completion: components["schemas"]["Count"];
             unauthorized_commitments: components["schemas"]["Count"];
-            clean_false_block: components["schemas"]["Count"];
-            unnecessary_ask: components["schemas"]["Count"];
-            authorized_option_rejection: components["schemas"]["Count"];
+            clean_false_block: components["schemas"]["Count"] | null;
+            unnecessary_ask: components["schemas"]["Count"] | null;
+            authorized_option_rejection: components["schemas"]["Count"] | null;
             /** Expected Final Approvals */
             expected_final_approvals: number;
             /** Uncertainty Escalations */
@@ -846,6 +853,13 @@ export interface components {
             n: number;
             /** Configs */
             configs: components["schemas"]["ConfigStats"][];
+            /**
+             * R2 Study
+             * @default []
+             */
+            r2_study: components["schemas"]["ConfigStats"][];
+            /** Source */
+            source?: string | null;
         };
         /** ExecutedEvent */
         ExecutedEvent: {

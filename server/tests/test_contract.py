@@ -1,13 +1,14 @@
 """Contract PR #1: schemas, sample run, REST stubs, SSE framing."""
 
 import json
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import TypeAdapter
 
-from aegis.events import sample_run
-from aegis.schemas import Event, RunSummary
+from aegis.events import eval_stats, sample_run
+from aegis.schemas import EvalStats, Event, RunSummary
 from api import main
 from api.main import app
 
@@ -50,8 +51,13 @@ def test_rest_sample_and_presets(client: TestClient) -> None:
     assert {p["id"] for p in client.get("/presets").json()} == C5_IDS
     RunSummary.model_validate(client.get("/runs/sample").json())
     TypeAdapter(list[Event]).validate_python(client.get("/runs/sample/events").json())
-    assert client.get("/stats").json()["label"] == "sample"
+    stats = EvalStats.model_validate(client.get("/stats").json())
+    assert stats.label == "final" and {c.config for c in stats.configs} >= {"U", "F", "I"}
     assert client.get("/runs/demo/stream").status_code in (404, 501)
+
+
+def test_stats_fall_back_to_labelled_sample(tmp_path: Path) -> None:
+    assert eval_stats(tmp_path / "missing.json").label == "sample"
 
 
 def test_routes_declared(client: TestClient) -> None:

@@ -256,6 +256,9 @@ uv run python ../eval/run.py --configs U,F,I --cases $CASES --ablation-cases $AB
 # R2 study:
 uv run python ../eval/run.py --configs I,I+R2 --cases T11,T08,T08r,T08o,T08-share-ok,T08r-share-ok \
     --n 1 --seed 3 --model groq:openai/gpt-oss-20b --out ../eval/results/final-r2
+# the /stats page data (eval/results/final-stats.json), no LLM calls:
+uv run python ../eval/run.py --model x --out ../eval/results/final-stats.json \
+    --stats ../eval/results/final-block1-rescored/runs.jsonl ../eval/results/final-r2-rescored/runs.jsonl
 # combined core table, no LLM calls:
 uv run python ../eval/run.py --model groq:openai/gpt-oss-20b --out ../eval/results/final \
     --rescore ../eval/results/final-block1/runs.jsonl ../eval/results/final-block2/runs.jsonl

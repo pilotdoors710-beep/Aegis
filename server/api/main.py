@@ -32,8 +32,8 @@ from aegis.events import (
     PgCache,
     PgStore,
     RunBus,
+    eval_stats,
     make_store,
-    sample_eval_stats,
     sample_run,
 )
 from aegis.intent import parse_ledger
@@ -552,7 +552,7 @@ async def scan(body: ScanRequest) -> ScanReport:
 
 @app.get("/stats")
 async def stats() -> EvalStats:
-    return sample_eval_stats()
+    return eval_stats()
 
 
 # --- Runs -----------------------------------------------------------------------------------
