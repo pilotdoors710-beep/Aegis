@@ -22,6 +22,12 @@ Template:
 
 ## Log
 
+### 2026-11-17 · Dev A · Claude Code · Sybil Stage 5: check a real website
+- Did: rewrote the Stage 5 plan (the draft's code didn't match the engine and its score was mis-calibrated) and built it: `POST /sybil/real/evaluate` + "Check a real website" on `/sybil`.
+- Works now: any URL/domain is matched in the 50k sample and scored on its own trust with sybil-v2 and the same policy; anchor link paths and top linkers shown. Not in sample / platform seller → no score → asks first.
+- Real data: techcrunch.com passes (R 63), ebay.com asks (R 44), ikea.com and amazon.com are not in the sample.
+- Next: say the sample limits in Q&A (see the plan's "Limits").
+
 ### 2026-11-17 · Antigravity · Sybil Stage 5 Plan
 - Added `docs/plans/2026-11-17-sybil-stage5-real-merchants.md`: complete step-by-step implementation plan for Stage 5 real merchant and live domain evaluation.
 - Architecture: canonical domain resolver (`sybil_resolver.py`), graph evaluator with BFS anchor path tracing (`sybil_real.py`), `POST /sybil/real/evaluate` endpoint, and `/sybil` Real Merchant Inspector UI.

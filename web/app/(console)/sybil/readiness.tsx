@@ -7,6 +7,7 @@ import { api, type Schema } from "@/lib/api";
 import { siteOptions, toggleBridge, toggleTakeover, type SiteOptions } from "@/lib/sybil-edits";
 import styles from "./sybil.module.css";
 import { SybilGraph, type SelectedEdge } from "./graph";
+import { RealSiteCheck } from "./real-site";
 import { RunView } from "../run-view";
 import WakeSlider from "@/components/reactbits/WakeSlider";
 
@@ -1116,6 +1117,7 @@ export function SybilReadiness() {
           </div>
         </div>
       </section>
+      <RealSiteCheck />
       {revision && (
         <details className={styles.advanced}>
           <summary>Edit the attack by hand (JSON)</summary>
