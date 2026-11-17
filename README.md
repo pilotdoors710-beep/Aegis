@@ -246,4 +246,4 @@ The full design is in [`project_brief.md`](project_brief.md), and [`GLOSSARY.md`
 
 ## License
 
-No license has been chosen yet.
+[MIT](LICENSE). The license covers the code in this repo. The Common Crawl graph data is not in the repo and stays under [Common Crawl's terms of use](https://commoncrawl.org/terms-of-use).
