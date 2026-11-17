@@ -1237,8 +1237,11 @@ export interface components {
              * @default 0
              */
             element_count: number;
-            /** Screenshot B64 */
-            screenshot_b64?: string | null;
+            /**
+             * Screens
+             * @default []
+             */
+            screens: components["schemas"]["ScanScreen"][];
             /**
              * Detector Ms
              * @default 0
@@ -1262,6 +1265,23 @@ export interface components {
         ScanRequest: {
             /** Url */
             url: string;
+        };
+        /**
+         * ScanScreen
+         * @description One 1280x720 viewport screenshot of a scanned page, with the flagged boxes it shows.
+         */
+        ScanScreen: {
+            /** Scroll Y */
+            scroll_y: number;
+            /** Screenshot B64 */
+            screenshot_b64: string;
+            /**
+             * Boxes
+             * @default {}
+             */
+            boxes: {
+                [key: string]: number[];
+            };
         };
         /** ShippingObservation */
         ShippingObservation: {

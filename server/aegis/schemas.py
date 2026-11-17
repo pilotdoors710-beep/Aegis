@@ -642,6 +642,16 @@ class ScanRequest(BaseModel):
     url: str = Field(min_length=1, max_length=2000)
 
 
+class ScanScreen(BaseModel):
+    """One 1280x720 viewport screenshot of a scanned page, with the flagged boxes it shows."""
+
+    scroll_y: int  # how far the page was scrolled down (0 = top of page)
+    screenshot_b64: str  # JPEG, no boxes drawn
+    # element id -> [x, y, w, h] measured in this screenshot after scrolling (not snapshot bbox
+    # minus scroll: fixed elements, lazy loading and sticky headers would break that)
+    boxes: dict[str, list[float]] = {}
+
+
 class ScanReport(BaseModel):
     url: str
     final_url: str  # after redirects
@@ -650,11 +660,13 @@ class ScanReport(BaseModel):
     # Plain hidden/faint text (A1/A3 hidden_info): everywhere on real sites (screen-reader labels,
     # carousels, closed menus), so kept apart. Hidden text that instructs an agent is a B5 finding.
     notes: list[Finding] = []
-    flagged: list[Element] = []  # elements the findings point at (bbox for the red boxes)
+    flagged: list[Element] = []  # elements the findings point at
     element_count: int = 0
-    screenshot_b64: str | None = None  # JPEG, 1280x720 viewport, with no boxes drawn
+    # Top of page first, then at most 2 screens scrolled to flagged elements below it. A flagged
+    # element in no screen's boxes is hidden on the page (see Element.visible) or over the cap.
+    screens: list[ScanScreen] = []
     detector_ms: int = 0  # fast detectors only
-    elapsed_ms: int = 0  # whole scan: load, wait, snapshot, detectors, screenshot
+    elapsed_ms: int = 0  # whole scan: load, wait, snapshot, detectors, screenshots
     blocked_requests: int = 0  # requests refused by the public-address guard
 
 

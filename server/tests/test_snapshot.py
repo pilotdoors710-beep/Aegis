@@ -1,6 +1,6 @@
 from playwright.async_api import Page
 
-from aegis.snapshot import take_snapshot
+from aegis.snapshot import evidence_screens, take_snapshot
 
 
 def _by_text(snap, text):
@@ -75,3 +75,39 @@ async def test_snapshot_survives_late_navigation(page: Page, fixture_url: str) -
     for _ in range(5):
         snap = await take_snapshot(page)
     assert snap.title == "Mini Shop"
+
+
+_LONG_PAGE = """<html><body style="margin:0">
+<header style="position:fixed;top:0;left:0;right:0;height:60px;background:#eee">
+  <button>Fixed</button></header>
+<button style="margin-top:100px">Top</button>
+<div style="height:1700px"></div><button>Middle</button>
+<div style="height:300px"></div><button>Near middle</button>
+<div style="height:2500px"></div><button>Bottom</button>
+<div style="height:3000px"></div><button>Far</button>
+<button style="display:none">Gone</button><div style="height:400px"></div>
+</body></html>"""
+
+
+async def test_evidence_screens_scroll_to_flagged_elements(page: Page) -> None:
+    await page.set_content(_LONG_PAGE)
+    snap = await take_snapshot(page)
+    ids = {t: next(e.id for e in snap.elements if e.text == t)
+           for t in ["Fixed", "Top", "Middle", "Near middle", "Bottom", "Far"]}  # fmt: skip
+    gone = next(e.id for e in snap.elements if e.text == "Gone") if any(
+        e.text == "Gone" for e in snap.elements) else "missing"  # fmt: skip
+
+    screens = await evidence_screens(page, [*ids.values(), gone], settle_ms=0)
+
+    # Top of page, then one screen per group below it, capped at two extra screens.
+    assert [s.scroll_y == 0 for s in screens] == [True, False, False]
+    assert set(screens[0].boxes) == {ids["Fixed"], ids["Top"]}
+    assert {ids["Middle"], ids["Near middle"]} <= set(screens[1].boxes)  # grouped
+    assert ids["Bottom"] in screens[2].boxes and all(ids["Far"] not in s.boxes for s in screens)
+    assert all(gone not in s.boxes for s in screens)  # no size: nothing to show
+    for s in screens:
+        # Boxes are re-measured in each screenshot: the fixed header stays at the top...
+        assert s.boxes[ids["Fixed"]][1] == 0
+        # ...and every box lies inside the 1280x720 frame.
+        for x, y, w, h in s.boxes.values():
+            assert x < 1280 and y < 720 and x + w > 0 and y + h > 0

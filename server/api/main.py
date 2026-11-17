@@ -75,7 +75,7 @@ from aegis.schemas import (
     TrialReport,
 )
 from aegis.security import ScanGuard, arena_origin, validate_scan_url, validate_url
-from aegis.snapshot import screenshot_b64, take_snapshot
+from aegis.snapshot import evidence_screens, take_snapshot
 from aegis.sybil_benchmark import run_structural_benchmark
 from aegis.sybil_dataset import load_dataset
 from aegis.sybil_maxflow import compute_bottleneck_witness
@@ -532,17 +532,17 @@ async def scan(body: ScanRequest) -> ScanReport:
             d0 = time.perf_counter()
             findings = run_fast(snap, None, None)
             detector_ms = round((time.perf_counter() - d0) * 1000)
-            shot = await screenshot_b64(page)
+            notes = [f for f in findings if is_note(f)]
+            findings = [f for f in findings if not is_note(f)]
+            ids = list(dict.fromkeys(f.element_id for f in findings if f.element_id))
+            screens = await evidence_screens(page, ids)
             if await guard.leaked():
                 raise HTTPException(status_code=422, detail="Cannot scan this URL: the page was "
                                     "served from a non-public address")  # fmt: skip
-            notes = [f for f in findings if is_note(f)]
-            findings = [f for f in findings if not is_note(f)]
-            ids = {f.element_id for f in findings}
             return ScanReport(
                 url=url, final_url=page.url, title=snap.title, findings=findings, notes=notes,
                 flagged=[e for e in snap.elements if e.id in ids],
-                element_count=len(snap.elements), screenshot_b64=shot, detector_ms=detector_ms,
+                element_count=len(snap.elements), screens=screens, detector_ms=detector_ms,
                 elapsed_ms=round((time.perf_counter() - t0) * 1000),
                 blocked_requests=len(guard.blocked),
             )  # fmt: skip

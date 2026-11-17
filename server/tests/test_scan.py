@@ -67,7 +67,10 @@ async def test_trap_page_and_clean_twin(client: httpx.AsyncClient, arena_url: st
     assert ("B5_quarantine", "prompt_injection") in found
     assert ("C1_persuasion", "social_proof") in found
     assert {e.id for e in trap.flagged} == {f.element_id for f in trap.findings}
-    assert trap.screenshot_b64 and trap.element_count > 0 and trap.detector_ms < 150
+    assert trap.element_count > 0 and trap.detector_ms < 150
+    assert trap.screens and trap.screens[0].scroll_y == 0 and trap.screens[0].screenshot_b64
+    boxed = {i for s in trap.screens for i in s.boxes}
+    assert all(e.id in boxed for e in trap.flagged if e.visible)  # every visible one is shown
 
     clean = await scan(client, f"{arena_url}/product.html?traps=none")
     assert clean.findings == [] and clean.notes == []

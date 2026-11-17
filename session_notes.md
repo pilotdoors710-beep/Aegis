@@ -22,6 +22,12 @@ Template:
 
 ## Log
 
+### 2026-11-17 · Dev A · Claude Code · Scan shows flagged elements below the first screen
+- `/scan` now returns `screens`: the top of the page plus up to 2 screens scrolled to flagged elements further down. Boxes are measured again after each scroll, and it waits for scroll-in animations. `screenshot_b64` on `ScanReport` is gone (contract change, types regenerated).
+- Scan page (web, small change for Dev B to know about): screen tabs, "Show on screen N" on findings, and the footnote now says which flagged elements are invisible on the page vs not captured.
+- Checked on the two live examples: the Dawn store gets a second screen at 993 px with the crossed-out prices boxed.
+- Next: root `README.md`.
+
 ### 2026-11-17 · Dev A · Claude Code · Final eval run
 - Audited the repo before eval: tests, lint, CI, types, deploy smoke all fine. Found the harness threw away verdicts, so false blocks and latency could not be reported; fixed in `eval/run.py` (no defense code touched).
 - Tagged `eval-freeze`, ran final block 1 (65 runs) and the R2 study (12 runs). 1 infra failure. Results and tables are in `eval/README.md`.
