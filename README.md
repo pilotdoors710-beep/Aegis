@@ -3,7 +3,6 @@
 Aegis checks each action a browser agent wants to take before the action runs, and answers with ALLOW, BLOCK, REROUTE or ASK. Before a payment, a form submit or a subscription, it compares the checkout page with what the user asked for.
 
 - Live console: <https://aegis-mu-sepia-91.vercel.app/console>
-- Hackathon track: 03, AI Bodyguard (Autonomous Agent Shield)
 
 The console runs the same agent twice at once on a fake shop full of traps, one copy without Aegis and one with it. When both finish, it shows what each copy bought and how much it paid.
 

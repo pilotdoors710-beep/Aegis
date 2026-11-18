@@ -10,7 +10,7 @@ Runtime security middleware for autonomous browser agents. It sits between an AI
 
 A second area, **Sybil**, scores how much real web-link support stands behind a shop and lets judges attack that score in a playground (§8).
 
-**Track 03: AI Bodyguard — Autonomous Agent Shield.** The track requires interception before execution, real-time detection of deceptive controls/overlays/consent/injections, neutralization, and a **live side-by-side run of the same agent with and without protection**.
+**Core requirements:** interception before execution, real-time detection of deceptive controls/overlays/consent/injections, neutralization, and a **live side-by-side run of the same agent with and without protection**.
 
 ### Why it matters (cite these, don't invent numbers)
 - [DECEPTICON](https://arxiv.org/abs/2512.22894) reports dark-pattern effectiveness above **70%** on its tasks vs a **31%** human average. Those are that study's results, not ours.
