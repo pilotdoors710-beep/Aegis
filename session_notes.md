@@ -22,6 +22,11 @@ Template:
 
 ## Log
 
+### 2026-11-18 · Dev A · Claude Code · architecture.html
+- Did: added `architecture.html` at the root: what Aegis is, system diagram, a full start-to-finish run flowchart (preset → ledger → two sides → shield → ASK → execute → outcome), Sybil and eval flows, API routes, storage, and what every file does.
+- Note: the diagrams load Mermaid from jsdelivr, so open the page while online.
+- Did: removed the "Track 03 / AI Bodyguard" mentions (README, brief, architecture page); the hackathon has no tracks.
+
 ### 2026-11-18 · Dev A · Claude Code · two-shop page favours Shop B
 - Found: the last two Sybil runs had both sides pick Shop A. Nothing in the code had changed; the model's first click is close to a coin flip (A was listed first).
 - Did: Shop B is now listed first on the two-shop page with a "Most recommended" badge. Same page on both sides.
